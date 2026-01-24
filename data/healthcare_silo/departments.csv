@@ -1,0 +1,11 @@
+department_id,department_name,floor,head_doctor,phone_extension
+DEPT001,Cardiology,3,DR001,3001
+DEPT002,Neurology,4,DR005,4001
+DEPT003,Orthopedics,2,DR008,2001
+DEPT004,Pediatrics,5,DR012,5001
+DEPT005,Oncology,6,DR015,6001
+DEPT006,Emergency,1,DR003,1001
+DEPT007,Internal Medicine,3,DR018,3002
+DEPT008,Dermatology,2,DR020,2002
+DEPT009,Psychiatry,7,DR022,7001
+DEPT010,Radiology,1,DR025,1002

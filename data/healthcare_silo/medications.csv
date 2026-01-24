@@ -1,0 +1,21 @@
+medication_id,drug_name,generic_name,dosage_form,manufacturer,unit_price
+MED001,Lipitor,Atorvastatin,Tablet,Pfizer,2.50
+MED002,Metformin,Metformin HCL,Tablet,Teva,0.15
+MED003,Lisinopril,Lisinopril,Tablet,Lupin,0.10
+MED004,Amlodipine,Amlodipine Besylate,Tablet,Norvasc,0.20
+MED005,Omeprazole,Omeprazole,Capsule,AstraZeneca,0.25
+MED006,Losartan,Losartan Potassium,Tablet,Merck,0.30
+MED007,Gabapentin,Gabapentin,Capsule,Pfizer,0.45
+MED008,Hydrocodone,Hydrocodone/Acetaminophen,Tablet,Mallinckrodt,1.20
+MED009,Sertraline,Sertraline HCL,Tablet,Zoloft,0.35
+MED010,Amoxicillin,Amoxicillin,Capsule,GSK,0.18
+MED011,Prednisone,Prednisone,Tablet,Watson,0.12
+MED012,Ibuprofen,Ibuprofen,Tablet,Advil,0.08
+MED013,Acetaminophen,Acetaminophen,Tablet,Tylenol,0.05
+MED014,Aspirin,Aspirin,Tablet,Bayer,0.04
+MED015,Ciprofloxacin,Ciprofloxacin,Tablet,Bayer,0.55
+MED016,Azithromycin,Azithromycin,Tablet,Pfizer,1.80
+MED017,Warfarin,Warfarin Sodium,Tablet,Bristol-Myers,0.22
+MED018,Clopidogrel,Clopidogrel,Tablet,Plavix,0.40
+MED019,Furosemide,Furosemide,Tablet,Sanofi,0.08
+MED020,Alprazolam,Alprazolam,Tablet,Xanax,0.65

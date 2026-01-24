@@ -1,0 +1,40 @@
+{
+  "orchestrator_stats": {
+    "total_agents_created": 14,
+    "total_todos_completed": 16,
+    "total_todos_failed": 0,
+    "total_execution_time": 22118.384901046753,
+    "phases_completed": 3,
+    "started_at": "2026-01-20T03:22:50.553748",
+    "completed_at": "2026-01-20T09:31:28.938629",
+    "consensus_discussions": 1,
+    "consensus_accepted": 0,
+    "consensus_rejected": 0,
+    "consensus_provisional": 0,
+    "consensus_escalated": 0
+  },
+  "context_stats": {
+    "scenario": "airport_silo_20260120_032247",
+    "domain": "aerospace",
+    "domain_confidence": 0.95,
+    "is_auto_detected": true,
+    "tables_count": 9,
+    "homeomorphisms_found": 5,
+    "unified_entities": 11,
+    "ontology_concepts": 16,
+    "approved_concepts": 14,
+    "governance_decisions": 16,
+    "pending_actions": 0,
+    "stages_completed": 0,
+    "is_complete": false,
+    "evidence_blocks": 66,
+    "evidence_chain_valid": false
+  },
+  "continuation_stats": {
+    "continuations_triggered": 3,
+    "todos_resumed": 3,
+    "todos_abandoned": 0,
+    "last_check_at": "2026-01-20T09:31:10.290312",
+    "last_continuation_at": "2026-01-20T09:31:10.290523"
+  }
+}

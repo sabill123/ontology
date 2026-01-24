@@ -1,0 +1,14 @@
+{
+  "scenario_name": "marketing_silo_20260121_135842",
+  "domain": "e_commerce",
+  "domain_confidence": 0.95,
+  "execution_time_seconds": 652.957648,
+  "statistics": {
+    "tables_processed": 11,
+    "entities_found": 7,
+    "relationships_found": 33,
+    "insights_generated": 42,
+    "governance_actions": 0
+  },
+  "generated_at": "2026-01-21T14:09:34.987181"
+}

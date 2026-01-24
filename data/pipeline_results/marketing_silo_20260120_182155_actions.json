@@ -1,0 +1,185 @@
+[
+  {
+    "action_id": "action_1",
+    "title": "Create email-to-conversion attribution view",
+    "description": "Implement a curated analytics view (e.g., dim/email_conversion_attribution) that links conversions to originating email campaigns using send_id as the primary key and campaign_id as a fallback. The view should: (1) join conversions to email_sends on send_id where available; (2) optionally infer attribution via campaign_id and recipient identifiers when send_id is missing; (3) expose key fields such as conversion_id, order_id, customer_id, send_id, campaign_id, send_timestamp, conversion_timestamp, revenue_amount, attribution_model (e.g., last_click, first_touch), and attribution_confidence; and (4) be optimized for BI tools with clear, stable column naming and filters for date ranges and campaign types.",
+    "action_type": "implementation",
+    "priority": "critical",
+    "priority_score": 3.4,
+    "impact": "high",
+    "effort": "medium",
+    "estimated_hours": 24,
+    "source_decision": "decision_link_conversions_email_sends",
+    "dependencies": [
+      "action_2",
+      "action_4"
+    ],
+    "assignee_role": "developer",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_8",
+    "title": "Create email engagement metrics aggregation view",
+    "description": "Build an aggregated metrics view (e.g., mart/email_engagement_metrics) that rolls up email_events at the send and campaign level. The view should: (1) join email_events to email_sends via send_id; (2) compute per-send metrics such as opens, unique_opens, clicks, unique_clicks, bounces, unsubscribes, spam_reports, delivery_status; (3) derive rates (open_rate, click_through_rate, bounce_rate, unsubscribe_rate) using sent_count from email_sends; (4) optionally aggregate at campaign_id and send_date levels for reporting; and (5) be partitioned by send_date for performance. Include consistent naming and data types suitable for dashboards and automated reporting.",
+    "action_type": "implementation",
+    "priority": "high",
+    "priority_score": 3.4,
+    "impact": "high",
+    "effort": "medium",
+    "estimated_hours": 24,
+    "source_decision": "decision_link_email_events_email_sends",
+    "dependencies": [
+      "action_5",
+      "action_6",
+      "action_7"
+    ],
+    "assignee_role": "developer",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_2",
+    "title": "Review data quality for conversion–email linkages",
+    "description": "Perform a focused data quality assessment on the linkage between conversions and email_sends. Tasks: (1) profile the percentage of conversions with valid send_id and/or campaign_id; (2) identify patterns in missing or invalid send_id values (by source system, campaign, time period); (3) quantify duplicate or conflicting linkages (e.g., multiple sends tied to the same conversion); (4) document root causes such as tracking parameter loss, integration gaps, or delayed event ingestion; and (5) produce a short report with recommended remediation steps and fields that must be mandatory for reliable attribution.",
+    "action_type": "review",
+    "priority": "high",
+    "priority_score": 3.3,
+    "impact": "medium",
+    "effort": "low",
+    "estimated_hours": 10,
+    "source_decision": "decision_link_conversions_email_sends",
+    "dependencies": [],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_5",
+    "title": "Enforce FK constraint from email_events to email_sends",
+    "description": "Introduce and roll out a foreign key constraint from email_events.send_id to email_sends.id with a safe deployment plan. Steps: (1) profile current data to measure orphaned events and fix or archive invalid rows; (2) align on cascade behavior (prefer soft-delete or status flag over hard cascade delete in production if business requires event history retention); (3) implement the FK constraint in the warehouse or operational DB schema; (4) test in a staging environment with representative volumes; and (5) deploy with monitoring to ensure no unexpected load or failures in upstream ingestion jobs.",
+    "action_type": "implementation",
+    "priority": "high",
+    "priority_score": 3.1,
+    "impact": "high",
+    "effort": "high",
+    "estimated_hours": 32,
+    "source_decision": "decision_link_email_events_email_sends",
+    "dependencies": [
+      "action_7",
+      "action_6"
+    ],
+    "assignee_role": "admin",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_4",
+    "title": "Document email conversion attribution logic",
+    "description": "Create clear documentation for the email conversion attribution model used in analytics. The document should: (1) define the primary attribution model (e.g., last email before conversion within X days) and any alternative models; (2) specify rules for handling multiple sends, multiple campaigns, and cross-channel interactions; (3) describe how missing send_id or campaign_id is treated (e.g., excluded, inferred, or flagged as unknown); (4) map business concepts (conversion, order, lead, campaign) to underlying tables and fields; and (5) be published in the data dictionary or knowledge base and referenced by BI dashboards.",
+    "action_type": "documentation",
+    "priority": "medium",
+    "priority_score": 2.9,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 8,
+    "source_decision": "decision_link_conversions_email_sends",
+    "dependencies": [
+      "action_2"
+    ],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_6",
+    "title": "Document email event types and send relationships",
+    "description": "Produce reference documentation for email_events and their relationship to email_sends. Include: (1) a catalog of event types (open, unique_open, click, unique_click, bounce, soft_bounce, hard_bounce, unsubscribe, spam_report, delivered, sent) with precise definitions; (2) explanation of how each event is linked to email_sends via send_id and any additional keys (e.g., message_id); (3) notes on event ordering and deduplication rules; and (4) guidance for analysts on which events to use for engagement KPIs and which to exclude (e.g., test sends, internal traffic).",
+    "action_type": "documentation",
+    "priority": "medium",
+    "priority_score": 2.9,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 8,
+    "source_decision": "decision_link_email_events_email_sends",
+    "dependencies": [],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_7",
+    "title": "Monitor orphaned email events with alerts",
+    "description": "Set up automated monitoring to detect and alert on email_events records that do not have a matching email_sends record (orphaned events). Implementation details: (1) create a daily job that computes the orphan rate (orphaned_events / total_events) and surfaces it in a monitoring table or dashboard; (2) define a target of 0% orphaned events with a warning threshold (e.g., >0.1%); (3) configure alerts to notify data engineering when the threshold is exceeded; and (4) log sample orphaned records for investigation and long-term trend analysis.",
+    "action_type": "monitoring",
+    "priority": "medium",
+    "priority_score": 2.9,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 10,
+    "source_decision": "decision_link_email_events_email_sends",
+    "dependencies": [],
+    "assignee_role": "developer",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_9",
+    "title": "Enforce FK between leads.email and email_sends.recipient_email",
+    "description": "Implement a referential integrity constraint linking leads.email to email_sends.recipient_email to ensure that all email sends correspond to known leads where applicable. Steps: (1) profile current data to measure match and containment ratios between leads.email and email_sends.recipient_email; (2) decide on scope (e.g., only marketing sends vs. transactional emails); (3) clean or standardize email formats (case normalization, trimming, handling aliases) to maximize match rate; (4) implement the FK or equivalent integrity rule in the warehouse schema; and (5) validate impact on ETL/ELT jobs and downstream analytics.",
+    "action_type": "implementation",
+    "priority": "medium",
+    "priority_score": 2.8,
+    "impact": "high",
+    "effort": "high",
+    "estimated_hours": 32,
+    "source_decision": "decision_link_vo_leads_email_sends",
+    "dependencies": [
+      "action_11",
+      "action_10"
+    ],
+    "assignee_role": "admin",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_3",
+    "title": "Monitor monthly email conversion attribution rate",
+    "description": "Implement a recurring metric that tracks the percentage of conversions successfully attributed to email_sends, with a target of at least 80%. Tasks: (1) define the metric as attributed_conversions / total_conversions over a monthly window; (2) build a scheduled job or view that calculates this metric by month, campaign, and channel; (3) surface the metric in a dashboard with historical trends; (4) configure alerts when the attribution rate drops below the 80% target or deviates significantly from recent history; and (5) feed insights back into data quality and tracking improvements.",
+    "action_type": "monitoring",
+    "priority": "medium",
+    "priority_score": 2.6,
+    "impact": "low",
+    "effort": "medium",
+    "estimated_hours": 16,
+    "source_decision": "decision_link_conversions_email_sends",
+    "dependencies": [
+      "action_1",
+      "action_2"
+    ],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_10",
+    "title": "Document lead-to-email-send relationship and workflow",
+    "description": "Add documentation to the data dictionary describing how leads relate to email_sends within the email marketing workflow. Include: (1) conceptual flow from lead creation to campaign enrollment, email send, engagement, and conversion; (2) mapping of key fields (leads.id, leads.email, email_sends.recipient_email, campaign_id, send_id) and how they are used to join datasets; (3) explanation of edge cases (e.g., emails sent to non-leads, multiple leads sharing an email, merged leads); and (4) guidance for analysts on recommended join paths for lead-level and campaign-level reporting.",
+    "action_type": "documentation",
+    "priority": "medium",
+    "priority_score": 2.6,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 8,
+    "source_decision": "decision_link_vo_leads_email_sends",
+    "dependencies": [],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_11",
+    "title": "Monitor lead–email_sends containment ratio weekly",
+    "description": "Create a weekly monitoring process that measures the containment ratio between email_sends.recipient_email and leads.email, with alerts when it drops below 95%. Implementation: (1) compute the ratio of sends with a matching lead record vs. total sends; (2) break down the metric by campaign type, source system, and region to localize issues; (3) store weekly snapshots in a monitoring table; (4) configure alerts to notify data owners when the ratio falls below 95%; and (5) use findings to refine lead capture, syncing, and deduplication processes.",
+    "action_type": "monitoring",
+    "priority": "medium",
+    "priority_score": 2.6,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 10,
+    "source_decision": "decision_link_vo_leads_email_sends",
+    "dependencies": [],
+    "assignee_role": "analyst",
+    "status": "pending"
+  }
+]

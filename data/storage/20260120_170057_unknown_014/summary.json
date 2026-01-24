@@ -1,0 +1,113 @@
+{
+  "job_id": "20260120_170057_unknown_014",
+  "domain": "unknown",
+  "started_at": "2026-01-20T17:00:57.720762",
+  "completed_at": "2026-01-20T17:11:42.877930",
+  "duration_seconds": 645.157168,
+  "status": "completed",
+  "statistics": {
+    "total_agents": 16,
+    "completed_agents": 16,
+    "total_llm_calls": 20,
+    "total_tokens": 252962
+  },
+  "agent_stats": {
+    "Data Analyst": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 42435.778999999995,
+      "llm_calls": 1
+    },
+    "TDA Expert": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 11082.646999999999,
+      "llm_calls": 1
+    },
+    "Schema Analyst": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 45039.792,
+      "llm_calls": 1
+    },
+    "Value Matcher": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 35012.808,
+      "llm_calls": 1
+    },
+    "Entity Classifier": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 33019.05699999999,
+      "llm_calls": 1
+    },
+    "Relationship Detector": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 54978.935,
+      "llm_calls": 1
+    },
+    "Ontology Architect": {
+      "phase": "phase2_refinement",
+      "success": true,
+      "duration_ms": 58927.537000000004,
+      "llm_calls": 2
+    },
+    "Conflict Resolver": {
+      "phase": "phase2_refinement",
+      "success": true,
+      "duration_ms": 1.0399999999999998,
+      "llm_calls": 0
+    },
+    "Quality Judge": {
+      "phase": "phase2_refinement",
+      "success": true,
+      "duration_ms": 66887.12599999999,
+      "llm_calls": 2
+    },
+    "Semantic Validator": {
+      "phase": "phase2_refinement",
+      "success": true,
+      "duration_ms": 66401.46900000001,
+      "llm_calls": 2
+    },
+    "Governance Strategist": {
+      "phase": "phase3_governance",
+      "success": true,
+      "duration_ms": 54815.763,
+      "llm_calls": 2
+    },
+    "Action Prioritizer": {
+      "phase": "phase3_governance",
+      "success": true,
+      "duration_ms": 17632.293,
+      "llm_calls": 1
+    },
+    "Risk Assessor": {
+      "phase": "phase3_governance",
+      "success": true,
+      "duration_ms": 40570.996999999996,
+      "llm_calls": 1
+    },
+    "Policy Generator": {
+      "phase": "phase3_governance",
+      "success": true,
+      "duration_ms": 23588.851,
+      "llm_calls": 1
+    }
+  },
+  "input_tables": [
+    "web_sessions",
+    "customers",
+    "products",
+    "orders",
+    "conversions",
+    "email_events",
+    "leads",
+    "ad_campaigns",
+    "email_sends",
+    "campaigns",
+    "ad_performance"
+  ]
+}

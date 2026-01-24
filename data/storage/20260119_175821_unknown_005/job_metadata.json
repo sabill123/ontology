@@ -1,0 +1,32 @@
+{
+  "job_id": "20260119_175821_unknown_005",
+  "domain": "unknown",
+  "started_at": "2026-01-19T17:58:21.925782",
+  "completed_at": "2026-01-19T18:08:58.683766",
+  "status": "completed",
+  "total_agents": 16,
+  "completed_agents": 16,
+  "total_llm_calls": 16,
+  "total_tokens": 195455,
+  "input_tables": [
+    "airport_employees",
+    "baggage_handling",
+    "airlines",
+    "aircraft_maintenance",
+    "delay_records",
+    "gates",
+    "passengers",
+    "aircraft_registry"
+  ],
+  "config": {
+    "scenario_name": "airport_silo_20260119_175821",
+    "phases": [
+      "discovery",
+      "refinement",
+      "governance"
+    ],
+    "max_concurrent_agents": 5,
+    "use_llm": true,
+    "llm_model": "gpt-4o-mini"
+  }
+}

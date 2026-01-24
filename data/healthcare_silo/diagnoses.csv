@@ -1,0 +1,28 @@
+diagnosis_id,appt_id,pt_id,icd_code,diagnosis_name,severity,diagnosed_by,diagnosis_date
+DX001,APPT001,PT001,I10,Essential Hypertension,moderate,DR001,2024-01-15
+DX002,APPT002,PT002,G43.909,Migraine Unspecified,mild,DR005,2024-01-15
+DX003,APPT003,PT003,M17.11,Primary Osteoarthritis Right Knee,moderate,DR008,2024-01-15
+DX004,APPT005,PT005,C34.90,Lung Cancer,severe,DR014,2024-01-15
+DX005,APPT006,PT006,E11.9,Type 2 Diabetes,moderate,DR017,2024-01-16
+DX006,APPT007,PT007,I49.9,Cardiac Arrhythmia,moderate,DR001,2024-01-16
+DX007,APPT008,PT008,L30.9,Dermatitis Unspecified,mild,DR020,2024-01-16
+DX008,APPT009,PT009,F41.1,Generalized Anxiety Disorder,moderate,DR022,2024-01-16
+DX009,APPT010,PT010,G43.909,Migraine Unspecified,mild,DR005,2024-01-16
+DX010,APPT011,PT011,S06.0X0A,Concussion,moderate,DR003,2024-01-17
+DX011,APPT012,PT012,M54.5,Low Back Pain,moderate,DR008,2024-01-17
+DX012,APPT014,PT014,C50.919,Breast Cancer,severe,DR014,2024-01-17
+DX013,APPT015,PT015,E11.65,Type 2 Diabetes with Hyperglycemia,moderate,DR017,2024-01-17
+DX014,APPT016,PT016,I10,Essential Hypertension,mild,DR001,2024-01-18
+DX015,APPT017,PT017,R42,Dizziness and Giddiness,mild,DR006,2024-01-18
+DX016,APPT018,PT018,F32.1,Major Depressive Disorder,moderate,DR022,2024-01-18
+DX017,APPT019,PT019,S82.001A,Fracture of Right Patella,severe,DR003,2024-01-18
+DX018,APPT020,PT020,M16.11,Primary Osteoarthritis Right Hip,severe,DR009,2024-01-18
+DX019,APPT022,PT022,C18.9,Colon Cancer,severe,DR015,2024-01-19
+DX020,APPT023,PT023,E78.0,Hypercholesterolemia,mild,DR018,2024-01-19
+DX021,APPT024,PT024,L20.9,Atopic Dermatitis,moderate,DR021,2024-01-19
+DX022,APPT025,PT025,I25.10,Coronary Artery Disease,severe,DR002,2024-01-20
+DX023,APPT026,PT026,G40.909,Epilepsy Unspecified,moderate,DR007,2024-01-20
+DX024,APPT027,PT027,F33.1,Recurrent Major Depressive Disorder,moderate,DR023,2024-01-20
+DX025,APPT028,PT028,J06.9,Acute Upper Respiratory Infection,mild,DR004,2024-01-20
+DX026,APPT029,PT029,M16.12,Primary Osteoarthritis Left Hip,moderate,DR010,2024-01-21
+DX027,APPT001,PT001,E78.0,Hypercholesterolemia,mild,DR001,2024-01-15

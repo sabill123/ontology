@@ -1,0 +1,51 @@
+[
+  {
+    "action_id": "action_1",
+    "title": "Enforce FK constraint between conversions.campaign_id and ad_campaigns.id",
+    "description": "Implement and enforce a database-level foreign key constraint between conversions.campaign_id and ad_campaigns.id to guarantee referential integrity for campaign attribution in the e_commerce funnel. Implementation steps:\n1) Profile existing data to identify and resolve orphaned conversions where conversions.campaign_id does not exist in ad_campaigns.id (e.g., via temporary exception table and remediation script).\n2) Align data types, collation, and indexing between conversions.campaign_id and ad_campaigns.id to avoid constraint creation failures and performance regressions.\n3) Create the FK constraint in the primary OLTP/analytics database (e.g., ALTER TABLE conversions ADD CONSTRAINT fk_conversions_campaign_id FOREIGN KEY (campaign_id) REFERENCES ad_campaigns(id)).\n4) Validate that key reporting and ETL/ELT jobs (e.g., attribution, ROAS, CAC dashboards) continue to run successfully post-deployment.\n5) Roll out to lower environments first (dev/stage), then production with a change window and rollback plan.\nThis action directly reduces mis-attributed conversions, improves trust in marketing performance metrics, and prevents future data drift between campaign and conversion tables.",
+    "action_type": "implementation",
+    "priority": "critical",
+    "priority_score": 3.4,
+    "impact": "high",
+    "effort": "medium",
+    "estimated_hours": 12,
+    "source_decision": "decision_link_vo_conversions_ad_campaigns",
+    "dependencies": [],
+    "assignee_role": "developer",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_2",
+    "title": "Document conversions–ad_campaigns relationship and attribution logic",
+    "description": "Create and publish comprehensive documentation for the relationship between conversions.campaign_id and ad_campaigns.id in the data dictionary / catalog. The documentation should include:\n1) Technical definition: table and column names, data types, cardinality (many conversions to one campaign), and enforced FK constraint name (if applicable).\n2) Business meaning: what constitutes a 'conversion' in the e_commerce context (e.g., purchase, add-to-cart, signup) and what an 'ad_campaign' represents (e.g., paid search, social, display).\n3) Attribution model: how conversions are linked to campaigns (e.g., last-click, first-touch, multi-touch), attribution window (e.g., 7/30 days), and any channel-specific nuances.\n4) Data quality expectations: how orphaned conversions are handled, expected containment/overlap metrics, and how to interpret missing or null campaign_id values.\n5) Usage guidance: recommended tables/joins for BI dashboards, marketing performance reports, and experimentation analysis.\nThis documentation should be accessible to analysts and marketers and updated whenever the attribution logic or schema changes.",
+    "action_type": "documentation",
+    "priority": "medium",
+    "priority_score": 2.9,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 6,
+    "source_decision": "decision_link_vo_conversions_ad_campaigns",
+    "dependencies": [
+      "action_1"
+    ],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_3",
+    "title": "Implement monitoring for orphaned conversions without matching campaigns",
+    "description": "Set up automated data quality monitoring to detect and alert on orphaned conversions where conversions.campaign_id has no corresponding ad_campaigns.id. Monitoring design:\n1) Define a daily metric: orphaned_conversion_rate = count(distinct conversions.campaign_id not in ad_campaigns.id) / count(distinct conversions.campaign_id).\n2) Implement checks in the existing DQ/observability tool or scheduled SQL job (e.g., dbt tests, Great Expectations, or custom SQL with alerting).\n3) Configure thresholds and alerts (e.g., warn if orphaned_conversion_rate > 0.5%, critical alert if > 2%) and route notifications to the data and marketing operations channels.\n4) Log historical metrics to track trends over time and correlate spikes with upstream changes (new campaign sources, tracking changes, ETL failures).\n5) Integrate with incident management (e.g., create tickets automatically when thresholds are breached) to ensure timely remediation.\nThis monitoring ensures that the enforced FK constraint and attribution logic remain reliable as new campaigns and tracking integrations are added.",
+    "action_type": "monitoring",
+    "priority": "medium",
+    "priority_score": 2.9,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 8,
+    "source_decision": "decision_link_vo_conversions_ad_campaigns",
+    "dependencies": [
+      "action_1"
+    ],
+    "assignee_role": "data_owner",
+    "status": "pending"
+  }
+]

@@ -1,0 +1,51 @@
+[
+  {
+    "action_id": "action_1",
+    "title": "Implement and backfill FK constraint between conversions.campaign_id and ad_campaigns.campaign_id",
+    "description": "Design and implement a foreign key constraint from conversions.campaign_id to ad_campaigns.campaign_id to enforce referential integrity for campaign attribution in the e_commerce tracking schema. Steps:\n1) Profile existing data to confirm current 100% containment and identify any edge cases (e.g., NULL campaign_id, legacy test data).\n2) Align on allowed behaviors with business/data owners (e.g., should conversions with NULL campaign_id be allowed; what happens when a campaign is deleted).\n3) Create a migration plan: (a) add NOT VALID FK constraint (if supported), (b) validate existing data, (c) clean or quarantine any violating rows if discovered, (d) switch to fully enforced constraint.\n4) Update ETL/ELT pipelines and ingestion jobs to ensure they cannot insert conversions with non-existent campaign_id values.\n5) Add basic logging/metrics around FK violations at the application or ingestion layer.\nThis ensures consistent conversion-to-campaign attribution and prevents silent data corruption in downstream reporting and ML models.",
+    "action_type": "implementation",
+    "priority": "high",
+    "priority_score": 3.1,
+    "impact": "high",
+    "effort": "high",
+    "estimated_hours": 24,
+    "source_decision": "decision_link_vo_conversions_ad_campaigns",
+    "dependencies": [],
+    "assignee_role": "developer",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_2",
+    "title": "Document conversion-to-campaign attribution rules and edge cases in the data dictionary",
+    "description": "Create comprehensive documentation for the conversion-to-campaign attribution model used in the e_commerce analytics stack. The documentation should be stored in the central data dictionary or catalog and must include:\n1) Conceptual model: definition of a \"conversion\" and a \"campaign\" and how they are linked via conversions.campaign_id → ad_campaigns.campaign_id.\n2) Attribution logic: single-touch vs. multi-touch rules, lookback windows, channel precedence, and how multiple campaigns per user/session are handled.\n3) Data rules: when campaign_id can be NULL, how late-arriving campaign data is handled, and how invalid/missing campaign references are treated.\n4) Impacted assets: list of core dashboards, reports, and ML models that rely on this relationship.\n5) Governance: data owner, technical owner, and review cadence for this documentation.\nThis documentation will support consistent interpretation of metrics (e.g., ROAS, CAC) and make the new FK constraint and monitoring rules understandable to business and technical stakeholders.",
+    "action_type": "documentation",
+    "priority": "medium",
+    "priority_score": 2.9,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 8,
+    "source_decision": "decision_link_vo_conversions_ad_campaigns",
+    "dependencies": [
+      "action_1"
+    ],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_3",
+    "title": "Configure data quality monitoring for orphaned conversions and FK violations",
+    "description": "Set up automated data quality checks and alerts to ensure that every conversion record continues to have a valid campaign reference and that the FK constraint remains healthy over time. Scope:\n1) Implement a daily (or near-real-time) check that computes containment between conversions.campaign_id and ad_campaigns.campaign_id and flags any drop from the current 100% level.\n2) Track counts and rates of orphaned conversions (campaign_id not found in ad_campaigns) and NULL campaign_id values, with thresholds for warning and critical alerts.\n3) Integrate checks into the existing monitoring stack (e.g., dbt tests, Great Expectations, or custom SQL checks) and route alerts to the appropriate on-call channel.\n4) Add a simple dashboard or metric view to trend containment and orphan rates over time.\n5) Document runbooks for responding to alerts (e.g., rollback recent changes, fix ingestion logic, backfill missing campaigns).\nThis monitoring ensures that the enforced FK constraint and attribution logic remain reliable as schemas, pipelines, and campaign sources evolve.",
+    "action_type": "monitoring",
+    "priority": "high",
+    "priority_score": 2.9,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 10,
+    "source_decision": "decision_link_vo_conversions_ad_campaigns",
+    "dependencies": [
+      "action_1"
+    ],
+    "assignee_role": "admin",
+    "status": "pending"
+  }
+]

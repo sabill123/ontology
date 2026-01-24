@@ -1,0 +1,11 @@
+promo_id,promo_name,discount_type,discount_value,start_date,end_date,min_purchase,applicable_category
+PROMO001,신년맞이 특가,percentage,10,2024-01-01,2024-01-31,50000,CAT001
+PROMO002,설연휴 할인,fixed,20000,2024-02-05,2024-02-15,100000,
+PROMO003,봄맞이 패션위크,percentage,15,2024-03-01,2024-03-15,80000,CAT005
+PROMO004,가전 빅세일,percentage,12,2024-03-10,2024-03-31,500000,CAT008
+PROMO005,게이밍 페스타,fixed,50000,2024-04-01,2024-04-15,200000,CAT011
+PROMO006,오디오 특별전,percentage,20,2024-04-10,2024-04-30,100000,CAT004
+PROMO007,VIP 전용 쿠폰,percentage,25,2024-01-01,2024-12-31,0,
+PROMO008,첫구매 할인,fixed,10000,2024-01-01,2024-12-31,30000,
+PROMO009,생일축하 쿠폰,percentage,15,2024-01-01,2024-12-31,50000,
+PROMO010,리뷰 작성 보상,fixed,5000,2024-01-01,2024-12-31,0,

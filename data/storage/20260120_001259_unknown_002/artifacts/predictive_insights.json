@@ -1,0 +1,80 @@
+[
+  {
+    "insight_id": "PI_001",
+    "insight_type": "simulation_based",
+    "source_table": "airlines",
+    "source_column": "founded_year",
+    "source_condition": "항공사 설립 연도가 최신일수록 좌석 구성에 큰 영향을 미침",
+    "target_table": "aircraft_registry",
+    "target_column": "seat_config_f",
+    "predicted_impact": "항공사 설립 연도가 최신일수록 좌석 구성에 큰 영향을 미침",
+    "correlation_coefficient": 0.6094606200718917,
+    "p_value": 0.00035033277286261057,
+    "confidence": 0.7,
+    "sample_size": 30,
+    "business_interpretation": "설립 연도가 최신인 항공사는 더 많은 좌석 구성을 보유할 가능성이 높습니다. 이는 최신 항공사들이 더 다양한 항공기 모델과 좌석 구성을 채택하고 있음을 시사합니다.",
+    "recommended_action": "[\"신규 항공사와의 파트너십 강화\", \"기존 항공기의 좌석 구성 업그레이드 검토\"]",
+    "risk_assessment": "구형 항공사를 운영하는 경우 경쟁력 저하 및 고객 만족도 감소 위험",
+    "opportunity_assessment": "신규 항공사와의 협력을 통해 최신 항공기 모델 및 좌석 구성 도입",
+    "simulation_results": [],
+    "validation_evidence": [],
+    "source_entity": "Airlines",
+    "target_entity": "Aircraft Registry",
+    "chain_effects": [
+      "항공사 운영팀",
+      "고객 서비스 부서"
+    ]
+  },
+  {
+    "insight_id": "PI_002",
+    "insight_type": "simulation_based",
+    "source_table": "gates",
+    "source_column": "longitude",
+    "source_condition": "공항의 게이트 위치가 항공기 좌석 구성에 큰 영향을 미침",
+    "target_table": "aircraft_registry",
+    "target_column": "seat_config_f",
+    "predicted_impact": "공항의 게이트 위치가 항공기 좌석 구성에 큰 영향을 미침",
+    "correlation_coefficient": -0.8446266772012595,
+    "p_value": 4.5240218224693596e-14,
+    "confidence": 0.85,
+    "sample_size": 48,
+    "business_interpretation": "공항 게이트의 위도와 경도가 항공기 좌석 구성에 영향을 미친다는 것은 특정 위치의 공항이 특정 유형의 항공기를 더 많이 운항할 가능성이 있음을 나타냅니다.",
+    "recommended_action": "[\"게이트 위치 재배치 및 최적화 검토\", \"위치별 항공기 배치 전략 수립\"]",
+    "risk_assessment": "부적절한 게이트 위치로 인해 항공기 운영 비효율성 및 고객 불만 증가 가능성",
+    "opportunity_assessment": "게이트 위치 최적화를 통해 운영 효율성 개선 및 고객 만족도 향상",
+    "simulation_results": [],
+    "validation_evidence": [],
+    "source_entity": "Gates",
+    "target_entity": "Aircraft Registry",
+    "chain_effects": [
+      "공항 운영팀",
+      "항공기 배치팀"
+    ]
+  },
+  {
+    "insight_id": "PI_003",
+    "insight_type": "simulation_based",
+    "source_table": "gates",
+    "source_column": "boarding_capacity",
+    "source_condition": "게이트의 탑승 용량이 항공기 좌석 구성에 긍정적 영향을 미침",
+    "target_table": "aircraft_registry",
+    "target_column": "seat_config_y",
+    "predicted_impact": "게이트의 탑승 용량이 항공기 좌석 구성에 긍정적 영향을 미침",
+    "correlation_coefficient": 0.5923403848276078,
+    "p_value": 9.201995316134123e-06,
+    "confidence": 0.7,
+    "sample_size": 48,
+    "business_interpretation": "게이트의 탑승 용량이 클수록 항공기의 좌석 구성에 긍정적인 영향을 미쳐 더 많은 승객을 수용할 수 있습니다.",
+    "recommended_action": "[\"탑승 용량 확장을 위한 인프라 개선\", \"탑승 용량에 따른 항공기 배치 최적화\"]",
+    "risk_assessment": "탑승 용량이 부족할 경우 항공기 운영 및 승객 처리 지연 가능성",
+    "opportunity_assessment": "탑승 용량을 확장하여 더 많은 승객을 수용하고 운영 효율성을 높일 수 있음",
+    "simulation_results": [],
+    "validation_evidence": [],
+    "source_entity": "Gates",
+    "target_entity": "Aircraft Registry",
+    "chain_effects": [
+      "공항 운영팀",
+      "항공기 배치팀"
+    ]
+  }
+]

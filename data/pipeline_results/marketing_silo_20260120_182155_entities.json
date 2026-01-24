@@ -1,0 +1,93 @@
+[
+  {
+    "entity_id": "ENT_CUSTOMER",
+    "entity_type": "Customer",
+    "canonical_name": "Customer",
+    "source_tables": [
+      "customers"
+    ],
+    "confidence": 0.9
+  },
+  {
+    "entity_id": "ENT_PRODUCT",
+    "entity_type": "Product",
+    "canonical_name": "Product",
+    "source_tables": [
+      "products"
+    ],
+    "confidence": 0.9
+  },
+  {
+    "entity_id": "ENT_ORDER",
+    "entity_type": "Order",
+    "canonical_name": "SalesOrder",
+    "source_tables": [
+      "orders"
+    ],
+    "confidence": 0.9
+  },
+  {
+    "entity_id": "ENT_CAMPAIGN",
+    "entity_type": "Campaign",
+    "canonical_name": "MarketingCampaign",
+    "source_tables": [
+      "campaigns",
+      "ad_campaigns"
+    ],
+    "confidence": 0.85
+  },
+  {
+    "entity_id": "ENT_LEAD",
+    "entity_type": "Lead",
+    "canonical_name": "SalesLead",
+    "source_tables": [
+      "leads"
+    ],
+    "confidence": 0.8
+  },
+  {
+    "entity_id": "ENT_WEB_SESSION",
+    "entity_type": "WebSession",
+    "canonical_name": "WebSession",
+    "source_tables": [
+      "web_sessions"
+    ],
+    "confidence": 0.85
+  },
+  {
+    "entity_id": "ENT_EMAIL_SEND",
+    "entity_type": "EmailSend",
+    "canonical_name": "EmailDelivery",
+    "source_tables": [
+      "email_sends"
+    ],
+    "confidence": 0.85
+  },
+  {
+    "entity_id": "ENT_EMAIL_EVENT",
+    "entity_type": "EmailEvent",
+    "canonical_name": "EmailEngagement",
+    "source_tables": [
+      "email_events"
+    ],
+    "confidence": 0.85
+  },
+  {
+    "entity_id": "ENT_CONVERSION",
+    "entity_type": "Conversion",
+    "canonical_name": "AttributedConversion",
+    "source_tables": [
+      "conversions"
+    ],
+    "confidence": 0.75
+  },
+  {
+    "entity_id": "ENT_AD_PERFORMANCE",
+    "entity_type": "AdPerformanceMetric",
+    "canonical_name": "AdPerformanceMetric",
+    "source_tables": [
+      "ad_performance"
+    ],
+    "confidence": 0.8
+  }
+]

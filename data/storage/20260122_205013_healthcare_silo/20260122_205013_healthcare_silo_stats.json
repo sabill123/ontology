@@ -1,0 +1,40 @@
+{
+  "orchestrator_stats": {
+    "total_agents_created": 14,
+    "total_todos_completed": 16,
+    "total_todos_failed": 1,
+    "total_execution_time": 648.9557230472565,
+    "phases_completed": 3,
+    "started_at": "2026-01-22T20:50:17.240380",
+    "completed_at": "2026-01-22T21:01:06.196097",
+    "consensus_discussions": 1,
+    "consensus_accepted": 0,
+    "consensus_rejected": 0,
+    "consensus_provisional": 0,
+    "consensus_escalated": 0
+  },
+  "context_stats": {
+    "scenario": "20260122_205013_healthcare_silo",
+    "domain": "healthcare",
+    "domain_confidence": 1.0,
+    "is_auto_detected": true,
+    "tables_count": 10,
+    "homeomorphisms_found": 10,
+    "unified_entities": 10,
+    "ontology_concepts": 28,
+    "approved_concepts": 27,
+    "governance_decisions": 28,
+    "pending_actions": 0,
+    "stages_completed": 0,
+    "is_complete": false,
+    "evidence_blocks": 62,
+    "evidence_chain_valid": false
+  },
+  "continuation_stats": {
+    "continuations_triggered": 0,
+    "todos_resumed": 0,
+    "todos_abandoned": 0,
+    "last_check_at": "2026-01-22T21:01:06.078563",
+    "last_continuation_at": null
+  }
+}

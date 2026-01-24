@@ -1,0 +1,80 @@
+[
+  {
+    "insight_id": "PI_001",
+    "insight_type": "simulation_based",
+    "source_table": "airlines",
+    "source_column": "founded_year",
+    "source_condition": "항공사 설립 연도가 최신일수록 좌석 구성(f)의 증가율이 높음",
+    "target_table": "aircraft_registry",
+    "target_column": "seat_config_f",
+    "predicted_impact": "항공사 설립 연도가 최신일수록 좌석 구성(f)의 증가율이 높음",
+    "correlation_coefficient": 0.6094606200718917,
+    "p_value": 0.00035033277286261057,
+    "confidence": 0.7,
+    "sample_size": 30,
+    "business_interpretation": "최근에 설립된 항공사는 더 많은 좌석 구성을 제공하는 경향이 있습니다. 이는 최신 항공기 모델을 도입하거나, 시장의 요구에 맞춘 전략적 결정일 수 있습니다.",
+    "recommended_action": "[\"최근 설립된 항공사와의 협력 기회를 모색\", \"좌석 구성 최적화를 위한 시장 조사 실시\"]",
+    "risk_assessment": "구형 항공기를 보유한 항공사는 경쟁력에서 뒤처질 위험이 있습니다.",
+    "opportunity_assessment": "최근 설립된 항공사와의 제휴를 통해 최신 항공기 모델을 도입하거나, 좌석 구성 최적화를 통해 수익성을 높일 수 있습니다.",
+    "simulation_results": [],
+    "validation_evidence": [],
+    "source_entity": "Airlines",
+    "target_entity": "Aircraft Registry",
+    "chain_effects": [
+      "항공사 경영진",
+      "항공기 운영팀"
+    ]
+  },
+  {
+    "insight_id": "PI_002",
+    "insight_type": "simulation_based",
+    "source_table": "gates",
+    "source_column": "longitude, latitude",
+    "source_condition": "공항 게이트의 경도와 위도가 낮을수록 좌석 구성(f, c) 및 총 좌석 수가 높음",
+    "target_table": "aircraft_registry",
+    "target_column": "seat_config_f, seat_config_c, total_seats",
+    "predicted_impact": "공항 게이트의 경도와 위도가 낮을수록 좌석 구성(f, c) 및 총 좌석 수가 높음",
+    "correlation_coefficient": 0.0,
+    "p_value": 1.0,
+    "confidence": 0.85,
+    "sample_size": 0,
+    "business_interpretation": "공항의 위치가 서쪽과 남쪽에 위치할수록 더 많은 좌석을 가진 항공기가 운항되고 있습니다. 이는 특정 지역의 항공 수요가 높거나, 특정 공항의 허브 역할 때문일 수 있습니다.",
+    "recommended_action": "[\"위치가 유리한 공항을 중심으로 노선 재조정\", \"공항 위치에 따른 수요 분석 및 전략 수립\"]",
+    "risk_assessment": "위치가 불리한 공항은 경쟁에서 밀릴 수 있으며, 좌석 수가 적은 항공기만 운항할 수 있습니다.",
+    "opportunity_assessment": "위치가 유리한 공항을 중심으로 노선 확장 및 좌석 수 최적화를 통해 수익성을 극대화할 수 있습니다.",
+    "simulation_results": [],
+    "validation_evidence": [],
+    "source_entity": "Gates",
+    "target_entity": "Aircraft Registry",
+    "chain_effects": [
+      "공항 운영팀",
+      "항공사 전략팀"
+    ]
+  },
+  {
+    "insight_id": "PI_003",
+    "insight_type": "simulation_based",
+    "source_table": "gates",
+    "source_column": "boarding_capacity",
+    "source_condition": "탑승 용량이 높은 게이트에서 좌석 구성(y)이 증가함",
+    "target_table": "aircraft_registry",
+    "target_column": "seat_config_y",
+    "predicted_impact": "탑승 용량이 높은 게이트에서 좌석 구성(y)이 증가함",
+    "correlation_coefficient": 0.5923403848276078,
+    "p_value": 9.201995316134123e-06,
+    "confidence": 0.7,
+    "sample_size": 48,
+    "business_interpretation": "탑승 용량이 높은 게이트는 더 많은 승객을 수용할 수 있어, 좌석 구성(y)이 증가하는 경향이 있습니다. 이는 공항의 운영 효율성을 높일 수 있는 중요한 요소입니다.",
+    "recommended_action": "[\"탑승 용량이 높은 게이트의 활용 극대화\", \"탑승 용량 증가를 위한 인프라 개선\"]",
+    "risk_assessment": "탑승 용량이 낮은 게이트는 승객 처리에 제한이 있을 수 있습니다.",
+    "opportunity_assessment": "탑승 용량이 높은 게이트를 활용하여 승객 경험을 개선하고, 공항의 운영 효율성을 높일 수 있습니다.",
+    "simulation_results": [],
+    "validation_evidence": [],
+    "source_entity": "Gates",
+    "target_entity": "Aircraft Registry",
+    "chain_effects": [
+      "공항 운영팀",
+      "탑승 관리팀"
+    ]
+  }
+]

@@ -1,0 +1,26 @@
+order_id,buyer_id,order_date,total_amount,status,shipping_address
+ORD001,CUST001,2024-01-15,1550000,delivered,서울시 강남구
+ORD002,CUST002,2024-01-18,118000,delivered,서울시 서초구
+ORD003,CUST003,2024-01-22,1890000,delivered,부산시 해운대구
+ORD004,CUST001,2024-01-25,204000,shipped,서울시 강남구
+ORD005,CUST004,2024-02-01,89000,delivered,대구시 수성구
+ORD006,CUST005,2024-02-05,1650000,delivered,인천시 연수구
+ORD007,CUST006,2024-02-10,234000,processing,광주시 서구
+ORD008,CUST007,2024-02-15,45000,delivered,대전시 유성구
+ORD009,CUST003,2024-02-20,189000,delivered,부산시 해운대구
+ORD010,CUST008,2024-02-25,125000,shipped,울산시 남구
+ORD011,CUST009,2024-03-01,450000,delivered,경기도 성남시
+ORD012,CUST010,2024-03-05,79000,processing,경기도 수원시
+ORD013,CUST011,2024-03-10,214000,delivered,서울시 마포구
+ORD014,CUST002,2024-03-15,1350000,shipped,서울시 서초구
+ORD015,CUST012,2024-03-18,159000,delivered,서울시 송파구
+ORD016,CUST013,2024-03-22,85000,delivered,부산시 동래구
+ORD017,CUST014,2024-03-25,189000,processing,대구시 달서구
+ORD018,CUST015,2024-03-28,129000,shipped,인천시 남동구
+ORD019,CUST004,2024-04-01,35000,delivered,대구시 수성구
+ORD020,CUST007,2024-04-05,43000,delivered,대전시 유성구
+ORD021,CUST001,2024-04-10,89000,processing,서울시 강남구
+ORD022,CUST011,2024-04-12,1550000,shipped,서울시 마포구
+ORD023,CUST005,2024-04-15,234000,delivered,인천시 연수구
+ORD024,CUST009,2024-04-18,125000,delivered,경기도 성남시
+ORD025,CUST015,2024-04-20,450000,processing,인천시 남동구

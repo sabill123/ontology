@@ -1,0 +1,166 @@
+[
+  {
+    "action_id": "action_4",
+    "title": "Validate and implement conversion attribution join keys",
+    "description": "Validate that conversion attribution between marketing touchpoints and orders uses correct, stable join keys (e.g., email_sends.id, ad_click_id, session_id, customer_id). Tasks:\n1) Inventory all tables participating in attribution (e.g., conversions/orders, email_sends, email_events, ad_clicks, sessions).\n2) For each pair, confirm primary and foreign keys used for joins and check uniqueness, null rates, and Jaccard similarity between key columns.\n3) Identify any ambiguous or multi-key joins (e.g., customer_id + timestamp windows) and document the final, approved join logic.\n4) Implement or update views/ETL logic to use the approved keys and add basic referential integrity checks (e.g., % of conversions without a matching touchpoint).\n5) Validate results on at least 30 days of data and sign off with marketing/analytics stakeholders.",
+    "action_type": "implementation",
+    "priority": "critical",
+    "priority_score": 3.7,
+    "impact": "high",
+    "effort": "medium",
+    "estimated_hours": 24,
+    "source_decision": "decision_link_conversions_email_sends",
+    "dependencies": [],
+    "assignee_role": "developer",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_8",
+    "title": "Enforce referential integrity between email_events and email_sends",
+    "description": "Ensure that every email_events.send_id correctly references an existing email_sends.id so engagement metrics are reliable. Tasks:\n1) Profile current data: compute containment and Jaccard similarity between email_events.send_id and email_sends.id; quantify % of orphan events.\n2) Align on the canonical primary key for email_sends (id) and confirm data types, formats, and nullability for both columns.\n3) Implement database-level FK constraint where feasible (email_events.send_id → email_sends.id) or equivalent logic in ETL/warehouse (e.g., referential integrity checks with alerts).\n4) Backfill or clean historical data: fix or flag orphan events, standardize IDs, and document any known exceptions (e.g., legacy imports).\n5) Add a simple monitoring query/dashboard to track orphan rate over time.",
+    "action_type": "implementation",
+    "priority": "high",
+    "priority_score": 3.4,
+    "impact": "high",
+    "effort": "medium",
+    "estimated_hours": 20,
+    "source_decision": "decision_link_email_events_email_sends",
+    "dependencies": [],
+    "assignee_role": "developer",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_1",
+    "title": "Identify and link canonical ad source tables to Ad entity",
+    "description": "Identify the authoritative source tables for advertising data and link them to the Ad entity used in the e_commerce ontology. Tasks:\n1) Inventory candidate tables (e.g., ad_campaigns, ad_performance, ad_creatives, channel-specific tables like facebook_ads, google_ads) and profile key fields (ad_id, campaign_id, creative_id).\n2) Select canonical tables for core Ad attributes (ID, name, channel, creative, campaign, status, cost, impressions, clicks) and document selection rationale.\n3) Map each Ad entity attribute to specific source columns, including any required transformations (e.g., currency normalization, channel name standardization).\n4) Implement or update ETL/semantic models to populate the Ad entity from these sources, ensuring stable keys for downstream attribution.\n5) Validate row counts and key coverage (e.g., % of ads in performance tables that map to the Ad entity).",
+    "action_type": "implementation",
+    "priority": "high",
+    "priority_score": 3.4,
+    "impact": "high",
+    "effort": "medium",
+    "estimated_hours": 28,
+    "source_decision": "decision_obj_ENT_AD",
+    "dependencies": [],
+    "assignee_role": "developer",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_2",
+    "title": "Define Ad entity schema and relationships for marketing attribution",
+    "description": "Define a clear, documented schema for the Ad entity and its relationships to campaigns, channels, and conversions in the e_commerce domain. Tasks:\n1) With marketing and analytics stakeholders, agree on the business definition of an \"Ad\" (e.g., creative-level vs. placement-level) and its lifecycle.\n2) Specify required and optional attributes (e.g., ad_id, campaign_id, channel, creative_name, format, targeting, status, start/end dates, cost metrics) and data types.\n3) Document relationships: Ad → Campaign (N:1), Ad → Conversions (1:N via clicks/impressions), Ad → Channel/Platform (N:1), including expected cardinalities and key fields.\n4) Capture these definitions in the data dictionary/ontology repository, including example records and any known constraints (e.g., ad_id uniqueness per platform).\n5) Align the schema with existing reporting needs (ROAS, CAC, LTV by ad) and tag attributes as critical vs. nice-to-have.",
+    "action_type": "documentation",
+    "priority": "high",
+    "priority_score": 3.4,
+    "impact": "high",
+    "effort": "medium",
+    "estimated_hours": 16,
+    "source_decision": "decision_obj_ENT_AD",
+    "dependencies": [
+      "action_1"
+    ],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_3",
+    "title": "Schedule 30-day review to validate Ad entity completeness",
+    "description": "Schedule and define a 30-day post-implementation review to validate that the Ad entity is complete and reliable for e_commerce reporting. Tasks:\n1) Create a calendar event and assign owners from data, marketing, and analytics teams.\n2) Define review criteria: coverage of active ads, completeness of key attributes (e.g., cost, impressions, clicks), and successful linkage to conversions.\n3) Prepare a simple monitoring report to track missing/NULL rates, orphan records, and discrepancies vs. ad platforms.\n4) At the 30-day mark, review metrics, capture gaps, and agree on follow-up actions (schema changes, additional fields, data quality rules).\n5) Document outcomes and update the ontology/data dictionary accordingly.",
+    "action_type": "review",
+    "priority": "high",
+    "priority_score": 3.7,
+    "impact": "high",
+    "effort": "low",
+    "estimated_hours": 6,
+    "source_decision": "decision_obj_ENT_AD",
+    "dependencies": [
+      "action_1",
+      "action_2"
+    ],
+    "assignee_role": "data_owner",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_6",
+    "title": "Review and approve conversion attribution window and logic",
+    "description": "Align with the marketing team on the business rules for conversion attribution (e.g., lookback window, touchpoint priority) and ensure they match the implemented logic. Tasks:\n1) Present current attribution logic (e.g., last-click within 7 days of email send, multi-touch rules) using simple diagrams and examples.\n2) Discuss and agree on key parameters: attribution window length, eligible channels, handling of multiple touchpoints, and tie-breaking rules.\n3) Document the approved logic in the data dictionary and analytics playbook, including examples for common scenarios.\n4) Confirm that the implemented joins and filters in the attribution pipeline match the approved logic; log any gaps as follow-up tasks.\n5) Capture sign-off from marketing and analytics leads.",
+    "action_type": "review",
+    "priority": "high",
+    "priority_score": 3.3,
+    "impact": "medium",
+    "effort": "low",
+    "estimated_hours": 8,
+    "source_decision": "decision_link_conversions_email_sends",
+    "dependencies": [
+      "action_4"
+    ],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_5",
+    "title": "Monitor conversion-to-email match rates for attribution quality",
+    "description": "Set up ongoing monitoring of conversion-to-email match rates to detect attribution data quality issues in the e_commerce funnel. Tasks:\n1) Define key metrics: % of conversions with a matched email send, distribution by channel/campaign, and trend over time (weekly).\n2) Implement queries or a dashboard that calculates these metrics using the approved join keys and attribution logic.\n3) Establish thresholds for alerts (e.g., >5% drop in match rate week-over-week or match rate <90%).\n4) Configure automated alerts (email/Slack) to data and marketing owners when thresholds are breached.\n5) Document how to investigate and remediate issues (e.g., new campaigns not mapped, ID format changes).",
+    "action_type": "monitoring",
+    "priority": "medium",
+    "priority_score": 2.6,
+    "impact": "low",
+    "effort": "medium",
+    "estimated_hours": 14,
+    "source_decision": "decision_link_conversions_email_sends",
+    "dependencies": [
+      "action_4",
+      "action_6"
+    ],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_7",
+    "title": "Document email event types and their relationship to sends",
+    "description": "Document all email event types tracked in the system (e.g., send, open, click, bounce, unsubscribe, spam complaint) and how they relate to email_sends for e_commerce campaigns. Tasks:\n1) Enumerate all distinct event types present in email_events and confirm their business meaning with marketing/CRM owners.\n2) Describe the expected lifecycle of an email send (from send to open/click/bounce/unsubscribe) and typical event sequences.\n3) Document the relationship between email_sends and email_events (1:N) including key fields (send_id, event_timestamp) and any ordering assumptions.\n4) Capture this information in the data dictionary/ontology, including example records and edge cases (e.g., multiple opens, multiple clicks, soft vs. hard bounces).\n5) Highlight which event types are used in core KPIs (open rate, click-through rate, unsubscribe rate).",
+    "action_type": "documentation",
+    "priority": "medium",
+    "priority_score": 2.9,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 10,
+    "source_decision": "decision_link_email_events_email_sends",
+    "dependencies": [
+      "action_8"
+    ],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_9",
+    "title": "Document lead-to-email-send relationship and cardinality",
+    "description": "Document how leads (prospective customers) relate to email_sends in the e_commerce lifecycle, including expected cardinality and key fields. Tasks:\n1) Confirm the business definition of a lead (e.g., newsletter signup, account registration, abandoned cart) and how it is represented in vo_leads.\n2) Describe the expected relationship between a lead and email_sends (1:N) and any exceptions (e.g., leads with no sends, multiple brands per lead).\n3) Specify the join keys (e.g., lead_id, customer_id, email address) and any constraints or assumptions (e.g., one active email per lead).\n4) Add this relationship and cardinality to the data dictionary/ontology diagrams.\n5) Note how this relationship is used in key metrics (lead nurturing performance, conversion rate by email sequence).",
+    "action_type": "documentation",
+    "priority": "medium",
+    "priority_score": 2.6,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 8,
+    "source_decision": "decision_link_vo_leads_email_sends",
+    "dependencies": [],
+    "assignee_role": "analyst",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_10",
+    "title": "Set up Jaccard similarity drift monitoring for lead–email links",
+    "description": "Implement monitoring of Jaccard similarity between key columns used to link leads and email_sends to detect structural or data quality drift. Tasks:\n1) Identify the key columns used for linking (e.g., vo_leads.lead_id or email, email_sends.lead_id or email) and confirm their intended relationship.\n2) Define a baseline Jaccard similarity range for these columns using a stable historical period.\n3) Build a scheduled job that computes Jaccard similarity and containment metrics (e.g., weekly) and stores results in a monitoring table.\n4) Configure alerts when similarity or containment drops below agreed thresholds, indicating potential schema or pipeline changes.\n5) Visualize trends in a simple dashboard and document how to interpret and act on drift signals.",
+    "action_type": "monitoring",
+    "priority": "medium",
+    "priority_score": 2.6,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 12,
+    "source_decision": "decision_link_vo_leads_email_sends",
+    "dependencies": [
+      "action_9"
+    ],
+    "assignee_role": "developer",
+    "status": "pending"
+  }
+]

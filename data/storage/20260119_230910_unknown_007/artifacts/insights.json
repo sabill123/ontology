@@ -1,0 +1,500 @@
+[
+  {
+    "insight_id": "INSIGHT_0004",
+    "title": "High Missing Data in parts_replaced",
+    "description": "22 records (55.0%) have missing values in parts_replaced",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "aircraft_maintenance",
+    "source_column": "parts_replaced",
+    "metric_value": 22,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0008",
+    "title": "High Missing Data in special_request",
+    "description": "105 records (87.5%) have missing values in special_request",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "passengers",
+    "source_column": "special_request",
+    "metric_value": 105,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0009",
+    "title": "High Missing Data in frequent_flyer_id",
+    "description": "82 records (68.3%) have missing values in frequent_flyer_id",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "passengers",
+    "source_column": "frequent_flyer_id",
+    "metric_value": 82,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0012",
+    "title": "[aerospace] High Employee Turnover Risk in Operations",
+    "description": "The Operations department has the highest number of employees (14), but the salary grades are concentrated in G06 and G07. This could indicate a lack of career progression opportunities, leading to potential turnover.",
+    "insight_type": "risk",
+    "severity": "high",
+    "source_table": "airport_employees",
+    "source_column": "department",
+    "metric_value": 14,
+    "recommendations": [
+      "Conduct employee satisfaction surveys",
+      "Implement career development programs"
+    ],
+    "business_impact": "High turnover can lead to increased recruitment costs and operational disruptions."
+  },
+  {
+    "insight_id": "INSIGHT_0015",
+    "title": "[aerospace] Maintenance Cost Variability",
+    "description": "The average parts cost for aircraft maintenance is $6965, but the maximum reported is $125,000. This variability could indicate inconsistent maintenance practices or unexpected repairs.",
+    "insight_type": "risk",
+    "severity": "high",
+    "source_table": "aircraft_maintenance",
+    "source_column": "parts_cost_usd",
+    "metric_value": 6965,
+    "recommendations": [
+      "Standardize maintenance protocols",
+      "Conduct regular audits of maintenance costs"
+    ],
+    "business_impact": "High variability in maintenance costs can lead to budget overruns and operational inefficiencies."
+  },
+  {
+    "insight_id": "INSIGHT_0001",
+    "title": "Pending Delivery Status",
+    "description": "Found 11 records (6.5%) with 'pending' status in baggage_handling",
+    "insight_type": "status_distribution",
+    "severity": "medium",
+    "source_table": "baggage_handling",
+    "source_column": "delivery_status",
+    "metric_value": "pending",
+    "recommendations": [
+      "Investigate and resolve issues"
+    ],
+    "business_impact": "Operational impact on 11 items"
+  },
+  {
+    "insight_id": "INSIGHT_0002",
+    "title": "Declining Trend Forecast: damage_reported",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 0, 0)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "baggage_handling",
+    "source_column": "damage_reported",
+    "metric_value": 0.011829365058162998,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0003",
+    "title": "High Missing Data in alliance",
+    "description": "10 records (33.3%) have missing values in alliance",
+    "insight_type": "data_quality",
+    "severity": "medium",
+    "source_table": "airlines",
+    "source_column": "alliance",
+    "metric_value": 10,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0005",
+    "title": "Declining Trend Forecast: labor_hours",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 1, 1)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "aircraft_maintenance",
+    "source_column": "labor_hours",
+    "metric_value": 13.19184636953324,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0006",
+    "title": "Declining Trend Forecast: parts_cost_usd",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 1, 1)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "aircraft_maintenance",
+    "source_column": "parts_cost_usd",
+    "metric_value": 4497.57596240803,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0007",
+    "title": "Declining Trend Forecast: boarding_capacity",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 1, 1)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "gates",
+    "source_column": "boarding_capacity",
+    "metric_value": 200.00045834885046,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0010",
+    "title": "Declining Trend Forecast: seat_config_f",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 1, 0)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "aircraft_registry",
+    "source_column": "seat_config_f",
+    "metric_value": 0.0,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0011",
+    "title": "Declining Trend Forecast: seat_config_c",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 1, 0)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "aircraft_registry",
+    "source_column": "seat_config_c",
+    "metric_value": 0.0,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0013",
+    "title": "[aerospace] Frequent Delays in Flight Operations",
+    "description": "The average delay across recorded flights is 10.49 minutes, with a maximum of 45 minutes. This indicates potential inefficiencies in flight scheduling or operational processes.",
+    "insight_type": "operational",
+    "severity": "medium",
+    "source_table": "delay_records",
+    "source_column": "delay_minutes",
+    "metric_value": 10.49,
+    "recommendations": [
+      "Analyze root causes of delays",
+      "Improve scheduling and resource allocation"
+    ],
+    "business_impact": "Frequent delays can affect customer satisfaction and operational efficiency."
+  },
+  {
+    "insight_id": "INSIGHT_0014",
+    "title": "[aerospace] Concentration of Baggage Handling Issues",
+    "description": "With only 2% of baggage reported as damaged and claims filed, this indicates potential issues in baggage handling processes, especially since all bags are categorized as 'CHECKED'.",
+    "insight_type": "anomaly",
+    "severity": "medium",
+    "source_table": "baggage_handling",
+    "source_column": "damage_reported",
+    "metric_value": 0.02,
+    "recommendations": [
+      "Review baggage handling procedures",
+      "Implement additional training for ground staff"
+    ],
+    "business_impact": "Improving baggage handling can enhance customer trust and reduce compensation costs."
+  },
+  {
+    "insight_id": "INSIGHT_0016",
+    "title": "[aerospace] Over-reliance on Specific Airlines",
+    "description": "The dataset shows a concentration of maintenance activities for specific airlines (e.g., KE and OZ). This could pose risks if these airlines face operational issues.",
+    "insight_type": "risk",
+    "severity": "medium",
+    "source_table": "aircraft_maintenance",
+    "source_column": "airline",
+    "metric_value": null,
+    "recommendations": [
+      "Diversify partnerships with more airlines",
+      "Assess risk exposure for current airline dependencies"
+    ],
+    "business_impact": "Over-reliance on few airlines can lead to operational disruptions if those airlines face challenges."
+  },
+  {
+    "insight_id": "INSIGHT_0004",
+    "title": "High Missing Data in parts_replaced",
+    "description": "22 records (55.0%) have missing values in parts_replaced",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "aircraft_maintenance",
+    "source_column": "parts_replaced",
+    "metric_value": 22,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0008",
+    "title": "High Missing Data in special_request",
+    "description": "105 records (87.5%) have missing values in special_request",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "passengers",
+    "source_column": "special_request",
+    "metric_value": 105,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0009",
+    "title": "High Missing Data in frequent_flyer_id",
+    "description": "82 records (68.3%) have missing values in frequent_flyer_id",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "passengers",
+    "source_column": "frequent_flyer_id",
+    "metric_value": 82,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0012",
+    "title": "[aerospace] High Employee Concentration in Operations Department",
+    "description": "The Operations department has the highest number of employees (14), which may indicate a potential over-reliance on this department for airport operations. This could lead to operational bottlenecks if key personnel are unavailable.",
+    "insight_type": "risk",
+    "severity": "high",
+    "source_table": "airport_employees",
+    "source_column": "department",
+    "metric_value": 14,
+    "recommendations": [
+      "Cross-train employees across departments",
+      "Develop a succession plan for key roles"
+    ],
+    "business_impact": "Mitigating risks associated with personnel shortages can enhance operational resilience."
+  },
+  {
+    "insight_id": "INSIGHT_0014",
+    "title": "[aerospace] High Maintenance Costs for Specific Aircraft Types",
+    "description": "The average parts cost for maintenance is $6965.00, with some maintenance tasks reaching up to $125,000. This suggests potential inefficiencies or issues with specific aircraft types that require costly repairs.",
+    "insight_type": "anomaly",
+    "severity": "high",
+    "source_table": "aircraft_maintenance",
+    "source_column": "parts_cost_usd",
+    "metric_value": 6965.0,
+    "recommendations": [
+      "Evaluate maintenance practices for high-cost aircraft",
+      "Consider fleet upgrades or replacements for older aircraft"
+    ],
+    "business_impact": "Identifying and addressing high maintenance costs can lead to significant cost savings."
+  },
+  {
+    "insight_id": "INSIGHT_0015",
+    "title": "[aerospace] Concentration of Delays Among Specific Carriers",
+    "description": "The carrier KAL has the highest number of delays (17), indicating a potential operational issue specific to this airline. This could affect their reputation and customer loyalty.",
+    "insight_type": "risk",
+    "severity": "high",
+    "source_table": "delay_records",
+    "source_column": "carrier",
+    "metric_value": 17,
+    "recommendations": [
+      "Collaborate with KAL to identify and resolve delay causes",
+      "Monitor performance metrics closely for KAL"
+    ],
+    "business_impact": "Addressing carrier-specific issues can enhance overall operational performance and customer satisfaction."
+  },
+  {
+    "insight_id": "INSIGHT_0001",
+    "title": "Pending Delivery Status",
+    "description": "Found 11 records (6.5%) with 'pending' status in baggage_handling",
+    "insight_type": "status_distribution",
+    "severity": "medium",
+    "source_table": "baggage_handling",
+    "source_column": "delivery_status",
+    "metric_value": "pending",
+    "recommendations": [
+      "Investigate and resolve issues"
+    ],
+    "business_impact": "Operational impact on 11 items"
+  },
+  {
+    "insight_id": "INSIGHT_0002",
+    "title": "Declining Trend Forecast: damage_reported",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 0, 0)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "baggage_handling",
+    "source_column": "damage_reported",
+    "metric_value": 0.011829365058162998,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0003",
+    "title": "High Missing Data in alliance",
+    "description": "10 records (33.3%) have missing values in alliance",
+    "insight_type": "data_quality",
+    "severity": "medium",
+    "source_table": "airlines",
+    "source_column": "alliance",
+    "metric_value": 10,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0005",
+    "title": "Declining Trend Forecast: labor_hours",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 1, 1)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "aircraft_maintenance",
+    "source_column": "labor_hours",
+    "metric_value": 13.19184636953324,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0006",
+    "title": "Declining Trend Forecast: parts_cost_usd",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 1, 1)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "aircraft_maintenance",
+    "source_column": "parts_cost_usd",
+    "metric_value": 4497.57596240803,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0007",
+    "title": "Declining Trend Forecast: boarding_capacity",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 1, 1)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "gates",
+    "source_column": "boarding_capacity",
+    "metric_value": 200.00045834885046,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0010",
+    "title": "Declining Trend Forecast: seat_config_f",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 1, 0)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "aircraft_registry",
+    "source_column": "seat_config_f",
+    "metric_value": 0.0,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0011",
+    "title": "Declining Trend Forecast: seat_config_c",
+    "description": "Predicted decreasing trend using Ensemble(ARIMA(0, 1, 0)). Expected 0.0% decrease over next 7 periods.",
+    "insight_type": "trend",
+    "severity": "medium",
+    "source_table": "aircraft_registry",
+    "source_column": "seat_config_c",
+    "metric_value": 0.0,
+    "recommendations": [
+      "Monitor trend closely over next period",
+      "Investigate potential root causes",
+      "Prepare contingency plans"
+    ],
+    "business_impact": "Projected 0.0% decline may impact operational targets"
+  },
+  {
+    "insight_id": "INSIGHT_0013",
+    "title": "[aerospace] Frequent Delays Recorded",
+    "description": "The average delay recorded is 10.49 minutes, with a maximum of 45 minutes. This could indicate operational inefficiencies, particularly if delays are frequent and impact passenger satisfaction.",
+    "insight_type": "operational",
+    "severity": "medium",
+    "source_table": "delay_records",
+    "source_column": "delay_minutes",
+    "metric_value": 10.49,
+    "recommendations": [
+      "Analyze root causes of delays",
+      "Implement performance metrics for timely departures"
+    ],
+    "business_impact": "Reducing delays can improve customer satisfaction and operational efficiency."
+  },
+  {
+    "insight_id": "INSIGHT_0016",
+    "title": "[aerospace] Employee Shift Pattern Imbalance",
+    "description": "The majority of employees (50 out of 70) work on a rotational shift pattern, which may lead to employee fatigue and decreased productivity. Only 20 employees are on a day shift.",
+    "insight_type": "operational",
+    "severity": "medium",
+    "source_table": "airport_employees",
+    "source_column": "shift_pattern",
+    "metric_value": 50,
+    "recommendations": [
+      "Evaluate shift patterns for employee well-being",
+      "Consider increasing day shift positions"
+    ],
+    "business_impact": "Improving employee work-life balance can enhance productivity and reduce turnover."
+  }
+]

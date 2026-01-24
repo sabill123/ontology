@@ -1,0 +1,35 @@
+{
+  "job_id": "20260120_164235_unknown_013",
+  "domain": "unknown",
+  "started_at": "2026-01-20T16:42:35.455927",
+  "completed_at": "2026-01-20T16:53:29.410924",
+  "status": "completed",
+  "total_agents": 16,
+  "completed_agents": 16,
+  "total_llm_calls": 20,
+  "total_tokens": 271569,
+  "input_tables": [
+    "web_sessions",
+    "customers",
+    "products",
+    "orders",
+    "conversions",
+    "email_events",
+    "leads",
+    "ad_campaigns",
+    "email_sends",
+    "campaigns",
+    "ad_performance"
+  ],
+  "config": {
+    "scenario_name": "marketing_silo_20260120_164235",
+    "phases": [
+      "discovery",
+      "refinement",
+      "governance"
+    ],
+    "max_concurrent_agents": 5,
+    "use_llm": true,
+    "llm_model": "gpt-4o-mini"
+  }
+}

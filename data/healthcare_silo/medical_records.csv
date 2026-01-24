@@ -1,0 +1,21 @@
+record_id,patient_ref,attending_doc,admission_date,discharge_date,record_type,chief_complaint,treatment_summary,total_charges
+MR001,PT001,DR001,2024-01-15,2024-01-15,outpatient,Routine checkup,Blood pressure monitoring and medication adjustment,250.00
+MR002,PT002,DR005,2024-01-15,2024-01-15,outpatient,Severe headache,Migraine diagnosis and pain management plan,350.00
+MR003,PT003,DR008,2024-01-15,2024-01-15,outpatient,Right knee pain,X-ray and arthritis management plan,450.00
+MR004,PT005,DR014,2024-01-15,2024-01-20,inpatient,Shortness of breath,Lung cancer diagnosis and treatment initiation,15000.00
+MR005,PT007,DR001,2024-01-16,2024-01-18,inpatient,Heart palpitations,Cardiac monitoring and arrhythmia treatment,8500.00
+MR006,PT009,DR022,2024-01-16,2024-01-16,outpatient,Anxiety and panic attacks,Psychiatric evaluation and medication,400.00
+MR007,PT011,DR003,2024-01-17,2024-01-19,emergency,Head injury,CT scan and concussion management,6200.00
+MR008,PT012,DR008,2024-01-17,2024-01-17,outpatient,Chronic back pain,Physical therapy referral and pain management,380.00
+MR009,PT014,DR014,2024-01-17,2024-01-25,inpatient,Breast lump,Biopsy and cancer treatment planning,22000.00
+MR010,PT17,DR003,2024-01-18,2024-01-22,emergency,Severe dizziness,Neurological evaluation and monitoring,5800.00
+MR011,PT019,DR003,2024-01-18,2024-01-20,emergency,Leg injury,Fracture reduction and casting,4500.00
+MR012,PT020,DR009,2024-01-18,2024-01-18,outpatient,Hip pain,Hip replacement consultation,550.00
+MR013,PT022,DR015,2024-01-19,2024-02-05,inpatient,Abdominal pain,Colon cancer surgery and recovery,45000.00
+MR014,PT025,DR002,2024-01-20,2024-01-25,inpatient,Chest pain,Cardiac catheterization and stent placement,35000.00
+MR015,PT027,DR023,2024-01-20,2024-01-20,outpatient,Depression symptoms,Therapy session and medication review,320.00
+MR016,PT028,DR004,2024-01-20,2024-01-20,emergency,Fever and cough,Respiratory infection treatment,280.00
+MR017,PT029,DR010,2024-01-21,2024-01-21,outpatient,Left hip pain,Imaging and treatment planning,420.00
+MR018,PT018,DR022,2024-01-16,2024-01-16,outpatient,Persistent sadness,Depression management and follow-up plan,380.00
+MR019,PT006,DR017,2024-01-16,2024-01-16,outpatient,Blood sugar control,Diabetes management consultation,300.00
+MR020,PT015,DR017,2024-01-17,2024-01-17,outpatient,Diabetes follow-up,Medication adjustment and lifestyle counseling,320.00

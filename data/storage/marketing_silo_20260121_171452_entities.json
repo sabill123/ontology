@@ -1,0 +1,75 @@
+[
+  {
+    "entity_id": "entity_0",
+    "entity_type": "Campaign",
+    "canonical_name": "Campaign",
+    "source_tables": [
+      "campaigns",
+      "ad_campaigns"
+    ],
+    "confidence": 0.75
+  },
+  {
+    "entity_id": "entity_web_sessions",
+    "entity_type": "Session",
+    "canonical_name": "Session",
+    "source_tables": [
+      "web_sessions"
+    ],
+    "confidence": 0.6
+  },
+  {
+    "entity_id": "entity_customers",
+    "entity_type": "Customer",
+    "canonical_name": "Customer",
+    "source_tables": [
+      "customers"
+    ],
+    "confidence": 0.6
+  },
+  {
+    "entity_id": "entity_products",
+    "entity_type": "Product",
+    "canonical_name": "Product",
+    "source_tables": [
+      "products"
+    ],
+    "confidence": 0.6
+  },
+  {
+    "entity_id": "entity_orders",
+    "entity_type": "Order",
+    "canonical_name": "Order",
+    "source_tables": [
+      "orders"
+    ],
+    "confidence": 0.75
+  },
+  {
+    "entity_id": "entity_email_events",
+    "entity_type": "Event",
+    "canonical_name": "Event",
+    "source_tables": [
+      "email_events"
+    ],
+    "confidence": 0.6
+  },
+  {
+    "entity_id": "entity_leads",
+    "entity_type": "Lead",
+    "canonical_name": "Lead",
+    "source_tables": [
+      "leads"
+    ],
+    "confidence": 0.6
+  },
+  {
+    "entity_id": "entity_email_sends",
+    "entity_type": "Send",
+    "canonical_name": "Send",
+    "source_tables": [
+      "email_sends"
+    ],
+    "confidence": 0.6
+  }
+]

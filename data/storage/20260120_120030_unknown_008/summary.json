@@ -1,0 +1,111 @@
+{
+  "job_id": "20260120_120030_unknown_008",
+  "domain": "unknown",
+  "started_at": "2026-01-20T12:00:30.158715",
+  "completed_at": "2026-01-20T12:10:48.123094",
+  "duration_seconds": 617.964379,
+  "status": "completed",
+  "statistics": {
+    "total_agents": 16,
+    "completed_agents": 16,
+    "total_llm_calls": 15,
+    "total_tokens": 234644
+  },
+  "agent_stats": {
+    "Data Analyst": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 62711.266,
+      "llm_calls": 1
+    },
+    "TDA Expert": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 10478.096000000001,
+      "llm_calls": 1
+    },
+    "Schema Analyst": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 39468.669,
+      "llm_calls": 1
+    },
+    "Value Matcher": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 59214.305,
+      "llm_calls": 1
+    },
+    "Entity Classifier": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 31846.648999999998,
+      "llm_calls": 1
+    },
+    "Relationship Detector": {
+      "phase": "phase1_discovery",
+      "success": true,
+      "duration_ms": 41877.281,
+      "llm_calls": 1
+    },
+    "Ontology Architect": {
+      "phase": "phase2_refinement",
+      "success": true,
+      "duration_ms": 79043.734,
+      "llm_calls": 1
+    },
+    "Conflict Resolver": {
+      "phase": "phase2_refinement",
+      "success": true,
+      "duration_ms": 0.637,
+      "llm_calls": 0
+    },
+    "Quality Judge": {
+      "phase": "phase2_refinement",
+      "success": true,
+      "duration_ms": 57804.020000000004,
+      "llm_calls": 1
+    },
+    "Semantic Validator": {
+      "phase": "phase2_refinement",
+      "success": true,
+      "duration_ms": 57497.078,
+      "llm_calls": 1
+    },
+    "Governance Strategist": {
+      "phase": "phase3_governance",
+      "success": true,
+      "duration_ms": 46993.986,
+      "llm_calls": 1
+    },
+    "Action Prioritizer": {
+      "phase": "phase3_governance",
+      "success": true,
+      "duration_ms": 0.778,
+      "llm_calls": 0
+    },
+    "Risk Assessor": {
+      "phase": "phase3_governance",
+      "success": true,
+      "duration_ms": 41079.182,
+      "llm_calls": 1
+    },
+    "Policy Generator": {
+      "phase": "phase3_governance",
+      "success": true,
+      "duration_ms": 21178.629,
+      "llm_calls": 1
+    }
+  },
+  "input_tables": [
+    "airport_employees",
+    "baggage_handling",
+    "airlines",
+    "aircraft_maintenance",
+    "delay_records",
+    "gates",
+    "flights",
+    "passengers",
+    "aircraft_registry"
+  ]
+}

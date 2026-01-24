@@ -1,0 +1,9 @@
+openai
+python-dotenv
+rich
+fastapi
+uvicorn[standard]
+pandas
+pydantic>=2.0
+sqlalchemy
+aiosqlite

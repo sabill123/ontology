@@ -1,0 +1,359 @@
+{
+  "entities": [
+    "UnifiedEntity(entity_id='ENT_CUSTOMER', entity_type='Customer', canonical_name='Customer', source_tables=['customers'], key_mappings={'customers': 'customer_id'}, confidence=0.9, unified_attributes=[], verified_by_values=False, sample_shared_keys=[])",
+    "UnifiedEntity(entity_id='ENT_PRODUCT', entity_type='Product', canonical_name='Product', source_tables=['products'], key_mappings={'products': 'product_id'}, confidence=0.9, unified_attributes=[], verified_by_values=False, sample_shared_keys=[])",
+    "UnifiedEntity(entity_id='ENT_CAMPAIGN', entity_type='Campaign', canonical_name='MarketingCampaign', source_tables=['campaigns', 'ad_campaigns'], key_mappings={'campaigns': 'campaign_id', 'ad_campaigns': 'campaign_id'}, confidence=0.75, unified_attributes=[], verified_by_values=False, sample_shared_keys=[])",
+    "UnifiedEntity(entity_id='ENT_ORDER', entity_type='Order', canonical_name='SalesOrder', source_tables=['orders'], key_mappings={'orders': 'order_id'}, confidence=0.9, unified_attributes=[], verified_by_values=False, sample_shared_keys=[])",
+    "UnifiedEntity(entity_id='ENT_LEAD', entity_type='Lead', canonical_name='SalesLead', source_tables=['leads'], key_mappings={'leads': 'lead_id'}, confidence=0.8, unified_attributes=[], verified_by_values=False, sample_shared_keys=[])",
+    "UnifiedEntity(entity_id='ENT_WEB_SESSION', entity_type='WebSession', canonical_name='WebSession', source_tables=['web_sessions'], key_mappings={'web_sessions': 'session_id'}, confidence=0.85, unified_attributes=[], verified_by_values=False, sample_shared_keys=[])",
+    "UnifiedEntity(entity_id='ENT_EMAIL_SEND', entity_type='EmailSend', canonical_name='EmailDelivery', source_tables=['email_sends'], key_mappings={'email_sends': 'send_id'}, confidence=0.85, unified_attributes=[], verified_by_values=False, sample_shared_keys=[])",
+    "UnifiedEntity(entity_id='ENT_EMAIL_EVENT', entity_type='EmailEvent', canonical_name='EmailInteraction', source_tables=['email_events'], key_mappings={'email_events': 'event_id'}, confidence=0.85, unified_attributes=[], verified_by_values=False, sample_shared_keys=[])",
+    "UnifiedEntity(entity_id='ENT_CONVERSION', entity_type='Conversion', canonical_name='MarketingConversion', source_tables=['conversions'], key_mappings={'conversions': 'conversion_id'}, confidence=0.75, unified_attributes=[], verified_by_values=False, sample_shared_keys=[])",
+    "UnifiedEntity(entity_id='ENT_AD_PERFORMANCE', entity_type='AdPerformanceMetric', canonical_name='AdPerformanceMetric', source_tables=['ad_performance'], key_mappings={'ad_performance': 'performance_id'}, confidence=0.8, unified_attributes=[], verified_by_values=False, sample_shared_keys=[])"
+  ],
+  "relationships": [
+    {
+      "from_entity": "Customer",
+      "to_entity": "Order",
+      "relationship_name": "places",
+      "cardinality": "1:N",
+      "join_path": "customers.customer_id = orders.buyer_id"
+    },
+    {
+      "from_entity": "Order",
+      "to_entity": "Product",
+      "relationship_name": "contains",
+      "cardinality": "N:1",
+      "join_path": "orders.prod_code = products.product_id"
+    },
+    {
+      "from_entity": "Customer",
+      "to_entity": "WebSession",
+      "relationship_name": "generates",
+      "cardinality": "1:N",
+      "join_path": "customers.customer_id = web_sessions.user_id"
+    },
+    {
+      "from_entity": "AdCampaign",
+      "to_entity": "AdPerformance",
+      "relationship_name": "has_metrics",
+      "cardinality": "1:N",
+      "join_path": "ad_campaigns.ad_campaign_id = ad_performance.ad_cmp_id"
+    },
+    {
+      "from_entity": "web_sessions",
+      "to_entity": "customers",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "web_sessions.user_id -> customers.customer_id",
+      "confidence": 1.1428571428571428,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "orders",
+      "to_entity": "customers",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "orders.buyer_id -> customers.customer_id",
+      "confidence": 1.1428571428571428,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "orders",
+      "to_entity": "products",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "orders.prod_code -> products.product_id",
+      "confidence": 1.1428571428571428,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "conversions",
+      "to_entity": "orders",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "conversions.order_ref -> orders.order_id",
+      "confidence": 1.1428571428571428,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "leads",
+      "to_entity": "customers",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "leads.cust_id -> customers.customer_id",
+      "confidence": 1.1428571428571428,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "email_sends",
+      "to_entity": "customers",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "email_sends.cust_no -> customers.customer_id",
+      "confidence": 1.1428571428571428,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "products",
+      "to_entity": "orders",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "products.product_id -> orders.prod_code",
+      "confidence": 1.1178571428571429,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "leads",
+      "to_entity": "email_sends",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "leads.cust_id -> email_sends.cust_no",
+      "confidence": 1.1178571428571429,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "orders",
+      "to_entity": "email_sends",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "orders.buyer_id -> email_sends.cust_no",
+      "confidence": 1.1151617250673855,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "web_sessions",
+      "to_entity": "email_sends",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "web_sessions.user_id -> email_sends.cust_no",
+      "confidence": 1.1134615384615385,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "customers",
+      "to_entity": "email_sends",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "customers.customer_id -> email_sends.cust_no",
+      "confidence": 1.112142857142857,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "orders",
+      "to_entity": "web_sessions",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "orders.buyer_id -> web_sessions.user_id",
+      "confidence": 1.1070754716981133,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "leads",
+      "to_entity": "web_sessions",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "leads.cust_id -> web_sessions.user_id",
+      "confidence": 1.105252100840336,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "email_sends",
+      "to_entity": "web_sessions",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "email_sends.cust_no -> web_sessions.user_id",
+      "confidence": 1.10487012987013,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "customers",
+      "to_entity": "web_sessions",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "customers.customer_id -> web_sessions.user_id",
+      "confidence": 1.1035714285714286,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "leads",
+      "to_entity": "orders",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "leads.cust_id -> orders.buyer_id",
+      "confidence": 1.0548319327731093,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "web_sessions",
+      "to_entity": "orders",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "web_sessions.user_id -> orders.buyer_id",
+      "confidence": 1.0035714285714286,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "email_sends",
+      "to_entity": "orders",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "email_sends.cust_no -> orders.buyer_id",
+      "confidence": 1.003138528138528,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "customers",
+      "to_entity": "orders",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "customers.customer_id -> orders.buyer_id",
+      "confidence": 1.0007142857142857,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "ad_campaigns",
+      "to_entity": "ad_performance",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "ad_campaigns.ad_campaign_id -> ad_performance.ad_cmp_id",
+      "confidence": 0.720779220779221,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "ad_performance",
+      "to_entity": "ad_campaigns",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "ad_performance.ad_cmp_id -> ad_campaigns.ad_campaign_id",
+      "confidence": 0.720779220779221,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "ad_campaigns",
+      "to_entity": "campaigns",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "ad_campaigns.marketing_campaign_ref -> campaigns.campaign_id",
+      "confidence": 0.7063492063492063,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "email_sends",
+      "to_entity": "campaigns",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "email_sends.cmp_id -> campaigns.campaign_id",
+      "confidence": 0.6964285714285714,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "email_sends",
+      "to_entity": "conversions",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "email_sends.cmp_id -> conversions.attributed_cmp_id",
+      "confidence": 0.673469387755102,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "email_events",
+      "to_entity": "email_sends",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "email_events.email_send_id -> email_sends.send_id",
+      "confidence": 0.6733165512901195,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "conversions",
+      "to_entity": "ad_performance",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "conversions.attributed_ad_id -> ad_performance.ad_cmp_id",
+      "confidence": 0.6648351648351648,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "orders",
+      "to_entity": "leads",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "orders.buyer_id -> leads.cust_id",
+      "confidence": 0.6551437556154537,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "conversions",
+      "to_entity": "ad_campaigns",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "conversions.attributed_ad_id -> ad_campaigns.ad_campaign_id",
+      "confidence": 0.6538461538461539,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "conversions",
+      "to_entity": "campaigns",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "conversions.attributed_cmp_id -> campaigns.campaign_id",
+      "confidence": 0.6530612244897959,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "ad_campaigns",
+      "to_entity": "conversions",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "ad_campaigns.marketing_campaign_ref -> conversions.attributed_cmp_id",
+      "confidence": 0.6478174603174603,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "email_sends",
+      "to_entity": "leads",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "email_sends.cust_no -> leads.cust_id",
+      "confidence": 0.6445526695526695,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "web_sessions",
+      "to_entity": "leads",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "web_sessions.user_id -> leads.cust_id",
+      "confidence": 0.6438644688644688,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "customers",
+      "to_entity": "leads",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "customers.customer_id -> leads.cust_id",
+      "confidence": 0.6435714285714286,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "ad_performance",
+      "to_entity": "conversions",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "ad_performance.ad_cmp_id -> conversions.attributed_ad_id",
+      "confidence": 0.6362637362637362,
+      "source": "merged_from_fk_detection"
+    },
+    {
+      "from_entity": "campaigns",
+      "to_entity": "conversions",
+      "relationship_name": "references",
+      "cardinality": "N:1",
+      "join_path": "campaigns.campaign_id -> conversions.attributed_cmp_id",
+      "confidence": 0.6340136054421768,
+      "source": "merged_from_fk_detection"
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+# Phase 3 Governance Configuration
+# 모든 규칙과 파라미터를 외부화하여 하드코딩 제거
+
+version: "1.0"
+
+# ============================================================================
+# 거버넌스 규칙 (도메인 독립적)
+# ============================================================================
+governance_rules:
+  # 결정 임계값
+  thresholds:
+    auto_approve: 0.90
+    schedule_review: 0.70
+    request_more_data: 0.50
+    auto_reject: 0.30
+    
+  # 에스컬레이션 트리거
+  escalation:
+    severity_triggers: ["critical"]
+    confidence_override: 0.95  # 매우 높은 신뢰도면 에스컬레이션 스킵
+    
+  # 검토 주기 (일)
+  review_periods:
+    high_confidence: 30    # conf >= 0.9
+    medium_confidence: 14  # conf >= 0.7
+    low_confidence: 7      # conf >= 0.5
+    very_low_confidence: 3 # conf < 0.5
+
+# ============================================================================
+# 멀티에이전트 설정
+# ============================================================================
+agents:
+  insight_agent:
+    weight: 1.0
+    min_evidence_sources: 2
+    evidence_quality_threshold: 0.7
+    
+  validation_agent:
+    weight: 1.2  # 검증 에이전트에 가중치
+    phase2_score_weight: 0.8
+    confidence_weight: 0.2
+    
+  risk_agent:
+    weight: 1.5  # 리스크 에이전트에 높은 가중치
+    severity_weights:
+      critical: 3.0
+      high: 2.0
+      medium: 1.0
+      low: 0.5
+      
+  decision_agent:
+    voting_method: "weighted_consensus"  # weighted_consensus, majority, unanimous
+    tie_breaker: "schedule_review"
+
+# ============================================================================
+# 결정 유형별 가중치 (투표 시)
+# ============================================================================
+decision_weights:
+  escalate: 3.0
+  reject: 2.5
+  request_more_data: 2.0
+  schedule_review: 1.5
+  approve: 1.0
+
+# ============================================================================
+# 액션 생성 규칙
+# ============================================================================
+action_rules:
+  # 결정 유형별 액션 생성 여부
+  create_action_for:
+    approve: true
+    schedule_review: true
+    escalate: true
+    request_more_data: true
+    reject: false
+    
+  # 우선순위 매핑
+  priority_mapping:
+    critical_severity: "critical"
+    high_severity_or_high_conf: "high"
+    medium_conf: "medium"
+    low_conf: "low"
+    
+  # 기한 계산 (일)
+  due_date_rules:
+    critical: 1
+    high: 3
+    medium: 5
+    low: 7
+
+# ============================================================================
+# KPI 시뮬레이션 설정
+# ============================================================================
+kpi_simulation:
+  # 기본 영향도 계산 공식
+  impact_formula: "confidence * base_multiplier"
+  base_multiplier: 10
+  
+  # 신뢰 구간
+  confidence_interval:
+    low_factor: 0.7
+    high_factor: 1.3
+
+# ============================================================================
+# LLM 에이전트 설정
+# ============================================================================
+llm_config:
+  model: "gpt-4"
+  temperature: 0.3
+  max_tokens: 1000
+  
+  # 재시도 설정
+  retry:
+    max_attempts: 3
+    backoff_seconds: 1
+    
+  # 응답 검증
+  validation:
+    require_json: true
+    require_reasoning: true
+    max_reasoning_length: 500
+
+# ============================================================================
+# 평가 설정
+# ============================================================================
+evaluation:
+  # 합격 기준
+  pass_threshold: 0.75
+  
+  # 평가 항목별 가중치
+  criteria_weights:
+    decision_justification: 0.25
+    evidence_alignment: 0.25
+    workflow_compliance: 0.25
+    risk_assessment: 0.25

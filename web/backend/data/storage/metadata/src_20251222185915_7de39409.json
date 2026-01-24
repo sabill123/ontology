@@ -1,0 +1,350 @@
+{
+  "id": "src_20251222185915_7de39409",
+  "name": "uploaded_silo",
+  "source_type": "directory",
+  "connection_info": {
+    "path": "/Users/jaeseokhan/Desktop/Work/ontoloty/data/scenarios/beauty_personalization/raw/uploaded_silo"
+  },
+  "tables": [
+    {
+      "name": "control_tests",
+      "source_id": "src_20251222185915_7de39409",
+      "row_count": 6,
+      "columns": [
+        {
+          "name": "test_id",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "TEST-9001",
+            "TEST-9002",
+            "TEST-9003",
+            "TEST-9004",
+            "TEST-9005"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": true,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "control test identifier in the uploaded_silo.control_tests table",
+            "pattern_description": "String codes matching pattern 'TEST-' followed by a numeric sequence (e.g., TEST-9001, TEST-9002). Fixed alpha prefix with hyphen and 4+ digit number suffix.",
+            "should_preserve_as_string": true,
+            "referenced_entity": null,
+            "llm_confidence": 0.94
+          },
+          "all_key_values": [
+            "TEST-9006",
+            "TEST-9003",
+            "TEST-9001",
+            "TEST-9004",
+            "TEST-9005",
+            "TEST-9002"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Test ID",
+          "business_description": "Unique identifier for Test ID",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "policy_id",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "POL-100",
+            "POL-101",
+            "POL-102",
+            "POL-103",
+            "POL-104"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": true,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "policy",
+              "source": "llm_inference",
+              "confidence": 0.94
+            }
+          ],
+          "statistics": {
+            "semantic_type": "control test policy identifier",
+            "pattern_description": "String code with prefix 'POL-' followed by a numeric sequence (e.g., 'POL-100'). Likely a business key for policies referenced by control tests.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "policy",
+            "llm_confidence": 0.94
+          },
+          "all_key_values": [
+            "POL-102",
+            "POL-100",
+            "POL-104",
+            "POL-101",
+            "POL-105",
+            "POL-103"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Policy ID",
+          "business_description": "Unique identifier for Policy ID",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "audit_window",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "2025-01",
+            "2025-01",
+            "2025-01",
+            "2025-01",
+            "2025-01"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 1,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "audit period window in year-month format (YYYY-MM)",
+            "pattern_description": "Fixed-length 7-character strings matching YYYY-MM, where YYYY is a 4-digit year and MM is a 2-digit month; values are repeated, indicating a period label rather than a unique ID",
+            "should_preserve_as_string": true,
+            "referenced_entity": null,
+            "llm_confidence": 0.97
+          },
+          "all_key_values": [],
+          "semantic_role": "unknown",
+          "business_name": "Audit Window",
+          "business_description": "Uncategorized field: Audit Window",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "population_size",
+          "inferred_type": "integer",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "120",
+            "45",
+            "80",
+            "30",
+            "25"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "min": 25.0,
+            "max": 120.0,
+            "mean": 60.0,
+            "semantic_type": "size of a test/control population or group (count of entities in the control test)",
+            "pattern_description": "Positive whole numbers represented as numeric strings without leading zeros or non-numeric characters; values appear to be small counts (e.g., 25, 30, 45, 60, 80, 120) rather than identifiers or codes.",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [],
+          "semantic_role": "identifier",
+          "business_name": "Population Size",
+          "business_description": "Unique identifier for Population Size",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "exceptions_found",
+          "inferred_type": "integer",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "3",
+            "1",
+            "2",
+            "2",
+            "0"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "min": 0.0,
+            "max": 3.0,
+            "mean": 1.5,
+            "semantic_type": "count of exceptions found for a given control test or record",
+            "pattern_description": "small non-negative integer values represented as numeric strings without leading zeros (e.g., '0', '1', '2', '3'); repeated values, not unique identifiers",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.94
+          },
+          "all_key_values": [],
+          "semantic_role": "measure",
+          "business_name": "Exceptions Found",
+          "business_description": "Numeric metric: Exceptions Found (range: 0.0 to 3.0)",
+          "domain_category": null,
+          "value_domain": {
+            "min": 0.0,
+            "max": 3.0,
+            "mean": 1.5
+          }
+        },
+        {
+          "name": "automation_class",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "Prevent",
+            "Detect",
+            "Prevent",
+            "Detect",
+            "Respond"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 3,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "control test automation class or control type category (e.g., Prevent, Detect, Respond)",
+            "pattern_description": "Short categorical text values indicating automation/control class with a small, repeated set of labels: 'Prevent', 'Detect', 'Respond'. No numeric, date, or code-like patterns.",
+            "should_preserve_as_string": true,
+            "referenced_entity": null,
+            "llm_confidence": 0.97
+          },
+          "all_key_values": [
+            "Respond",
+            "Prevent",
+            "Detect"
+          ],
+          "semantic_role": "dimension",
+          "business_name": "Automation Class",
+          "business_description": "Categorical attribute: Automation Class (3 distinct values)",
+          "domain_category": null,
+          "value_domain": {
+            "allowed_values": [
+              "Respond",
+              "Prevent",
+              "Detect"
+            ]
+          }
+        },
+        {
+          "name": "notes",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "Masking job missed new table",
+            "Need vendor telemetry",
+            "Human override steps unclear",
+            "Bias features drifted",
+            "Runbook executed"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "free-text notes or comments describing control test issues, actions, or status",
+            "pattern_description": "Short natural-language sentences/phrases with spaces and mixed words; no consistent structured pattern, codes, dates, or identifiers; serves as human-authored commentary about control tests.",
+            "should_preserve_as_string": true,
+            "referenced_entity": null,
+            "llm_confidence": 0.98
+          },
+          "all_key_values": [
+            "Supplier data late",
+            "Masking job missed new table",
+            "Runbook executed",
+            "Need vendor telemetry",
+            "Bias features drifted",
+            "Human override steps unclear"
+          ],
+          "semantic_role": "unknown",
+          "business_name": "Notes",
+          "business_description": "Uncategorized field: Notes",
+          "domain_category": null,
+          "value_domain": null
+        }
+      ],
+      "primary_key_candidates": [
+        "test_id",
+        "policy_id"
+      ],
+      "foreign_key_candidates": [],
+      "quality_score": {
+        "completeness": 1.0,
+        "consistency": 0.85,
+        "validity": 0.9571428571428571,
+        "uniqueness": 1.0,
+        "overall": 0.9592857142857143
+      },
+      "sample_data": [
+        {
+          "test_id": "TEST-9001",
+          "policy_id": "POL-100",
+          "audit_window": "2025-01",
+          "population_size": "120",
+          "exceptions_found": "3",
+          "automation_class": "Prevent",
+          "notes": "Masking job missed new table"
+        },
+        {
+          "test_id": "TEST-9002",
+          "policy_id": "POL-101",
+          "audit_window": "2025-01",
+          "population_size": "45",
+          "exceptions_found": "1",
+          "automation_class": "Detect",
+          "notes": "Need vendor telemetry"
+        },
+        {
+          "test_id": "TEST-9003",
+          "policy_id": "POL-102",
+          "audit_window": "2025-01",
+          "population_size": "80",
+          "exceptions_found": "2",
+          "automation_class": "Prevent",
+          "notes": "Human override steps unclear"
+        },
+        {
+          "test_id": "TEST-9004",
+          "policy_id": "POL-103",
+          "audit_window": "2025-01",
+          "population_size": "30",
+          "exceptions_found": "2",
+          "automation_class": "Detect",
+          "notes": "Bias features drifted"
+        },
+        {
+          "test_id": "TEST-9005",
+          "policy_id": "POL-104",
+          "audit_window": "2025-01",
+          "population_size": "25",
+          "exceptions_found": "0",
+          "automation_class": "Respond",
+          "notes": "Runbook executed"
+        },
+        {
+          "test_id": "TEST-9006",
+          "policy_id": "POL-105",
+          "audit_window": "2025-01",
+          "population_size": "60",
+          "exceptions_found": "1",
+          "automation_class": "Detect",
+          "notes": "Supplier data late"
+        }
+      ]
+    }
+  ],
+  "created_at": "2025-12-22T18:59:36.543813"
+}

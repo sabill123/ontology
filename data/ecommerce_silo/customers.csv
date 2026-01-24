@@ -1,0 +1,16 @@
+cust_id,customer_name,email,phone,registration_date,membership_level
+CUST001,김철수,kim.cs@email.com,010-1234-5678,2023-01-15,gold
+CUST002,이영희,lee.yh@email.com,010-2345-6789,2023-02-20,silver
+CUST003,박민수,park.ms@email.com,010-3456-7890,2023-03-10,gold
+CUST004,최지연,choi.jy@email.com,010-4567-8901,2023-04-05,bronze
+CUST005,정현우,jung.hw@email.com,010-5678-9012,2023-05-12,platinum
+CUST006,강수진,kang.sj@email.com,010-6789-0123,2023-06-18,silver
+CUST007,윤서연,yoon.sy@email.com,010-7890-1234,2023-07-22,bronze
+CUST008,임재원,lim.jw@email.com,010-8901-2345,2023-08-30,silver
+CUST009,한미영,han.my@email.com,010-9012-3456,2023-09-15,gold
+CUST010,오동현,oh.dh@email.com,010-0123-4567,2023-10-08,bronze
+CUST011,신유나,shin.yn@email.com,010-1111-2222,2023-11-12,platinum
+CUST012,조현빈,cho.hb@email.com,010-2222-3333,2023-12-01,silver
+CUST013,배수아,bae.sa@email.com,010-3333-4444,2024-01-05,bronze
+CUST014,권태윤,kwon.ty@email.com,010-4444-5555,2024-01-20,silver
+CUST015,황지민,hwang.jm@email.com,010-5555-6666,2024-02-10,gold

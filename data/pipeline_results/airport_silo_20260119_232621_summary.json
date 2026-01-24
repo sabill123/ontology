@@ -1,0 +1,14 @@
+{
+  "scenario_name": "airport_silo_20260119_232621",
+  "domain": "aerospace",
+  "domain_confidence": 1.0,
+  "execution_time_seconds": 682.689404,
+  "statistics": {
+    "tables_processed": 8,
+    "entities_found": 10,
+    "relationships_found": 3,
+    "insights_generated": 31,
+    "governance_actions": 33
+  },
+  "generated_at": "2026-01-19T23:37:44.469905"
+}

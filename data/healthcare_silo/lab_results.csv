@@ -1,0 +1,29 @@
+lab_result_id,order_ref,patient_identifier,test_name,test_date,result_value,unit,reference_range,status,ordering_physician
+LAB001,APPT001,PT001,Complete Blood Count,2024-01-15,Normal,N/A,N/A,completed,DR001
+LAB002,APPT001,PT001,Lipid Panel,2024-01-15,242,mg/dL,<200,abnormal,DR001
+LAB003,APPT001,PT001,Basic Metabolic Panel,2024-01-15,Normal,N/A,N/A,completed,DR001
+LAB004,APPT002,PT002,MRI Brain,2024-01-15,No abnormalities,N/A,N/A,completed,DR005
+LAB005,APPT003,PT003,X-Ray Right Knee,2024-01-15,Mild arthritis,N/A,N/A,completed,DR008
+LAB006,APPT005,PT005,CT Chest,2024-01-15,Mass detected,N/A,N/A,abnormal,DR014
+LAB007,APPT005,PT005,Biopsy,2024-01-16,Malignant,N/A,N/A,abnormal,DR014
+LAB008,APPT006,PT006,HbA1c,2024-01-16,7.8,%,<5.7,abnormal,DR017
+LAB009,APPT006,PT006,Fasting Glucose,2024-01-16,145,mg/dL,70-99,abnormal,DR017
+LAB010,APPT007,PT007,EKG,2024-01-16,Irregular rhythm,N/A,Normal sinus,abnormal,DR001
+LAB011,APPT007,PT007,Echocardiogram,2024-01-17,LVEF 55%,%,>55%,completed,DR001
+LAB012,APPT009,PT009,Thyroid Panel,2024-01-16,Normal,N/A,N/A,completed,DR022
+LAB013,APPT011,PT011,CT Head,2024-01-17,Mild contusion,N/A,N/A,abnormal,DR003
+LAB014,APPT012,PT012,MRI Lumbar Spine,2024-01-17,Disc herniation L4-L5,N/A,N/A,abnormal,DR008
+LAB015,APPT014,PT014,Mammogram,2024-01-17,Suspicious mass,N/A,N/A,abnormal,DR014
+LAB016,APPT014,PT014,Breast Biopsy,2024-01-18,Malignant,N/A,N/A,abnormal,DR014
+LAB017,APPT015,PT015,HbA1c,2024-01-17,8.2,%,<5.7,abnormal,DR017
+LAB018,APPT016,PT016,Blood Pressure,2024-01-18,145/92,mmHg,<120/80,abnormal,DR001
+LAB019,APPT017,PT017,MRI Brain,2024-01-18,Normal,N/A,N/A,completed,DR006
+LAB020,APPT019,PT019,X-Ray Right Leg,2024-01-18,Patellar fracture,N/A,N/A,abnormal,DR003
+LAB021,APPT020,PT020,X-Ray Right Hip,2024-01-18,Severe arthritis,N/A,N/A,abnormal,DR009
+LAB022,APPT022,PT022,Colonoscopy,2024-01-19,Mass detected,N/A,N/A,abnormal,DR015
+LAB023,APPT022,PT022,Colon Biopsy,2024-01-20,Adenocarcinoma,N/A,N/A,abnormal,DR015
+LAB024,APPT023,PT023,Lipid Panel,2024-01-19,268,mg/dL,<200,abnormal,DR018
+LAB025,APPT025,PT025,Cardiac Stress Test,2024-01-20,Abnormal,N/A,N/A,abnormal,DR002
+LAB026,APPT025,PT025,Cardiac Catheterization,2024-01-21,70% blockage LAD,N/A,N/A,abnormal,DR002
+LAB027,APPT026,PT026,EEG,2024-01-20,Epileptiform activity,N/A,Normal,abnormal,DR007
+LAB028,APPT029,PT029,X-Ray Left Hip,2024-01-21,Moderate arthritis,N/A,N/A,abnormal,DR010

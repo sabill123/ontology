@@ -1,0 +1,658 @@
+[
+  {
+    "insight_id": "INSIGHT_0002",
+    "title": "High Missing Data in utm_campaign",
+    "description": "923 records (61.5%) have missing values in utm_campaign",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "web_sessions",
+    "source_column": "utm_campaign",
+    "metric_value": 923,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0003",
+    "title": "Low Margin Rate Performance",
+    "description": "Found 50 items (100.0%) with margin_rate below threshold (0.7)",
+    "insight_type": "kpi",
+    "severity": "high",
+    "source_table": "products",
+    "source_column": "margin_rate",
+    "metric_value": 0.3542,
+    "recommendations": [
+      "Investigate factors affecting margin_rate",
+      "Identify improvement opportunities"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0005",
+    "title": "Low Discount Rate Performance",
+    "description": "Found 500 items (100.0%) with discount_rate below threshold (0.7)",
+    "insight_type": "kpi",
+    "severity": "high",
+    "source_table": "orders",
+    "source_column": "discount_rate",
+    "metric_value": 0.0728,
+    "recommendations": [
+      "Investigate factors affecting discount_rate",
+      "Identify improvement opportunities"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0006",
+    "title": "High Missing Data in attributed_ad_id",
+    "description": "183 records (61.0%) have missing values in attributed_ad_id",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "conversions",
+    "source_column": "attributed_ad_id",
+    "metric_value": 183,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0007",
+    "title": "High Missing Data in attributed_cmp_id",
+    "description": "185 records (61.7%) have missing values in attributed_cmp_id",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "conversions",
+    "source_column": "attributed_cmp_id",
+    "metric_value": 185,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0008",
+    "title": "High Missing Data in link_url",
+    "description": "454 records (78.1%) have missing values in link_url",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "email_events",
+    "source_column": "link_url",
+    "metric_value": 454,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0009",
+    "title": "Low Lead Score Performance",
+    "description": "Found 94 items (62.7%) with lead_score below threshold (70)",
+    "insight_type": "kpi",
+    "severity": "high",
+    "source_table": "leads",
+    "source_column": "lead_score",
+    "metric_value": 56.873333333333335,
+    "recommendations": [
+      "Investigate factors affecting lead_score",
+      "Identify improvement opportunities"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0010",
+    "title": "High Missing Data in cust_id",
+    "description": "105 records (70.0%) have missing values in cust_id",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "leads",
+    "source_column": "cust_id",
+    "metric_value": 105,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0011",
+    "title": "High Missing Data in marketing_campaign_ref",
+    "description": "20 records (50.0%) have missing values in marketing_campaign_ref",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "ad_campaigns",
+    "source_column": "marketing_campaign_ref",
+    "metric_value": 20,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0013",
+    "title": "Low CTR Alert - Unknown Platform",
+    "description": "평균 CTR 2.99%로 업계 평균(3.5%) 대비 14% 하락",
+    "insight_type": "kpi",
+    "severity": "high",
+    "source_table": "ad_performance",
+    "source_column": "ctr",
+    "metric_value": 0.029932124999999997,
+    "recommendations": [
+      "즉시 광고 크리에이티브 검토 필요",
+      "타겟 오디언스 재설정",
+      "경쟁사 광고 분석",
+      "키워드 관련성 검토"
+    ],
+    "business_impact": "낮은 CTR로 인한 광고 효율성 저하, CPC 상승 위험"
+  },
+  {
+    "insight_id": "INSIGHT_0017",
+    "title": "[e_commerce] Low Conversion Rate",
+    "description": "The average conversion rate is only 9%, indicating that the majority of web sessions do not lead to purchases. This could suggest issues with the website's user experience or product offerings.",
+    "insight_type": "kpi",
+    "severity": "high",
+    "source_table": "web_sessions",
+    "source_column": "converted",
+    "metric_value": 0.09,
+    "recommendations": [
+      "Enhance website UX/UI",
+      "Optimize product listings",
+      "Implement targeted marketing campaigns"
+    ],
+    "business_impact": "Improving the conversion rate could significantly increase revenue without the need for additional traffic."
+  },
+  {
+    "insight_id": "INSIGHT_0020",
+    "title": "[e_commerce] High Cancellation Rate",
+    "description": "The cancellation rate is concerning, with 13 out of 500 orders canceled. This could indicate issues with order fulfillment or customer satisfaction.",
+    "insight_type": "risk",
+    "severity": "high",
+    "source_table": "orders",
+    "source_column": "status",
+    "metric_value": 0.026,
+    "recommendations": [
+      "Investigate reasons for cancellations",
+      "Improve order fulfillment processes",
+      "Enhance customer service support"
+    ],
+    "business_impact": "Reducing cancellations can directly improve revenue and customer satisfaction."
+  },
+  {
+    "insight_id": "INSIGHT_0001",
+    "title": "High Missing Data in user_id",
+    "description": "459 records (30.6%) have missing values in user_id",
+    "insight_type": "data_quality",
+    "severity": "medium",
+    "source_table": "web_sessions",
+    "source_column": "user_id",
+    "metric_value": 459,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0004",
+    "title": "Cancelled Status",
+    "description": "Found 29 records (5.8%) with 'cancelled' status in orders",
+    "insight_type": "status_distribution",
+    "severity": "medium",
+    "source_table": "orders",
+    "source_column": "status",
+    "metric_value": "cancelled",
+    "recommendations": [
+      "Track cancellation reasons",
+      "Analyze customer feedback",
+      "Review cancellation policies"
+    ],
+    "business_impact": "Revenue impact from 29 items (5.8%)"
+  },
+  {
+    "insight_id": "INSIGHT_0019",
+    "title": "[e_commerce] Stock Levels and Margin Rates",
+    "description": "The average stock quantity is 227.34, but the margin rate is only 35%. This may indicate that while there is sufficient stock, the profitability per item sold is relatively low.",
+    "insight_type": "operational",
+    "severity": "medium",
+    "source_table": "products",
+    "source_column": "margin_rate",
+    "metric_value": 0.35,
+    "recommendations": [
+      "Review pricing strategies",
+      "Negotiate better supplier costs",
+      "Analyze product performance to identify low-margin items"
+    ],
+    "business_impact": "Improving margins can enhance overall profitability, even with stable stock levels."
+  },
+  {
+    "insight_id": "INSIGHT_0021",
+    "title": "[e_commerce] Dependency on Online Acquisition Channel",
+    "description": "The majority of customers are acquired through online channels (48 out of 200), indicating a potential over-reliance on this acquisition method.",
+    "insight_type": "risk",
+    "severity": "medium",
+    "source_table": "customers",
+    "source_column": "acquisition_channel",
+    "metric_value": 48,
+    "recommendations": [
+      "Diversify marketing channels",
+      "Explore offline marketing strategies",
+      "Invest in partnerships and collaborations"
+    ],
+    "business_impact": "Diversifying acquisition channels can mitigate risks associated with market fluctuations and improve customer reach."
+  },
+  {
+    "insight_id": "INSIGHT_0012",
+    "title": "Growth Forecast: budget",
+    "description": "Predicted 27.5% increase using Ensemble(ARIMA(2, 0, 0))",
+    "insight_type": "trend",
+    "severity": "info",
+    "source_table": "campaigns",
+    "source_column": "budget",
+    "metric_value": 3099891.5564500187,
+    "recommendations": [
+      "Prepare for increased capacity",
+      "Review resource allocation"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0014",
+    "title": "Excellent CPC - Unknown Platform",
+    "description": "평균 CPC 208원으로 업계 평균 대비 92% 절감",
+    "insight_type": "kpi",
+    "severity": "info",
+    "source_table": "ad_performance",
+    "source_column": "cpc",
+    "metric_value": 207.647725,
+    "recommendations": [
+      "현재 입찰 전략 유지",
+      "예산 확대 고려"
+    ],
+    "business_impact": "효율적인 CPC로 동일 예산 대비 더 많은 클릭 확보"
+  },
+  {
+    "insight_id": "INSIGHT_0015",
+    "title": "Good Conversion Rate - Unknown Platform",
+    "description": "평균 전환율 5.41%로 양호",
+    "insight_type": "kpi",
+    "severity": "info",
+    "source_table": "ad_performance",
+    "source_column": "calculated",
+    "metric_value": 0.05411954776744508,
+    "recommendations": [
+      "랜딩 페이지 A/B 테스트로 추가 개선"
+    ],
+    "business_impact": "안정적인 전환 성과"
+  },
+  {
+    "insight_id": "INSIGHT_0016",
+    "title": "Excellent CPA - Unknown Platform",
+    "description": "CPA 1,243원으로 매우 효율적인 전환 비용",
+    "insight_type": "kpi",
+    "severity": "info",
+    "source_table": "ad_performance",
+    "source_column": "spend/conversions",
+    "metric_value": 1243.4644180817245,
+    "recommendations": [
+      "예산 증액으로 전환 확대"
+    ],
+    "business_impact": "우수한 전환 비용 효율"
+  },
+  {
+    "insight_id": "INSIGHT_0018",
+    "title": "[e_commerce] High Average Lifetime Value",
+    "description": "The average lifetime value of customers is quite high at approximately 93,798.02, indicating that customers are likely to generate significant revenue over their lifetime.",
+    "insight_type": "kpi",
+    "severity": "info",
+    "source_table": "customers",
+    "source_column": "lifetime_value",
+    "metric_value": 93798.02,
+    "recommendations": [
+      "Focus on customer retention strategies",
+      "Enhance loyalty programs",
+      "Increase upselling and cross-selling efforts"
+    ],
+    "business_impact": "Maximizing customer lifetime value can lead to sustained revenue growth."
+  },
+  {
+    "insight_id": "INSIGHT_0002",
+    "title": "High Missing Data in utm_campaign",
+    "description": "923 records (61.5%) have missing values in utm_campaign",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "web_sessions",
+    "source_column": "utm_campaign",
+    "metric_value": 923,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0003",
+    "title": "Low Margin Rate Performance",
+    "description": "Found 50 items (100.0%) with margin_rate below threshold (0.7)",
+    "insight_type": "kpi",
+    "severity": "high",
+    "source_table": "products",
+    "source_column": "margin_rate",
+    "metric_value": 0.3542,
+    "recommendations": [
+      "Investigate factors affecting margin_rate",
+      "Identify improvement opportunities"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0005",
+    "title": "Low Discount Rate Performance",
+    "description": "Found 500 items (100.0%) with discount_rate below threshold (0.7)",
+    "insight_type": "kpi",
+    "severity": "high",
+    "source_table": "orders",
+    "source_column": "discount_rate",
+    "metric_value": 0.0728,
+    "recommendations": [
+      "Investigate factors affecting discount_rate",
+      "Identify improvement opportunities"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0006",
+    "title": "High Missing Data in attributed_ad_id",
+    "description": "183 records (61.0%) have missing values in attributed_ad_id",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "conversions",
+    "source_column": "attributed_ad_id",
+    "metric_value": 183,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0007",
+    "title": "High Missing Data in attributed_cmp_id",
+    "description": "185 records (61.7%) have missing values in attributed_cmp_id",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "conversions",
+    "source_column": "attributed_cmp_id",
+    "metric_value": 185,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0008",
+    "title": "High Missing Data in link_url",
+    "description": "454 records (78.1%) have missing values in link_url",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "email_events",
+    "source_column": "link_url",
+    "metric_value": 454,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0009",
+    "title": "Low Lead Score Performance",
+    "description": "Found 94 items (62.7%) with lead_score below threshold (70)",
+    "insight_type": "kpi",
+    "severity": "high",
+    "source_table": "leads",
+    "source_column": "lead_score",
+    "metric_value": 56.873333333333335,
+    "recommendations": [
+      "Investigate factors affecting lead_score",
+      "Identify improvement opportunities"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0010",
+    "title": "High Missing Data in cust_id",
+    "description": "105 records (70.0%) have missing values in cust_id",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "leads",
+    "source_column": "cust_id",
+    "metric_value": 105,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0011",
+    "title": "High Missing Data in marketing_campaign_ref",
+    "description": "20 records (50.0%) have missing values in marketing_campaign_ref",
+    "insight_type": "data_quality",
+    "severity": "high",
+    "source_table": "ad_campaigns",
+    "source_column": "marketing_campaign_ref",
+    "metric_value": 20,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0013",
+    "title": "Low CTR Alert - Unknown Platform",
+    "description": "평균 CTR 2.99%로 업계 평균(3.5%) 대비 14% 하락",
+    "insight_type": "kpi",
+    "severity": "high",
+    "source_table": "ad_performance",
+    "source_column": "ctr",
+    "metric_value": 0.029932124999999997,
+    "recommendations": [
+      "즉시 광고 크리에이티브 검토 필요",
+      "타겟 오디언스 재설정",
+      "경쟁사 광고 분석",
+      "키워드 관련성 검토"
+    ],
+    "business_impact": "낮은 CTR로 인한 광고 효율성 저하, CPC 상승 위험"
+  },
+  {
+    "insight_id": "INSIGHT_0017",
+    "title": "[e_commerce] Low Conversion Rate",
+    "description": "The average conversion rate is only 9%, indicating that a significant majority of web sessions do not lead to purchases. This suggests potential issues in the customer journey or product appeal.",
+    "insight_type": "kpi",
+    "severity": "high",
+    "source_table": "web_sessions",
+    "source_column": "converted",
+    "metric_value": 0.09,
+    "recommendations": [
+      "Optimize the website for better user experience",
+      "Conduct A/B testing on landing pages",
+      "Enhance product descriptions and images"
+    ],
+    "business_impact": "Improving the conversion rate can lead to increased sales and revenue."
+  },
+  {
+    "insight_id": "INSIGHT_0018",
+    "title": "[e_commerce] High Discount Rates",
+    "description": "The average discount rate is 7%, with some orders offering discounts as high as 20%. This could indicate a reliance on discounts to drive sales, which may erode profit margins.",
+    "insight_type": "risk",
+    "severity": "high",
+    "source_table": "orders",
+    "source_column": "discount_rate",
+    "metric_value": 0.07,
+    "recommendations": [
+      "Review pricing strategy",
+      "Evaluate the effectiveness of discounts",
+      "Consider loyalty programs instead of discounts"
+    ],
+    "business_impact": "Reducing reliance on discounts can improve profit margins and brand perception."
+  },
+  {
+    "insight_id": "INSIGHT_0021",
+    "title": "[e_commerce] Product Stock Levels",
+    "description": "The average stock quantity is 227.34, with some products having as low as 1 unit in stock. This could lead to stockouts and lost sales opportunities.",
+    "insight_type": "operational",
+    "severity": "high",
+    "source_table": "products",
+    "source_column": "stock_qty",
+    "metric_value": 227.34,
+    "recommendations": [
+      "Implement inventory management systems",
+      "Regularly review stock levels",
+      "Forecast demand based on sales trends"
+    ],
+    "business_impact": "Maintaining optimal stock levels can prevent lost sales and improve customer satisfaction."
+  },
+  {
+    "insight_id": "INSIGHT_0001",
+    "title": "High Missing Data in user_id",
+    "description": "459 records (30.6%) have missing values in user_id",
+    "insight_type": "data_quality",
+    "severity": "medium",
+    "source_table": "web_sessions",
+    "source_column": "user_id",
+    "metric_value": 459,
+    "recommendations": [
+      "Investigate data collection process",
+      "Consider default values or imputation",
+      "Review data entry procedures"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0004",
+    "title": "Cancelled Status",
+    "description": "Found 29 records (5.8%) with 'cancelled' status in orders",
+    "insight_type": "status_distribution",
+    "severity": "medium",
+    "source_table": "orders",
+    "source_column": "status",
+    "metric_value": "cancelled",
+    "recommendations": [
+      "Track cancellation reasons",
+      "Analyze customer feedback",
+      "Review cancellation policies"
+    ],
+    "business_impact": "Revenue impact from 29 items (5.8%)"
+  },
+  {
+    "insight_id": "INSIGHT_0019",
+    "title": "[e_commerce] Device Usage Imbalance",
+    "description": "The distribution of device usage shows a concentration on tablets (37 sessions), while mobile (35) and desktop (28) are less utilized. This may indicate a need for better mobile optimization.",
+    "insight_type": "operational",
+    "severity": "medium",
+    "source_table": "web_sessions",
+    "source_column": "device",
+    "metric_value": null,
+    "recommendations": [
+      "Enhance mobile site performance",
+      "Develop a mobile app for better engagement",
+      "Analyze user behavior across devices"
+    ],
+    "business_impact": "Improving mobile experience can increase engagement and conversion rates."
+  },
+  {
+    "insight_id": "INSIGHT_0020",
+    "title": "[e_commerce] Inactive Customer Segment",
+    "description": "There are 13 inactive customers in the dataset, which may indicate a loss of engagement. This could lead to reduced lifetime value and revenue.",
+    "insight_type": "risk",
+    "severity": "medium",
+    "source_table": "customers",
+    "source_column": "is_active",
+    "metric_value": 0.87,
+    "recommendations": [
+      "Implement re-engagement campaigns",
+      "Analyze reasons for inactivity",
+      "Offer personalized promotions to inactive customers"
+    ],
+    "business_impact": "Re-engaging inactive customers can recover lost revenue and improve overall customer retention."
+  },
+  {
+    "insight_id": "INSIGHT_0012",
+    "title": "Growth Forecast: budget",
+    "description": "Predicted 27.5% increase using Ensemble(ARIMA(2, 0, 0))",
+    "insight_type": "trend",
+    "severity": "info",
+    "source_table": "campaigns",
+    "source_column": "budget",
+    "metric_value": 3099891.5564500187,
+    "recommendations": [
+      "Prepare for increased capacity",
+      "Review resource allocation"
+    ],
+    "business_impact": ""
+  },
+  {
+    "insight_id": "INSIGHT_0014",
+    "title": "Excellent CPC - Unknown Platform",
+    "description": "평균 CPC 208원으로 업계 평균 대비 92% 절감",
+    "insight_type": "kpi",
+    "severity": "info",
+    "source_table": "ad_performance",
+    "source_column": "cpc",
+    "metric_value": 207.647725,
+    "recommendations": [
+      "현재 입찰 전략 유지",
+      "예산 확대 고려"
+    ],
+    "business_impact": "효율적인 CPC로 동일 예산 대비 더 많은 클릭 확보"
+  },
+  {
+    "insight_id": "INSIGHT_0015",
+    "title": "Good Conversion Rate - Unknown Platform",
+    "description": "평균 전환율 5.41%로 양호",
+    "insight_type": "kpi",
+    "severity": "info",
+    "source_table": "ad_performance",
+    "source_column": "calculated",
+    "metric_value": 0.05411954776744508,
+    "recommendations": [
+      "랜딩 페이지 A/B 테스트로 추가 개선"
+    ],
+    "business_impact": "안정적인 전환 성과"
+  },
+  {
+    "insight_id": "INSIGHT_0016",
+    "title": "Excellent CPA - Unknown Platform",
+    "description": "CPA 1,243원으로 매우 효율적인 전환 비용",
+    "insight_type": "kpi",
+    "severity": "info",
+    "source_table": "ad_performance",
+    "source_column": "spend/conversions",
+    "metric_value": 1243.4644180817245,
+    "recommendations": [
+      "예산 증액으로 전환 확대"
+    ],
+    "business_impact": "우수한 전환 비용 효율"
+  }
+]

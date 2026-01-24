@@ -1,0 +1,51 @@
+[
+  {
+    "action_id": "action_1",
+    "title": "Enforce FK constraint between conversions.campaign_id and ad_campaigns.campaign_id",
+    "description": "Design and implement a foreign key constraint from conversions.campaign_id to ad_campaigns.campaign_id to ensure all recorded conversions are tied to a valid ad campaign. Steps:\n1) Profile current data to identify orphaned conversions.campaign_id values not present in ad_campaigns.campaign_id and decide on remediation (e.g., map to valid campaigns, mark as unknown, or delete).\n2) Align with marketing analytics and data ownership teams on expected behavior for invalid campaign references (reject new records vs. soft-fail in staging).\n3) Implement the FK constraint in the warehouse/OLTP schema (including ON DELETE/UPDATE behavior, typically RESTRICT or NO ACTION for analytics).\n4) Backfill and validate the constraint in lower environments before promoting to production.\n5) Update ETL/ELT pipelines to fail fast or quarantine records that violate the constraint.\nThis will improve attribution accuracy, prevent future orphaned conversions, and stabilize downstream marketing performance reporting.",
+    "action_type": "implementation",
+    "priority": "high",
+    "priority_score": 3.1,
+    "impact": "high",
+    "effort": "high",
+    "estimated_hours": 24,
+    "source_decision": "decision_link_vo_conversions_ad_campaigns",
+    "dependencies": [],
+    "assignee_role": "developer",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_2",
+    "title": "Document conversions–ad_campaigns attribution relationship in data dictionary",
+    "description": "Create and publish clear documentation for the relationship between conversions.campaign_id and ad_campaigns.campaign_id as the primary attribution key for marketing analytics. The documentation should include:\n1) Business definition of a \"conversion\" and an \"ad campaign\" in the e_commerce context.\n2) Description of how conversions.campaign_id is populated (source systems, ETL logic, any known edge cases).\n3) Explanation that this relationship is the canonical link for campaign-level performance reporting and attribution models.\n4) Any constraints and data quality expectations (e.g., FK enforced, expected containment ≥ 95%).\n5) Example queries showing how analysts should join conversions to ad_campaigns for standard reports.\n6) Ownership and contact information (data owner, technical owner) and review cadence.\nThis documentation should be added to the central data catalog or data dictionary and communicated to analytics stakeholders.",
+    "action_type": "documentation",
+    "priority": "medium",
+    "priority_score": 2.9,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 6,
+    "source_decision": "decision_link_vo_conversions_ad_campaigns",
+    "dependencies": [
+      "action_1"
+    ],
+    "assignee_role": "data_owner",
+    "status": "pending"
+  },
+  {
+    "action_id": "action_3",
+    "title": "Implement monitoring for conversions–ad_campaigns containment ratio",
+    "description": "Set up automated data quality monitoring to track the containment ratio of conversions.campaign_id values within ad_campaigns.campaign_id and alert if it drops below 95%. Implementation details:\n1) Define the metric: containment = (distinct conversions.campaign_id that exist in ad_campaigns.campaign_id) / (distinct conversions.campaign_id).\n2) Implement a scheduled job (e.g., dbt test, Airflow task, or warehouse-native rule) to compute this metric daily or per data load.\n3) Configure alerting thresholds: warning at 95–97%, critical alert below 95%, with notification to data owner and marketing analytics team.\n4) Log historical values of the metric to a data quality dashboard for trend analysis.\n5) Integrate with incident management (e.g., create tickets automatically when critical alerts fire).\nThis monitoring ensures the FK relationship remains healthy over time and that upstream changes or ingestion issues are detected quickly.",
+    "action_type": "monitoring",
+    "priority": "medium",
+    "priority_score": 2.9,
+    "impact": "low",
+    "effort": "low",
+    "estimated_hours": 10,
+    "source_decision": "decision_link_vo_conversions_ad_campaigns",
+    "dependencies": [
+      "action_1"
+    ],
+    "assignee_role": "developer",
+    "status": "pending"
+  }
+]

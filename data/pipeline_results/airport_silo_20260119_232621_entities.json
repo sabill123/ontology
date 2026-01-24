@@ -1,0 +1,93 @@
+[
+  {
+    "entity_id": "ENT_EMPLOYEE",
+    "entity_type": "Employee",
+    "canonical_name": "AirportEmployee",
+    "source_tables": [
+      "airport_employees"
+    ],
+    "confidence": 0.9
+  },
+  {
+    "entity_id": "ENT_AIRLINE",
+    "entity_type": "Airline",
+    "canonical_name": "Airline",
+    "source_tables": [
+      "airlines"
+    ],
+    "confidence": 0.95
+  },
+  {
+    "entity_id": "ENT_AIRCRAFT",
+    "entity_type": "Aircraft",
+    "canonical_name": "Aircraft",
+    "source_tables": [
+      "aircraft_registry"
+    ],
+    "confidence": 0.9
+  },
+  {
+    "entity_id": "ENT_PASSENGER",
+    "entity_type": "Passenger",
+    "canonical_name": "Passenger",
+    "source_tables": [
+      "passengers"
+    ],
+    "confidence": 0.95
+  },
+  {
+    "entity_id": "ENT_GATE",
+    "entity_type": "Gate",
+    "canonical_name": "AirportGate",
+    "source_tables": [
+      "gates"
+    ],
+    "confidence": 0.9
+  },
+  {
+    "entity_id": "ENT_BAGGAGE_EVENT",
+    "entity_type": "BaggageEvent",
+    "canonical_name": "BaggageHandlingEvent",
+    "source_tables": [
+      "baggage_handling"
+    ],
+    "confidence": 0.85
+  },
+  {
+    "entity_id": "ENT_MAINTENANCE",
+    "entity_type": "MaintenanceRecord",
+    "canonical_name": "AircraftMaintenanceRecord",
+    "source_tables": [
+      "aircraft_maintenance"
+    ],
+    "confidence": 0.9
+  },
+  {
+    "entity_id": "ENT_DELAY",
+    "entity_type": "FlightDelay",
+    "canonical_name": "FlightDelayRecord",
+    "source_tables": [
+      "delay_records"
+    ],
+    "confidence": 0.85
+  },
+  {
+    "entity_id": "ENT_SUPERVISOR",
+    "entity_type": "Role",
+    "canonical_name": "Supervisor",
+    "source_tables": [
+      "airport_employees",
+      "aircraft_maintenance"
+    ],
+    "confidence": 0.85
+  },
+  {
+    "entity_id": "ENT_MECHANIC",
+    "entity_type": "Role",
+    "canonical_name": "Mechanic",
+    "source_tables": [
+      "aircraft_maintenance"
+    ],
+    "confidence": 0.8
+  }
+]

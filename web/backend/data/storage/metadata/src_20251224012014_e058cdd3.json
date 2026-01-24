@@ -1,0 +1,1328 @@
+{
+  "id": "src_20251224012014_e058cdd3",
+  "name": "uploaded_silo",
+  "source_type": "directory",
+  "connection_info": {
+    "path": "/Users/jaeseokhan/Desktop/Work/ontoloty/data/scenarios/manufacturing_precision_ai/raw/uploaded_silo"
+  },
+  "tables": [
+    {
+      "name": "mes_quality__line_quality_events",
+      "source_id": "src_20251224012014_e058cdd3",
+      "row_count": 6,
+      "columns": [
+        {
+          "name": "event_id",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "QEV-8821",
+            "QEV-8822",
+            "QEV-8823",
+            "QEV-8824",
+            "QEV-8825"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": true,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "quality_event",
+              "source": "llm_inference",
+              "confidence": 0.95
+            }
+          ],
+          "statistics": {
+            "semantic_type": "quality event identifier for line quality events",
+            "pattern_description": "Fixed prefix 'QEV-' followed by a numeric sequence with no leading zeros (e.g., 'QEV-8821', 'QEV-8822'). Format: ^QEV-[0-9]+$",
+            "should_preserve_as_string": true,
+            "referenced_entity": "quality_event",
+            "llm_confidence": 0.95
+          },
+          "all_key_values": [
+            "QEV-8822",
+            "QEV-8823",
+            "QEV-8826",
+            "QEV-8821",
+            "QEV-8824",
+            "QEV-8825"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Event ID",
+          "business_description": "Unique identifier for Event ID",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "line_id",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "LN-14",
+            "LN-14",
+            "LN-10",
+            "LN-07",
+            "LN-10"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "production_line",
+              "source": "llm_inference",
+              "confidence": 0.93
+            }
+          ],
+          "statistics": {
+            "semantic_type": "manufacturing or production line identifier within a MES quality events context",
+            "pattern_description": "Values follow pattern 'LN-XX' where 'LN' is a prefix and XX is a 2-digit number with leading zeros preserved (e.g., 'LN-07', 'LN-10', 'LN-14'). Repeated values across rows indicate a categorical line code rather than a unique row identifier.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "production_line",
+            "llm_confidence": 0.93
+          },
+          "all_key_values": [
+            "LN-07",
+            "LN-14",
+            "LN-12",
+            "LN-10"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Line ID",
+          "business_description": "Unique identifier for Line ID",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "workcenter_ref",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "WC-320",
+            "WC-320",
+            "WC-220",
+            "WC-112",
+            "WC-220"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "workcenter",
+              "source": "llm_inference",
+              "confidence": 0.96
+            }
+          ],
+          "statistics": {
+            "semantic_type": "Manufacturing workcenter reference code for where the quality event occurred",
+            "pattern_description": "String codes in the format 'WC-' followed by a 3-digit numeric code (e.g., 'WC-320', 'WC-220', 'WC-112'); values repeat across rows indicating they are categorical references, not unique row identifiers.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "workcenter",
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [
+            "WC-220",
+            "WC-112",
+            "WC-321",
+            "WC-320"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Workcenter Ref",
+          "business_description": "Unique identifier for Workcenter Ref",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "lot_code",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "LOT-4451",
+            "LOT-4452",
+            "LOT-9301",
+            "LOT-5510",
+            "LOT-9303"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": true,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "lot or production_batch",
+              "source": "llm_inference",
+              "confidence": 0.92
+            }
+          ],
+          "statistics": {
+            "semantic_type": "manufacturing lot/batch code associated with a line quality event",
+            "pattern_description": "Fixed prefix 'LOT-' followed by a 4-digit numeric code (e.g., 'LOT-4451'). No dates, emails, phones, or UUIDs detected; values appear to be formatted identifiers for production lots.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "lot or production_batch",
+            "llm_confidence": 0.92
+          },
+          "all_key_values": [
+            "LOT-9301",
+            "LOT-4451",
+            "LOT-2210",
+            "LOT-5510",
+            "LOT-9303",
+            "LOT-4452"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Lot Code",
+          "business_description": "Unique identifier for Lot Code",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "defect_class",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "Surface",
+            "Density",
+            "Calibration",
+            "Software",
+            "Calibration"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 5,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "defect classification category or type for a quality event",
+            "pattern_description": "Short human-readable categorical labels (single capitalized words such as 'Surface', 'Density', 'Calibration', 'Software', 'Assembly'); no numeric patterns, no codes, no dates or identifiers; values are likely repeated categories.",
+            "should_preserve_as_string": true,
+            "referenced_entity": null,
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [
+            "Software",
+            "Assembly",
+            "Calibration",
+            "Surface",
+            "Density"
+          ],
+          "semantic_role": "dimension",
+          "business_name": "Defect Class",
+          "business_description": "Categorical attribute: Defect Class (5 distinct values)",
+          "domain_category": null,
+          "value_domain": {
+            "allowed_values": [
+              "Calibration",
+              "Surface",
+              "Software",
+              "Density"
+            ]
+          }
+        },
+        {
+          "name": "severity_score",
+          "inferred_type": "float",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "0.42",
+            "0.15",
+            "0.65",
+            "0.31",
+            "0.71"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "min": 0.15,
+            "max": 0.71,
+            "mean": 0.4183333333333333,
+            "semantic_type": "numeric severity score or impact magnitude for a line quality event",
+            "pattern_description": "Decimal numbers between 0 and 1 with two decimal places, no leading zeros beyond the single digit before the decimal; consistent with a numeric score/metric rather than an identifier or code.",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [],
+          "semantic_role": "measure",
+          "business_name": "Severity Score",
+          "business_description": "Numeric metric: Severity Score (range: 0.15 to 0.71)",
+          "domain_category": "risk",
+          "value_domain": {
+            "min": 0.15,
+            "max": 0.71,
+            "mean": 0.4183333333333333
+          }
+        },
+        {
+          "name": "containment_status",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "Open",
+            "Monitored",
+            "Containment",
+            "Closed",
+            "Open"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "status/state label for a quality event containment process",
+            "pattern_description": "Short categorical text values from a small, fixed set of statuses: 'Open', 'Monitored', 'Containment', 'Closed'. No numeric patterns, no codes, no dates, and values are clearly repeated across rows.",
+            "should_preserve_as_string": true,
+            "referenced_entity": null,
+            "llm_confidence": 0.97
+          },
+          "all_key_values": [
+            "Closed",
+            "Open",
+            "Monitored",
+            "Containment"
+          ],
+          "semantic_role": "dimension",
+          "business_name": "Containment Status",
+          "business_description": "Categorical attribute: Containment Status (4 distinct values)",
+          "domain_category": null,
+          "value_domain": {
+            "allowed_values": [
+              "Closed",
+              "Open",
+              "Monitored",
+              "Containment"
+            ]
+          }
+        },
+        {
+          "name": "root_cause_tag",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "ToolWear",
+            "MaterialShift",
+            "SensorDrift",
+            "PatchDelay",
+            "SensorDrift"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 5,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "categorical root cause tag for line quality events",
+            "pattern_description": "Short, human-readable category labels in PascalCase (e.g., 'ToolWear', 'MaterialShift', 'SensorDrift'); values are repeated and represent discrete root cause categories rather than unique identifiers.",
+            "should_preserve_as_string": true,
+            "referenced_entity": null,
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [
+            "SensorDrift",
+            "ToolWear",
+            "MaterialShift",
+            "OperatorTraining",
+            "PatchDelay"
+          ],
+          "semantic_role": "unknown",
+          "business_name": "Root Cause Tag",
+          "business_description": "Uncategorized field: Root Cause Tag",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "detected_ts",
+          "inferred_type": "datetime",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "2025-02-02T03:12:00Z",
+            "2025-02-03T09:45:00Z",
+            "2025-02-02T13:28:00Z",
+            "2025-02-04T01:07:00Z",
+            "2025-02-05T06:20:00Z"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "timestamp when a line quality event was detected",
+            "pattern_description": "ISO 8601 UTC timestamps in the format 'YYYY-MM-DDThh:mm:ssZ' (e.g., 2025-02-02T03:12:00Z), representing date and time with a Zulu (UTC) designator",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.99
+          },
+          "all_key_values": [],
+          "semantic_role": "temporal",
+          "business_name": "Detected Timestamp",
+          "business_description": "Date/time field: Detected Timestamp",
+          "domain_category": null,
+          "value_domain": null
+        }
+      ],
+      "primary_key_candidates": [
+        "event_id",
+        "lot_code"
+      ],
+      "foreign_key_candidates": [],
+      "quality_score": {
+        "completeness": 1.0,
+        "consistency": 0.85,
+        "validity": 0.9555555555555555,
+        "uniqueness": 1.0,
+        "overall": 0.9588888888888889
+      },
+      "sample_data": [
+        {
+          "event_id": "QEV-8821",
+          "line_id": "LN-14",
+          "workcenter_ref": "WC-320",
+          "lot_code": "LOT-4451",
+          "defect_class": "Surface",
+          "severity_score": "0.42",
+          "containment_status": "Open",
+          "root_cause_tag": "ToolWear",
+          "detected_ts": "2025-02-02T03:12:00Z"
+        },
+        {
+          "event_id": "QEV-8822",
+          "line_id": "LN-14",
+          "workcenter_ref": "WC-320",
+          "lot_code": "LOT-4452",
+          "defect_class": "Density",
+          "severity_score": "0.15",
+          "containment_status": "Monitored",
+          "root_cause_tag": "MaterialShift",
+          "detected_ts": "2025-02-03T09:45:00Z"
+        },
+        {
+          "event_id": "QEV-8823",
+          "line_id": "LN-10",
+          "workcenter_ref": "WC-220",
+          "lot_code": "LOT-9301",
+          "defect_class": "Calibration",
+          "severity_score": "0.65",
+          "containment_status": "Containment",
+          "root_cause_tag": "SensorDrift",
+          "detected_ts": "2025-02-02T13:28:00Z"
+        },
+        {
+          "event_id": "QEV-8824",
+          "line_id": "LN-07",
+          "workcenter_ref": "WC-112",
+          "lot_code": "LOT-5510",
+          "defect_class": "Software",
+          "severity_score": "0.31",
+          "containment_status": "Closed",
+          "root_cause_tag": "PatchDelay",
+          "detected_ts": "2025-02-04T01:07:00Z"
+        },
+        {
+          "event_id": "QEV-8825",
+          "line_id": "LN-10",
+          "workcenter_ref": "WC-220",
+          "lot_code": "LOT-9303",
+          "defect_class": "Calibration",
+          "severity_score": "0.71",
+          "containment_status": "Open",
+          "root_cause_tag": "SensorDrift",
+          "detected_ts": "2025-02-05T06:20:00Z"
+        },
+        {
+          "event_id": "QEV-8826",
+          "line_id": "LN-12",
+          "workcenter_ref": "WC-321",
+          "lot_code": "LOT-2210",
+          "defect_class": "Assembly",
+          "severity_score": "0.27",
+          "containment_status": "Monitored",
+          "root_cause_tag": "OperatorTraining",
+          "detected_ts": "2025-02-03T10:11:00Z"
+        }
+      ]
+    },
+    {
+      "name": "iot_maintenance__sensor_alerts",
+      "source_id": "src_20251224012014_e058cdd3",
+      "row_count": 6,
+      "columns": [
+        {
+          "name": "asset_tag",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "BOT-320A",
+            "PLC-321X",
+            "ARM-220B",
+            "CTRL-112D",
+            "ARM-220B"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "asset or equipment entity (e.g., assets, devices, machines)",
+              "source": "llm_inference",
+              "confidence": 0.93
+            }
+          ],
+          "statistics": {
+            "semantic_type": "equipment or device asset tag for IoT sensors/maintenance assets",
+            "pattern_description": "Alphanumeric asset tag codes with three-letter uppercase prefix, hyphen, and a mixed alphanumeric suffix (e.g., 'BOT-320A', 'PLC-321X', 'ARM-220B'); values repeat across rows indicating shared assets across multiple alerts.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "asset or equipment entity (e.g., assets, devices, machines)",
+            "llm_confidence": 0.93
+          },
+          "all_key_values": [
+            "PLC-321X",
+            "CTRL-112D",
+            "BOT-320A",
+            "ARM-220B"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Asset Tag",
+          "business_description": "Unique identifier for Asset Tag",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "workcenter_binding",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "WC-320",
+            "WC-321",
+            "WC-220",
+            "WC-112",
+            "WC-220"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "workcenter",
+              "source": "llm_inference",
+              "confidence": 0.95
+            }
+          ],
+          "statistics": {
+            "semantic_type": "manufacturing work center identifier or code bound to the sensor alert",
+            "pattern_description": "String pattern 'WC-' followed by a 3-digit numeric code (e.g., 'WC-320'); repeated values across rows indicate a reference to a finite set of work centers rather than unique row identifiers.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "workcenter",
+            "llm_confidence": 0.95
+          },
+          "all_key_values": [
+            "WC-321",
+            "WC-112",
+            "WC-220",
+            "WC-320"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Workcenter Binding",
+          "business_description": "Unique identifier for Workcenter Binding",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "sensor_type",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "vibration",
+            "vibration",
+            "vibration",
+            "thermal",
+            "thermal"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 3,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "Type/category of IoT sensor generating the maintenance alert (e.g., vibration, thermal, energy)",
+            "pattern_description": "Lowercase alphabetic categorical labels representing sensor types; small, repeated value set such as 'vibration', 'thermal', 'energy'",
+            "should_preserve_as_string": true,
+            "referenced_entity": null,
+            "llm_confidence": 0.97
+          },
+          "all_key_values": [
+            "energy",
+            "thermal",
+            "vibration"
+          ],
+          "semantic_role": "dimension",
+          "business_name": "Sensor Type",
+          "business_description": "Categorical attribute: Sensor Type (3 distinct values)",
+          "domain_category": null,
+          "value_domain": {
+            "allowed_values": [
+              "thermal",
+              "vibration"
+            ]
+          }
+        },
+        {
+          "name": "signal_value",
+          "inferred_type": "float",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "4.1",
+            "2.2",
+            "5.6",
+            "0.7",
+            "0.9"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "min": 0.4,
+            "max": 5.6,
+            "mean": 2.3166666666666664,
+            "semantic_type": "sensor signal value or measurement intensity associated with IoT maintenance alerts",
+            "pattern_description": "Decimal numeric values with one digit before and one digit after the decimal point (e.g., '0.4', '5.6'); no leading zeros, no alphabetic characters, no date/time or code-like patterns.",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [],
+          "semantic_role": "measure",
+          "business_name": "Signal Value",
+          "business_description": "Numeric metric: Signal Value (range: 0.4 to 5.6)",
+          "domain_category": null,
+          "value_domain": {
+            "min": 0.4,
+            "max": 5.6,
+            "mean": 2.3166666666666664
+          }
+        },
+        {
+          "name": "temp_c",
+          "inferred_type": "float",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "48.2",
+            "44.1",
+            "51.3",
+            "55.8",
+            "53"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "min": 44.1,
+            "max": 55.8,
+            "mean": 50.050000000000004,
+            "semantic_type": "temperature in degrees Celsius recorded for a sensor alert",
+            "pattern_description": "Numeric values with optional decimal point, all non-negative, no leading zeros, representing continuous measurements (e.g., '48.2', '53')",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.97
+          },
+          "all_key_values": [],
+          "semantic_role": "identifier",
+          "business_name": "Temp C",
+          "business_description": "Unique identifier for Temp C",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "failure_risk",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "Elevated",
+            "Stable",
+            "High",
+            "Watch",
+            "High"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "categorical risk level for equipment failure in IoT maintenance alerts",
+            "pattern_description": "Small, repeated set of textual categories: ['Stable', 'Watch', 'Elevated', 'High']; no numeric patterns, codes, dates, or identifiers; values represent ordered risk levels.",
+            "should_preserve_as_string": true,
+            "referenced_entity": null,
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [
+            "High",
+            "Elevated",
+            "Watch",
+            "Stable"
+          ],
+          "semantic_role": "unknown",
+          "business_name": "Failure Risk",
+          "business_description": "Uncategorized field: Failure Risk",
+          "domain_category": "risk",
+          "value_domain": null
+        },
+        {
+          "name": "collection_ts",
+          "inferred_type": "datetime",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "2025-02-02T02:45:00Z",
+            "2025-02-02T11:05:00Z",
+            "2025-02-03T05:25:00Z",
+            "2025-02-04T00:35:00Z",
+            "2025-02-05T03:50:00Z"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "UTC timestamp when the IoT sensor alert was collected or recorded",
+            "pattern_description": "ISO 8601 UTC timestamps in the format YYYY-MM-DDThh:mm:ssZ (e.g., 2025-02-02T02:45:00Z), representing precise collection times",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.99
+          },
+          "all_key_values": [],
+          "semantic_role": "temporal",
+          "business_name": "Collection Timestamp",
+          "business_description": "Date/time field: Collection Timestamp",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "maintenance_ticket",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "MT-7510",
+            "MT-7516",
+            "MT-7522",
+            "MT-7526",
+            "MT-7522"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "maintenance_ticket",
+              "source": "llm_inference",
+              "confidence": 0.96
+            }
+          ],
+          "statistics": {
+            "semantic_type": "maintenance ticket identifier for IoT sensor alerts",
+            "pattern_description": "String pattern 'MT-' followed by a 4-digit numeric sequence (e.g., 'MT-7510'); values are reused across rows, indicating they are identifiers for maintenance tickets rather than unique row keys.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "maintenance_ticket",
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [
+            "MT-7522",
+            "MT-7516",
+            "MT-7510",
+            "MT-7526"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Maintenance Ticket",
+          "business_description": "Unique identifier for Maintenance Ticket",
+          "domain_category": null,
+          "value_domain": null
+        }
+      ],
+      "primary_key_candidates": [],
+      "foreign_key_candidates": [],
+      "quality_score": {
+        "completeness": 1.0,
+        "consistency": 0.85,
+        "validity": 0.9612499999999999,
+        "uniqueness": 0.8,
+        "overall": 0.9103124999999999
+      },
+      "sample_data": [
+        {
+          "asset_tag": "BOT-320A",
+          "workcenter_binding": "WC-320",
+          "sensor_type": "vibration",
+          "signal_value": "4.1",
+          "temp_c": "48.2",
+          "failure_risk": "Elevated",
+          "collection_ts": "2025-02-02T02:45:00Z",
+          "maintenance_ticket": "MT-7510"
+        },
+        {
+          "asset_tag": "PLC-321X",
+          "workcenter_binding": "WC-321",
+          "sensor_type": "vibration",
+          "signal_value": "2.2",
+          "temp_c": "44.1",
+          "failure_risk": "Stable",
+          "collection_ts": "2025-02-02T11:05:00Z",
+          "maintenance_ticket": "MT-7516"
+        },
+        {
+          "asset_tag": "ARM-220B",
+          "workcenter_binding": "WC-220",
+          "sensor_type": "vibration",
+          "signal_value": "5.6",
+          "temp_c": "51.3",
+          "failure_risk": "High",
+          "collection_ts": "2025-02-03T05:25:00Z",
+          "maintenance_ticket": "MT-7522"
+        },
+        {
+          "asset_tag": "CTRL-112D",
+          "workcenter_binding": "WC-112",
+          "sensor_type": "thermal",
+          "signal_value": "0.7",
+          "temp_c": "55.8",
+          "failure_risk": "Watch",
+          "collection_ts": "2025-02-04T00:35:00Z",
+          "maintenance_ticket": "MT-7526"
+        },
+        {
+          "asset_tag": "ARM-220B",
+          "workcenter_binding": "WC-220",
+          "sensor_type": "thermal",
+          "signal_value": "0.9",
+          "temp_c": "53",
+          "failure_risk": "High",
+          "collection_ts": "2025-02-05T03:50:00Z",
+          "maintenance_ticket": "MT-7522"
+        },
+        {
+          "asset_tag": "BOT-320A",
+          "workcenter_binding": "WC-320",
+          "sensor_type": "energy",
+          "signal_value": "0.4",
+          "temp_c": "47.9",
+          "failure_risk": "Elevated",
+          "collection_ts": "2025-02-03T13:14:00Z",
+          "maintenance_ticket": "MT-7510"
+        }
+      ]
+    },
+    {
+      "name": "sap_mrp__production_orders",
+      "source_id": "src_20251224012014_e058cdd3",
+      "row_count": 6,
+      "columns": [
+        {
+          "name": "order_id",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "MO-5001",
+            "MO-5002",
+            "MO-5003",
+            "MO-5004",
+            "MO-5005"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": true,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "production_order",
+              "source": "llm_inference",
+              "confidence": 0.96
+            }
+          ],
+          "statistics": {
+            "semantic_type": "Manufacturing or production order identifier in the SAP MRP production orders table",
+            "pattern_description": "String pattern 'MO-' followed by a sequence of digits (e.g., MO-5001, MO-5002). Looks like a structured business key for production orders.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "production_order",
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [
+            "MO-5004",
+            "MO-5001",
+            "MO-5006",
+            "MO-5002",
+            "MO-5005",
+            "MO-5003"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Order ID",
+          "business_description": "Unique identifier for Order ID",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "plant_code",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "PLT-01",
+            "PLT-01",
+            "PLT-02",
+            "PLT-03",
+            "PLT-01"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 3,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "plant",
+              "source": "llm_inference",
+              "confidence": 0.97
+            }
+          ],
+          "statistics": {
+            "semantic_type": "manufacturing plant or production facility code in the SAP MRP system",
+            "pattern_description": "String code in the form 'PLT-XX' where 'PLT' is a literal prefix and 'XX' is a zero-padded numeric plant identifier (e.g., PLT-01, PLT-02, PLT-03). Values repeat across rows, indicating a categorical code rather than a unique row identifier.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "plant",
+            "llm_confidence": 0.97
+          },
+          "all_key_values": [
+            "PLT-02",
+            "PLT-03",
+            "PLT-01"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Plant Code",
+          "business_description": "Unique identifier for Plant Code",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "material_code",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "GEAR-22",
+            "HOUS-18",
+            "CAL-90",
+            "CTRL-52",
+            "GEAR-22"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "material",
+              "source": "llm_inference",
+              "confidence": 0.96
+            }
+          ],
+          "statistics": {
+            "semantic_type": "production material or component code used in SAP MRP production orders",
+            "pattern_description": "Alphanumeric code with pattern AAAA-NN or similar: alphabetic prefix (3–5 chars, e.g., 'GEAR', 'HOUS', 'CAL', 'CTRL') followed by a hyphen and a 2-digit numeric suffix. Values repeat across rows, indicating they are codes referencing a material master, not unique row identifiers.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "material",
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [
+            "CAL-90",
+            "GEAR-22",
+            "CTRL-52",
+            "HOUS-18"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Material Code",
+          "business_description": "Unique identifier for Material Code",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "workcenter_id",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "WC-320",
+            "WC-321",
+            "WC-220",
+            "WC-112",
+            "WC-320"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "workcenter",
+              "source": "llm_inference",
+              "confidence": 0.94
+            }
+          ],
+          "statistics": {
+            "semantic_type": "manufacturing work center identifier in the production system",
+            "pattern_description": "Alphanumeric work center code with prefix 'WC-' followed by a numeric segment (e.g., 'WC-320'). Values repeat across rows, indicating they identify a work center entity rather than uniquely identifying each production order.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "workcenter",
+            "llm_confidence": 0.94
+          },
+          "all_key_values": [
+            "WC-321",
+            "WC-112",
+            "WC-220",
+            "WC-320"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Workcenter ID",
+          "business_description": "Unique identifier for Workcenter ID",
+          "domain_category": null,
+          "value_domain": null
+        },
+        {
+          "name": "scheduled_start",
+          "inferred_type": "date",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "2025-02-01",
+            "2025-02-02",
+            "2025-02-01",
+            "2025-02-03",
+            "2025-02-04"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "scheduled production order start date",
+            "pattern_description": "Values are ISO-8601 calendar dates in YYYY-MM-DD format with four-digit year, two-digit month, and two-digit day (e.g., '2025-02-01'). Values repeat across rows, indicating they are attributes (dates) rather than unique identifiers.",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.99
+          },
+          "all_key_values": [],
+          "semantic_role": "temporal",
+          "business_name": "Scheduled Start",
+          "business_description": "Date/time field: Scheduled Start",
+          "domain_category": "time",
+          "value_domain": null
+        },
+        {
+          "name": "scheduled_end",
+          "inferred_type": "date",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "2025-02-03",
+            "2025-02-04",
+            "2025-02-05",
+            "2025-02-06",
+            "2025-02-07"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 5,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "scheduled end date of the production order",
+            "pattern_description": "All observed values follow ISO 8601 calendar date format YYYY-MM-DD with valid future dates and no alphabetic characters or identifiers; values appear non-unique and consistent with a scheduling/date field.",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.99
+          },
+          "all_key_values": [],
+          "semantic_role": "temporal",
+          "business_name": "Scheduled End",
+          "business_description": "Date/time field: Scheduled End",
+          "domain_category": "time",
+          "value_domain": null
+        },
+        {
+          "name": "planned_qty",
+          "inferred_type": "integer",
+          "nullable": false,
+          "unique": true,
+          "sample_values": [
+            "800",
+            "600",
+            "450",
+            "300",
+            "900"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 6,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "min": 300.0,
+            "max": 900.0,
+            "mean": 591.6666666666666,
+            "semantic_type": "planned production quantity for an order or operation in the SAP MRP production orders context",
+            "pattern_description": "Numeric, non-negative integer values with no leading zeros, representing quantities such as 800, 600, 450, 300, 900, 500. Values are repeated and not unique, indicating measure/amount rather than an identifier.",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.97
+          },
+          "all_key_values": [],
+          "semantic_role": "measure",
+          "business_name": "Planned Quantity",
+          "business_description": "Numeric metric: Planned Quantity (range: 300.0 to 900.0)",
+          "domain_category": null,
+          "value_domain": {
+            "min": 300.0,
+            "max": 900.0,
+            "mean": 591.6666666666666
+          }
+        },
+        {
+          "name": "unit_cost",
+          "inferred_type": "float",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "420.5",
+            "380",
+            "612.5",
+            "910",
+            "420.5"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "min": 380.0,
+            "max": 910.0,
+            "mean": 559.3333333333334,
+            "semantic_type": "unit production cost or unit price amount for a production order, likely in a specific currency",
+            "pattern_description": "Numeric values with optional decimal part (e.g., '380', '420.5', '612.5', '910'); no leading zeros, no alphabetic characters, repeated values common, consistent with monetary or cost amounts rather than identifiers.",
+            "should_preserve_as_string": false,
+            "referenced_entity": null,
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [
+            "612.5",
+            "910",
+            "380",
+            "420.5"
+          ],
+          "semantic_role": "measure",
+          "business_name": "Unit Cost",
+          "business_description": "Numeric metric: Unit Cost (range: 380.0 to 910.0)",
+          "domain_category": "finance",
+          "value_domain": {
+            "min": 380.0,
+            "max": 910.0,
+            "mean": 559.3333333333334
+          }
+        },
+        {
+          "name": "customer_commitment_id",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "CC-90071",
+            "CC-90088",
+            "CC-90071",
+            "CC-90110",
+            "CC-90071"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 4,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": true,
+          "potential_references": [
+            {
+              "entity": "customer_commitment",
+              "source": "llm_inference",
+              "confidence": 0.92
+            }
+          ],
+          "statistics": {
+            "semantic_type": "Customer commitment identifier used in SAP MRP production orders",
+            "pattern_description": "String codes in the format 'CC-' followed by a 5-digit numeric sequence (e.g., 'CC-90071'); values repeat across rows, indicating a non-unique identifier referencing a customer commitment entity.",
+            "should_preserve_as_string": true,
+            "referenced_entity": "customer_commitment",
+            "llm_confidence": 0.92
+          },
+          "all_key_values": [
+            "CC-90088",
+            "CC-90071",
+            "CC-90132",
+            "CC-90110"
+          ],
+          "semantic_role": "identifier",
+          "business_name": "Customer Commitment ID",
+          "business_description": "Unique identifier for Customer Commitment ID",
+          "domain_category": "customer",
+          "value_domain": null
+        },
+        {
+          "name": "priority_flag",
+          "inferred_type": "string",
+          "nullable": false,
+          "unique": false,
+          "sample_values": [
+            "HIGH",
+            "MEDIUM",
+            "HIGH",
+            "CRITICAL",
+            "HIGH"
+          ],
+          "null_ratio": 0.0,
+          "distinct_count": 3,
+          "is_key_candidate": false,
+          "is_foreign_key_candidate": false,
+          "potential_references": [],
+          "statistics": {
+            "semantic_type": "production order priority level flag (e.g., CRITICAL, HIGH, MEDIUM)",
+            "pattern_description": "Finite categorical text values indicating priority levels; observed values are uppercase words such as 'CRITICAL', 'HIGH', 'MEDIUM' with repetition across rows.",
+            "should_preserve_as_string": true,
+            "referenced_entity": null,
+            "llm_confidence": 0.96
+          },
+          "all_key_values": [],
+          "semantic_role": "flag",
+          "business_name": "Priority Flag",
+          "business_description": "Boolean indicator: Priority Flag",
+          "domain_category": null,
+          "value_domain": {
+            "allowed_values": [
+              true,
+              false
+            ]
+          }
+        }
+      ],
+      "primary_key_candidates": [
+        "order_id"
+      ],
+      "foreign_key_candidates": [],
+      "quality_score": {
+        "completeness": 1.0,
+        "consistency": 0.85,
+        "validity": 0.962,
+        "uniqueness": 1.0,
+        "overall": 0.9604999999999999
+      },
+      "sample_data": [
+        {
+          "order_id": "MO-5001",
+          "plant_code": "PLT-01",
+          "material_code": "GEAR-22",
+          "workcenter_id": "WC-320",
+          "scheduled_start": "2025-02-01",
+          "scheduled_end": "2025-02-03",
+          "planned_qty": "800",
+          "unit_cost": "420.5",
+          "customer_commitment_id": "CC-90071",
+          "priority_flag": "HIGH"
+        },
+        {
+          "order_id": "MO-5002",
+          "plant_code": "PLT-01",
+          "material_code": "HOUS-18",
+          "workcenter_id": "WC-321",
+          "scheduled_start": "2025-02-02",
+          "scheduled_end": "2025-02-04",
+          "planned_qty": "600",
+          "unit_cost": "380",
+          "customer_commitment_id": "CC-90088",
+          "priority_flag": "MEDIUM"
+        },
+        {
+          "order_id": "MO-5003",
+          "plant_code": "PLT-02",
+          "material_code": "CAL-90",
+          "workcenter_id": "WC-220",
+          "scheduled_start": "2025-02-01",
+          "scheduled_end": "2025-02-05",
+          "planned_qty": "450",
+          "unit_cost": "612.5",
+          "customer_commitment_id": "CC-90071",
+          "priority_flag": "HIGH"
+        },
+        {
+          "order_id": "MO-5004",
+          "plant_code": "PLT-03",
+          "material_code": "CTRL-52",
+          "workcenter_id": "WC-112",
+          "scheduled_start": "2025-02-03",
+          "scheduled_end": "2025-02-06",
+          "planned_qty": "300",
+          "unit_cost": "910",
+          "customer_commitment_id": "CC-90110",
+          "priority_flag": "CRITICAL"
+        },
+        {
+          "order_id": "MO-5005",
+          "plant_code": "PLT-01",
+          "material_code": "GEAR-22",
+          "workcenter_id": "WC-320",
+          "scheduled_start": "2025-02-04",
+          "scheduled_end": "2025-02-07",
+          "planned_qty": "900",
+          "unit_cost": "420.5",
+          "customer_commitment_id": "CC-90071",
+          "priority_flag": "HIGH"
+        },
+        {
+          "order_id": "MO-5006",
+          "plant_code": "PLT-02",
+          "material_code": "CAL-90",
+          "workcenter_id": "WC-220",
+          "scheduled_start": "2025-02-04",
+          "scheduled_end": "2025-02-06",
+          "planned_qty": "500",
+          "unit_cost": "612.5",
+          "customer_commitment_id": "CC-90132",
+          "priority_flag": "MEDIUM"
+        }
+      ]
+    }
+  ],
+  "created_at": "2025-12-24T01:21:25.559173"
+}

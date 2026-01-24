@@ -1,0 +1,14 @@
+vendor_id,vendor_name,contact_email,business_number,join_date,rating
+VND001,삼성공식스토어,samsung@store.com,123-45-67890,2023-01-01,4.8
+VND002,애플코리아,apple@store.com,234-56-78901,2023-01-01,4.9
+VND003,LG베스트샵,lg@store.com,345-67-89012,2023-01-15,4.7
+VND004,소니코리아,sony@store.com,456-78-90123,2023-02-01,4.6
+VND005,나이키코리아,nike@store.com,567-89-01234,2023-02-15,4.5
+VND006,아디다스코리아,adidas@store.com,678-90-12345,2023-03-01,4.4
+VND007,노스페이스,northface@store.com,789-01-23456,2023-03-15,4.6
+VND008,다이슨코리아,dyson@store.com,890-12-34567,2023-04-01,4.7
+VND009,필립스코리아,philips@store.com,901-23-45678,2023-04-15,4.3
+VND010,컴퓨존,compuzone@store.com,012-34-56789,2023-05-01,4.2
+VND011,캐논코리아,canon@store.com,111-22-33344,2023-05-15,4.5
+VND012,고프로코리아,gopro@store.com,222-33-44455,2023-06-01,4.4
+VND013,닌텐도코리아,nintendo@store.com,333-44-55566,2023-06-15,4.8

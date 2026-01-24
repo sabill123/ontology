@@ -1,0 +1,36 @@
+appointment_id,patient_no,physician_id,appointment_date,appointment_time,status,reason,duration_minutes
+APPT001,PT001,DR001,2024-01-15,09:00,completed,Annual checkup,30
+APPT002,PT002,DR005,2024-01-15,09:30,completed,Headache evaluation,45
+APPT003,PT003,DR008,2024-01-15,10:00,completed,Knee pain,30
+APPT004,PT004,DR011,2024-01-15,10:30,completed,Child wellness visit,20
+APPT005,PT005,DR014,2024-01-15,11:00,completed,Follow-up consultation,45
+APPT006,PT006,DR017,2024-01-16,09:00,completed,General checkup,30
+APPT007,PT007,DR001,2024-01-16,09:30,completed,Heart palpitations,45
+APPT008,PT008,DR020,2024-01-16,10:00,completed,Skin rash,30
+APPT009,PT009,DR022,2024-01-16,10:30,completed,Anxiety consultation,60
+APPT010,PT010,DR005,2024-01-16,11:00,completed,Migraine follow-up,30
+APPT011,PT011,DR003,2024-01-17,08:00,completed,Emergency visit,90
+APPT012,PT012,DR008,2024-01-17,09:00,completed,Back pain,45
+APPT013,PT013,DR011,2024-01-17,09:30,completed,Vaccination,15
+APPT014,PT014,DR014,2024-01-17,10:00,completed,Cancer screening,60
+APPT015,PT015,DR017,2024-01-17,11:00,completed,Diabetes management,45
+APPT016,PT016,DR001,2024-01-18,09:00,completed,Blood pressure check,20
+APPT017,PT017,DR006,2024-01-18,09:30,completed,Dizziness evaluation,45
+APPT018,PT018,DR022,2024-01-18,10:00,completed,Depression follow-up,60
+APPT019,PT019,DR003,2024-01-18,10:30,completed,Injury assessment,45
+APPT020,PT020,DR009,2024-01-18,11:00,completed,Joint replacement consult,60
+APPT021,PT021,DR012,2024-01-19,09:00,completed,Pediatric checkup,30
+APPT022,PT022,DR015,2024-01-19,09:30,completed,Chemotherapy consult,90
+APPT023,PT023,DR018,2024-01-19,10:30,completed,Annual physical,45
+APPT024,PT024,DR021,2024-01-19,11:00,completed,Eczema treatment,30
+APPT025,PT025,DR002,2024-01-20,09:00,completed,Chest pain evaluation,60
+APPT026,PT026,DR007,2024-01-20,10:00,completed,Seizure follow-up,45
+APPT027,PT027,DR023,2024-01-20,10:30,completed,Therapy session,60
+APPT028,PT028,DR004,2024-01-20,11:30,completed,Urgent care visit,45
+APPT029,PT029,DR010,2024-01-21,09:00,completed,Hip pain assessment,45
+APPT030,PT030,DR013,2024-01-21,09:30,completed,Growth checkup,30
+APPT031,PT001,DR001,2024-01-22,09:00,scheduled,Follow-up visit,30
+APPT032,PT005,DR015,2024-01-22,10:00,scheduled,Treatment review,45
+APPT033,PT009,DR024,2024-01-22,11:00,scheduled,Medication review,30
+APPT034,PT012,DR008,2024-01-23,09:00,scheduled,Physical therapy,60
+APPT035,PT018,DR022,2024-01-23,10:00,scheduled,Counseling session,60

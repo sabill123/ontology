@@ -1,0 +1,40 @@
+{
+  "orchestrator_stats": {
+    "total_agents_created": 14,
+    "total_todos_completed": 16,
+    "total_todos_failed": 0,
+    "total_execution_time": 837.9126539230347,
+    "phases_completed": 3,
+    "started_at": "2026-01-20T16:11:02.600274",
+    "completed_at": "2026-01-20T16:25:00.512926",
+    "consensus_discussions": 1,
+    "consensus_accepted": 0,
+    "consensus_rejected": 0,
+    "consensus_provisional": 0,
+    "consensus_escalated": 0
+  },
+  "context_stats": {
+    "scenario": "marketing_silo_20260120_161059",
+    "domain": "e_commerce",
+    "domain_confidence": 0.95,
+    "is_auto_detected": true,
+    "tables_count": 11,
+    "homeomorphisms_found": 12,
+    "unified_entities": 12,
+    "ontology_concepts": 33,
+    "approved_concepts": 31,
+    "governance_decisions": 33,
+    "pending_actions": 10,
+    "stages_completed": 0,
+    "is_complete": false,
+    "evidence_blocks": 69,
+    "evidence_chain_valid": false
+  },
+  "continuation_stats": {
+    "continuations_triggered": 3,
+    "todos_resumed": 3,
+    "todos_abandoned": 0,
+    "last_check_at": "2026-01-20T16:24:35.745337",
+    "last_continuation_at": "2026-01-20T16:24:35.745654"
+  }
+}

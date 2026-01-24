@@ -1,0 +1,26 @@
+doctor_id,full_name,specialty,dept_code,license_no,hire_date,email
+DR001,Dr. James Wilson,Cardiologist,DEPT001,LIC-10001,2018-03-15,jwilson@hospital.com
+DR002,Dr. Sarah Chen,Cardiologist,DEPT001,LIC-10002,2019-07-22,schen@hospital.com
+DR003,Dr. Michael Brown,Emergency Medicine,DEPT006,LIC-10003,2015-01-10,mbrown@hospital.com
+DR004,Dr. Emily Davis,Emergency Medicine,DEPT006,LIC-10004,2020-05-18,edavis@hospital.com
+DR005,Dr. Robert Kim,Neurologist,DEPT002,LIC-10005,2016-09-30,rkim@hospital.com
+DR006,Dr. Lisa Park,Neurologist,DEPT002,LIC-10006,2021-02-14,lpark@hospital.com
+DR007,Dr. David Lee,Neurologist,DEPT002,LIC-10007,2017-11-08,dlee@hospital.com
+DR008,Dr. Jennifer Martinez,Orthopedic Surgeon,DEPT003,LIC-10008,2014-04-25,jmartinez@hospital.com
+DR009,Dr. Christopher Taylor,Orthopedic Surgeon,DEPT003,LIC-10009,2019-08-12,ctaylor@hospital.com
+DR010,Dr. Amanda White,Orthopedic Surgeon,DEPT003,LIC-10010,2022-01-05,awhite@hospital.com
+DR011,Dr. Daniel Garcia,Pediatrician,DEPT004,LIC-10011,2018-06-20,dgarcia@hospital.com
+DR012,Dr. Michelle Johnson,Pediatrician,DEPT004,LIC-10012,2013-12-01,mjohnson@hospital.com
+DR013,Dr. Kevin Thompson,Pediatrician,DEPT004,LIC-10013,2020-09-15,kthompson@hospital.com
+DR014,Dr. Rachel Anderson,Oncologist,DEPT005,LIC-10014,2017-03-28,randerson@hospital.com
+DR015,Dr. Steven Clark,Oncologist,DEPT005,LIC-10015,2015-07-14,sclark@hospital.com
+DR016,Dr. Nicole Robinson,Oncologist,DEPT005,LIC-10016,2021-04-30,nrobinson@hospital.com
+DR017,Dr. Brian Harris,Internist,DEPT007,LIC-10017,2016-10-22,bharris@hospital.com
+DR018,Dr. Samantha Wright,Internist,DEPT007,LIC-10018,2014-08-05,swright@hospital.com
+DR019,Dr. Jason Moore,Internist,DEPT007,LIC-10019,2019-12-18,jmoore@hospital.com
+DR020,Dr. Olivia Scott,Dermatologist,DEPT008,LIC-10020,2020-02-28,oscott@hospital.com
+DR021,Dr. Ryan Phillips,Dermatologist,DEPT008,LIC-10021,2018-05-10,rphillips@hospital.com
+DR022,Dr. Stephanie Hall,Psychiatrist,DEPT009,LIC-10022,2015-11-25,shall@hospital.com
+DR023,Dr. Andrew King,Psychiatrist,DEPT009,LIC-10023,2021-06-08,aking@hospital.com
+DR024,Dr. Lauren Adams,Psychiatrist,DEPT009,LIC-10024,2017-09-12,ladams@hospital.com
+DR025,Dr. Thomas Baker,Radiologist,DEPT010,LIC-10025,2016-01-30,tbaker@hospital.com

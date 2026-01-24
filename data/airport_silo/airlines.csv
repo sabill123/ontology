@@ -1,0 +1,31 @@
+airline_id,iata_code,icao_code,airline_name,airline_name_kr,country,alliance,hub_airport,founded_year,fleet_size,website,customer_service_phone,headquarters_city
+AIR001,KE,KAL,Korean Air,대한항공,KOR,SkyTeam,ICN,1969,169,www.koreanair.com,1588-2001,Seoul
+AIR002,OZ,AAR,Asiana Airlines,아시아나항공,KOR,Star Alliance,ICN,1988,84,www.flyasiana.com,1588-8000,Seoul
+AIR003,7C,JJA,Jeju Air,제주항공,KOR,,ICN,2005,45,www.jejuair.net,1599-1500,Seoul
+AIR004,LJ,JNA,Jin Air,진에어,KOR,,ICN,2008,32,www.jinair.com,1600-6200,Seoul
+AIR005,TW,TWB,T'way Air,티웨이항공,KOR,,ICN,2010,30,www.twayair.com,1688-8686,Seoul
+AIR006,ZE,ESR,Eastar Jet,이스타항공,KOR,,ICN,2007,22,www.eastarjet.com,1544-0080,Seoul
+AIR007,RS,ASV,Air Seoul,에어서울,KOR,,ICN,2015,8,www.airseoul.com,1800-8100,Seoul
+AIR008,BX,ABL,Air Busan,에어부산,KOR,,PUS,2007,28,www.airbusan.com,1666-3060,Busan
+AIR009,4V,FGW,FlyGangwon,플라이강원,KOR,,YNY,2019,3,www.flygangwon.com,1899-4700,Wonju
+AIR010,4H,HGG,Hi Air,하이에어,KOR,,USN,2019,3,www.hi-air.co.kr,1899-1144,Ulsan
+AIR011,AA,AAL,American Airlines,아메리칸항공,USA,Oneworld,DFW,1930,950,www.aa.com,+1-800-433-7300,Fort Worth
+AIR012,UA,UAL,United Airlines,유나이티드항공,USA,Star Alliance,ORD,1926,850,www.united.com,+1-800-864-8331,Chicago
+AIR013,DL,DAL,Delta Air Lines,델타항공,USA,SkyTeam,ATL,1924,890,www.delta.com,+1-800-221-1212,Atlanta
+AIR014,JL,JAL,Japan Airlines,일본항공,JPN,Oneworld,NRT,1951,230,www.jal.com,+81-570-025-071,Tokyo
+AIR015,NH,ANA,All Nippon Airways,전일본공수,JPN,Star Alliance,NRT,1952,220,www.ana.co.jp,+81-570-029-709,Tokyo
+AIR016,CX,CPA,Cathay Pacific,캐세이퍼시픽,HKG,Oneworld,HKG,1946,150,www.cathaypacific.com,+852-2747-3333,Hong Kong
+AIR017,SQ,SIA,Singapore Airlines,싱가포르항공,SGP,Star Alliance,SIN,1947,130,www.singaporeair.com,+65-6223-8888,Singapore
+AIR018,TG,THA,Thai Airways,타이항공,THA,Star Alliance,BKK,1960,82,www.thaiairways.com,+66-2-356-1111,Bangkok
+AIR019,MH,MAS,Malaysia Airlines,말레이시아항공,MYS,Oneworld,KUL,1947,80,www.malaysiaairlines.com,+60-3-7843-3000,Kuala Lumpur
+AIR020,VN,HVN,Vietnam Airlines,베트남항공,VNM,SkyTeam,SGN,1956,105,www.vietnamairlines.com,+84-24-3832-0320,Hanoi
+AIR021,CA,CCA,Air China,중국국제항공,CHN,Star Alliance,PEK,1988,420,www.airchina.com,+86-10-95583,Beijing
+AIR022,MU,CES,China Eastern Airlines,중국동방항공,CHN,SkyTeam,PVG,1988,380,www.ceair.com,+86-21-95530,Shanghai
+AIR023,CZ,CSN,China Southern Airlines,중국남방항공,CHN,SkyTeam,CAN,1988,450,www.csair.com,+86-20-95539,Guangzhou
+AIR024,AF,AFR,Air France,에어프랑스,FRA,SkyTeam,CDG,1933,220,www.airfrance.com,+33-9-69-39-02-15,Paris
+AIR025,BA,BAW,British Airways,영국항공,GBR,Oneworld,LHR,1974,280,www.britishairways.com,+44-344-493-0787,London
+AIR026,LH,DLH,Lufthansa,루프트한자,DEU,Star Alliance,FRA,1953,290,www.lufthansa.com,+49-69-86-799-799,Frankfurt
+AIR027,EK,UAE,Emirates,에미레이트항공,UAE,,DXB,1985,270,www.emirates.com,+971-600-555-555,Dubai
+AIR028,QR,QTR,Qatar Airways,카타르항공,QAT,Oneworld,DOH,1993,200,www.qatarairways.com,+974-4023-0000,Doha
+AIR029,EY,ETD,Etihad Airways,에티하드항공,UAE,,AUH,2003,96,www.etihad.com,+971-600-555-666,Abu Dhabi
+AIR030,QF,QFA,Qantas,콴타스,AUS,Oneworld,SYD,1920,130,www.qantas.com,+61-2-8222-7440,Sydney
