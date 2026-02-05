@@ -157,10 +157,16 @@ class SimulationEngine:
 
         experiments = []
 
-        source_table = corr.source_table
-        target_table = corr.target_table
-        source_col = corr.source_column
-        target_col = corr.target_column
+        if isinstance(corr, dict):
+            source_table = corr.get("source_table", "unknown")
+            target_table = corr.get("target_table", "unknown")
+            source_col = corr.get("source_column", "unknown")
+            target_col = corr.get("target_column", "unknown")
+        else:
+            source_table = getattr(corr, "source_table", "unknown")
+            target_table = getattr(corr, "target_table", "unknown")
+            source_col = getattr(corr, "source_column", "unknown")
+            target_col = getattr(corr, "target_column", "unknown")
 
         # 데이터 준비
         if source_table not in self.tables_data or target_table not in self.tables_data:
@@ -318,10 +324,16 @@ class SimulationEngine:
 
         experiments = []
 
-        source_table = corr.source_table
-        target_table = corr.target_table
-        source_col = corr.source_column
-        target_col = corr.target_column
+        if isinstance(corr, dict):
+            source_table = corr.get("source_table", "unknown")
+            target_table = corr.get("target_table", "unknown")
+            source_col = corr.get("source_column", "unknown")
+            target_col = corr.get("target_column", "unknown")
+        else:
+            source_table = getattr(corr, "source_table", "unknown")
+            target_table = getattr(corr, "target_table", "unknown")
+            source_col = getattr(corr, "source_column", "unknown")
+            target_col = getattr(corr, "target_column", "unknown")
 
         if source_table not in self.tables_data or target_table not in self.tables_data:
             return experiments
@@ -430,10 +442,16 @@ class SimulationEngine:
         """
         import pandas as pd
 
-        source_table = corr.source_table
-        target_table = corr.target_table
-        source_col = corr.source_column
-        target_col = corr.target_column
+        if isinstance(corr, dict):
+            source_table = corr.get("source_table", "unknown")
+            target_table = corr.get("target_table", "unknown")
+            source_col = corr.get("source_column", "unknown")
+            target_col = corr.get("target_column", "unknown")
+        else:
+            source_table = getattr(corr, "source_table", "unknown")
+            target_table = getattr(corr, "target_table", "unknown")
+            source_col = getattr(corr, "source_column", "unknown")
+            target_col = getattr(corr, "target_column", "unknown")
 
         if source_table not in self.tables_data or target_table not in self.tables_data:
             return None

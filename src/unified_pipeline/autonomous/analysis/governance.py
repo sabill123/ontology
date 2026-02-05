@@ -177,7 +177,12 @@ Consider:
 
 Respond with JSON only, no additional text."""
 
-        response = await self.llm_client.generate(prompt, max_tokens=500)
+        response = await self.llm_client.chat.completions.create(
+            model=getattr(self, 'model_name', 'gpt-5.1'),
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=500,
+        )
+        response = response.choices[0].message.content
 
         # JSON 파싱
         parsed = self._parse_llm_response(response)

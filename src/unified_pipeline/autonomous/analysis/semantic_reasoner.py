@@ -1201,7 +1201,7 @@ class SemanticReasoningAnalyzer:
                     )
                 )
 
-        return self.schema_reasoner.check_consistency()
+        return self.schema_reasoner.reasoner.check_consistency()
 
     def check_completeness(self, triples: List[Dict[str, Any]] = None) -> 'CompletenessReport':
         """

@@ -1122,7 +1122,9 @@ Respond ONLY with valid JSON."""
                 for decision in governance_decisions[:10]:  # 상위 10개
                     if decision.decision_type == "approve":
                         # 승인된 개념에 대해 CDC 구독 생성
-                        for source_table in (decision.source_tables or [])[:3]:
+                        concept = next((c for c in context.ontology_concepts if c.concept_id == decision.concept_id), None)
+                        source_tables = concept.source_tables if concept and hasattr(concept, 'source_tables') else []
+                        for source_table in (source_tables or [])[:3]:
                             subscription = cdc_engine.subscribe(
                                 table_name=source_table,
                                 callback=None,  # 실제 콜백은 나중에 등록
@@ -1689,7 +1691,7 @@ Respond with ONLY valid JSON matching this schema."""
                         triggers=[trigger],
                         parameters=[],
                         handler=None,  # 실제 핸들러는 나중에 등록
-                        created_by="action_prioritizer_agent",
+                        author="action_prioritizer_agent",
                     )
 
                     actions_engine.register_action(action)
@@ -2357,7 +2359,10 @@ Respond ONLY with valid JSON."""
         try:
             if LINEAGE_AVAILABLE and build_lineage_from_context:
                 lineage_tracker = build_lineage_from_context(context)
-                lineage_stats = lineage_tracker.get_statistics()
+                lineage_stats = {
+                    "total_nodes": len(getattr(lineage_tracker, 'nodes', {})),
+                    "total_edges": len(getattr(lineage_tracker, 'edges', {})),
+                }
 
                 # 모든 고위험 개념에 대해 영향 분석 실행
                 impact_analyses = []
