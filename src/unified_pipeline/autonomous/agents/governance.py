@@ -2400,7 +2400,7 @@ Respond ONLY with valid JSON."""
                 )
 
                 # context에 lineage 저장
-                context.set_dynamic("lineage_graph", lineage_tracker.to_dict())
+                context.set_dynamic("lineage_graph", lineage_tracker.export_graph() if hasattr(lineage_tracker, 'export_graph') else lineage_tracker)
             else:
                 logger.info("[v16.0] Lineage Tracker not available, skipping")
         except Exception as e:

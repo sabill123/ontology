@@ -198,7 +198,9 @@ Respond ONLY with valid JSON."""
             extracted_concepts.extend(llm_relationships)
             logger.info(f"[v17.1] LLM inferred {len(llm_relationships)} additional relationships")
         except Exception as e:
+            import traceback
             logger.warning(f"LLM relationship inference failed: {e}")
+            logger.warning(f"[TRACEBACK] {traceback.format_exc()}")
 
         self._report_progress(0.30, "Running Ontology Alignment (v3.0)")
 
