@@ -3227,7 +3227,7 @@ Respond ONLY with valid JSON."""
         # v22.0: Agent Learning - 경험 기록
         self.record_experience(
             experience_type="governance_decision",
-            input_data={"task": "policy_generation", "concepts": len(algorithmic_rules)},
+            input_data={"task": "policy_generation", "concepts": len(enhanced_policies)},
             output_data={"policies_generated": len(enhanced_policies), "by_type": summary["by_type"]},
             outcome="success",
             confidence=0.8,
