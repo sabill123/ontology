@@ -625,7 +625,7 @@ class AutonomousPipelineOrchestrator:
                 decisions = self.shared_context.governance_decisions
                 explanations = []
                 for decision in decisions[:10]:  # 상위 10개만
-                    decision_id = decision.get("decision_id") or decision.get("concept_id")
+                    decision_id = getattr(decision, "decision_id", None) or getattr(decision, "concept_id", None)
                     if decision_id:
                         explanation = await self.services.decision_explainer.explain_decision(
                             decision_id

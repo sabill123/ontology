@@ -193,7 +193,11 @@ class LLMSchemaAnalyzer:
                 if llm_client:
                     self._instructor_client = instructor.from_openai(llm_client)
                 else:
-                    client = openai.OpenAI()
+                    import os
+                    client = openai.OpenAI(
+                        base_url=os.environ.get("LETSUR_BASE_URL", "https://gateway.letsur.ai/v1"),
+                        api_key=os.environ.get("LETSUR_API_KEY", ""),
+                    )
                     self._instructor_client = instructor.from_openai(client)
             except Exception as e:
                 logger.warning(f"Failed to initialize Instructor client: {e}")

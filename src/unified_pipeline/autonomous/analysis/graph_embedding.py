@@ -887,8 +887,8 @@ class SchemaGraphBuilder:
         # FK 관계 엣지
         if fk_relations:
             for fk in fk_relations:
-                source_col = f"column:{fk['source_table']}.{fk['source_column']}"
-                target_col = f"column:{fk['target_table']}.{fk['target_column']}"
+                source_col = f"column:{fk.get('source_table', fk.get('from_table', ''))}.{fk.get('source_column', fk.get('from_column', ''))}"
+                target_col = f"column:{fk.get('target_table', fk.get('to_table', ''))}.{fk.get('target_column', fk.get('to_column', ''))}"
 
                 if source_col in graph.nodes and target_col in graph.nodes:
                     graph.add_edge(GraphEdge(

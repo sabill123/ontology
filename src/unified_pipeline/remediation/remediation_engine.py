@@ -742,8 +742,9 @@ class RemediationEngine:
 
         # FK 기반 다운스트림 테이블 찾기
         if self.context and action.table in self.context.tables:
-            fk_info = self.context.tables[action.table].get("foreign_keys", {})
-            downstream_tables = list(fk_info.keys())
+            table_info = self.context.tables[action.table]
+            fk_list = table_info.foreign_keys if hasattr(table_info, 'foreign_keys') else table_info.get("foreign_keys", []) if isinstance(table_info, dict) else []
+            downstream_tables = [fk.get("to_table", fk.get("target_table", "")) for fk in fk_list if isinstance(fk, dict)]
 
         # 리스크 레벨 결정
         if affected_rows > 100 or downstream_tables:

@@ -119,8 +119,10 @@ class SimulationEngine:
                     experiments.append(bootstrap_exp)
 
             except Exception as e:
-                logger.warning(f"Experiment failed for {corr.source_column} -> {corr.target_column}: {e}")
-                data_quality_notes.append(f"분석 실패: {corr.source_column} -> {corr.target_column}")
+                src_col = corr.get("source_column", "unknown") if isinstance(corr, dict) else getattr(corr, "source_column", "unknown")
+                tgt_col = corr.get("target_column", "unknown") if isinstance(corr, dict) else getattr(corr, "target_column", "unknown")
+                logger.warning(f"Experiment failed for {src_col} -> {tgt_col}: {e}")
+                data_quality_notes.append(f"분석 실패: {src_col} -> {tgt_col}")
 
         # 유의미한 발견 추출
         significant = self._extract_significant_findings(experiments)

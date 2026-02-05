@@ -1487,8 +1487,8 @@ Respond ONLY with valid JSON array."""
             lines.append(f"    {', '.join(col_names)}")
 
         # v22.0: OWL2/SHACL 온톨로지 추론 컨텍스트
-        owl2_results = self.pipeline_context.get("owl2_reasoning_results", {})
-        shacl_results = self.pipeline_context.get("shacl_validation_results", {})
+        owl2_results = self._pipeline_context.get("owl2_reasoning_results", {})
+        shacl_results = self._pipeline_context.get("shacl_validation_results", {})
         if owl2_results:
             lines.append("")
             lines.append("[Ontology Reasoning (OWL2)]")
@@ -1511,13 +1511,13 @@ Respond ONLY with valid JSON array."""
                     lines.append(f"    - {v.get('path', 'unknown')}: {v.get('message', '')[:100]}")
 
         # v22.0: Calibration 히스토리
-        calibration_history = self.pipeline_context.get("calibration_history", [])
+        calibration_history = self._pipeline_context.get("calibration_history", [])
         if calibration_history:
             lines.append("")
             lines.append(f"[Calibration History: {len(calibration_history)} phases calibrated]")
 
         # v22.0: Inferred triples (Knowledge Graph 추론 결과)
-        inferred_triples = self.pipeline_context.get("inferred_triples", [])
+        inferred_triples = self._pipeline_context.get("inferred_triples", [])
         if inferred_triples:
             lines.append("")
             lines.append(f"[Knowledge Graph: {len(inferred_triples)} inferred triples]")

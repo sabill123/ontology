@@ -2037,8 +2037,12 @@ Return ONLY a JSON array. Preserve ALL original fields and ADD the new analysis 
         for link in existing_links:
             source = link.get("definition", {}).get("source", "")
             target = link.get("definition", {}).get("target", "")
+            if isinstance(source, dict):
+                source = source.get("name", str(source))
+            if isinstance(target, dict):
+                target = target.get("name", str(target))
             if source and target:
-                existing_fk_pairs.add((source.lower(), target.lower()))
+                existing_fk_pairs.add((str(source).lower(), str(target).lower()))
 
         # Homeomorphism 정보
         homeo_summary = []
@@ -2118,6 +2122,12 @@ If no additional relationships can be confidently inferred, return an empty arra
                 for rel in new_relationships:
                     source = rel.get("definition", {}).get("source", "")
                     target = rel.get("definition", {}).get("target", "")
+                    if isinstance(source, dict):
+                        source = source.get("name", str(source))
+                    if isinstance(target, dict):
+                        target = target.get("name", str(target))
+                    source = str(source)
+                    target = str(target)
 
                     # 중복 체크
                     if (source.lower(), target.lower()) in existing_fk_pairs:

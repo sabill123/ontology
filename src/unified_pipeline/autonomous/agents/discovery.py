@@ -485,7 +485,7 @@ Respond with ONLY valid JSON matching this schema."""
 
             quality_analyzer = DataQualityAnalyzer()
             quality_report = quality_analyzer.analyze(tables_for_analysis)
-            data_quality_context = quality_analyzer.generate_llm_context(quality_report)
+            data_quality_context = quality_analyzer.generate_llm_context()
 
             logger.info(f"[v7.0] Data Quality Analysis: "
                        f"{len(quality_report.status_analyses)} status issues, "

@@ -421,8 +421,8 @@ class ToolSelector:
             info_parts.append(f"Available tables: {', '.join(tables)}")
 
         # 현재 파이프라인 단계
-        if self.context.current_phase:
-            info_parts.append(f"Current phase: {self.context.current_phase}")
+        if getattr(self.context, "current_stage", None):
+            info_parts.append(f"Current phase: {self.context.current_stage}")
 
         return "\n".join(info_parts) if info_parts else "Empty context"
 

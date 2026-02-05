@@ -874,7 +874,7 @@ class PipelineConsensusEngine:
 
             result = {
                 "topic": topic,
-                "final_decision": outcome.final_decision,
+                "final_decision": outcome.verdict,
                 "consensus_level": outcome.rounds[-1].consensus_level if outcome.rounds else 0.0,
                 "rounds_completed": len(outcome.rounds),
                 "conditions": outcome.conditions,
@@ -887,7 +887,7 @@ class PipelineConsensusEngine:
             }
 
             logger.info(
-                f"[StructuredDebate] {outcome.final_decision} "
+                f"[StructuredDebate] {outcome.verdict} "
                 f"(consensus={outcome.rounds[-1].consensus_level:.0%}, "
                 f"rounds={len(outcome.rounds)})"
             )

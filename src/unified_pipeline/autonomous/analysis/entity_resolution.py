@@ -1163,7 +1163,7 @@ class EntityResolver:
         self.resolve()
 
         # 클러스터링
-        clusters = self.cluster()
+        clusters = self.cluster_entities()
 
         # 결과 변환
         results = []

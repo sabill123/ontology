@@ -304,7 +304,7 @@ class ReportGenerator:
         data["tables"] = list(self.context.tables.keys())
 
         # 파이프라인 상태
-        data["current_phase"] = self.context.current_phase or "unknown"
+        data["current_phase"] = getattr(self.context, "current_stage", None) or "unknown"
 
         # Evidence Chain 요약
         if self.context.evidence_chain:

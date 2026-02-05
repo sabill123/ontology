@@ -1092,9 +1092,9 @@ class OntologyAlignmentAnalyzer:
 
                 if jaccard >= 0.3:  # 임계값
                     alignments.append({
-                        "source_id": elem_a.id,
+                        "source_id": elem_a.uri,
                         "source_name": elem_a.name,
-                        "target_id": elem_b.id,
+                        "target_id": elem_b.uri,
                         "target_name": elem_b.name,
                         "alignment_type": "equivalent" if jaccard >= 0.8 else "related",
                         "confidence": jaccard,
