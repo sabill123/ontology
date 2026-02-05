@@ -443,22 +443,19 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
             outcome_map = {
                 "success": Outcome.SUCCESS,
                 "failure": Outcome.FAILURE,
-                "partial": Outcome.PARTIAL,
+                "partial": Outcome.PARTIAL_SUCCESS,
             }
-            exp_outcome = outcome_map.get(outcome.lower(), Outcome.PARTIAL)
+            exp_outcome = outcome_map.get(outcome.lower(), Outcome.UNKNOWN)
 
-            # Experience 생성 및 저장
-            experience = Experience(
+            # store_experience로 저장
+            self.agent_memory.store_experience(
                 experience_type=exp_type,
-                agent_id=self.agent_id,
-                input_data=input_data,
-                output_data=output_data,
+                input_context=input_data or {},
+                agent_action=experience_type,
                 outcome=exp_outcome,
+                output_data=output_data,
                 confidence=confidence,
-                feedback=feedback,
             )
-
-            self.agent_memory.add_experience(experience)
             logger.debug(f"[v16.0] Experience recorded: {experience_type} -> {outcome}")
             return True
 
@@ -485,7 +482,7 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
             return []
 
         try:
-            return self.agent_memory.get_similar_experiences(input_data, limit)
+            return self.agent_memory.recall_similar(input_data, k=limit)
         except Exception as e:
             logger.warning(f"[v16.0] Failed to get similar experiences: {e}")
             return []

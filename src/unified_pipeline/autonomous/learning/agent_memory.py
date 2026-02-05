@@ -41,6 +41,9 @@ class ExperienceType(Enum):
     ONTOLOGY_GENERATION = "ontology_generation"
     VALIDATION = "validation"
     AGENT_DECISION = "agent_decision"
+    CONFLICT_RESOLUTION = "conflict_resolution"
+    QUALITY_ASSESSMENT = "quality_assessment"
+    GOVERNANCE_DECISION = "governance_decision"
 
 
 class Outcome(Enum):

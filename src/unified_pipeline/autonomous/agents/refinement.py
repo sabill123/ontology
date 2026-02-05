@@ -2069,13 +2069,13 @@ Focus on business-level semantic relationships, not just FK relationships.
 - Industry: {domain}
 
 ## Existing Object Types (Entities)
-{json.dumps([{{"name": c.get("name"), "source_tables": c.get("source_tables", [])}} for c in object_types], indent=2)}
+{json.dumps([{{"name": c.get("name"), "source_tables": c.get("source_tables", [])}} for c in object_types], indent=2, default=str)}
 
 ## Already Discovered Relationships (FK-based)
-{json.dumps([{{"name": c.get("name"), "source": c.get("definition", {{}}).get("source"), "target": c.get("definition", {{}}).get("target")}} for c in existing_links[:15]], indent=2)}
+{json.dumps([{{"name": c.get("name"), "source": str(c.get("definition", {{}}).get("source", "")), "target": str(c.get("definition", {{}}).get("target", ""))}} for c in existing_links[:15]], indent=2, default=str)}
 
 ## Homeomorphism Evidence
-{json.dumps(homeo_summary, indent=2)}
+{json.dumps(homeo_summary, indent=2, default=str)}
 
 ## Relationship Types to Discover
 1. **Hierarchical**: is-a (Patient is-a Person), part-of (LineItem part-of Order)

@@ -45,6 +45,7 @@ class EvidenceType(str, Enum):
     COUNCIL_VOTE = "council_vote"  # Council 투표 결과
     DEBATE_ARGUMENT = "debate_argument"  # 토론 주장
     FINAL_DECISION = "final_decision"  # 최종 결정
+    GOVERNANCE_DECISION = "governance_decision"  # 거버넌스 결정
 
     # v17.0: Palantir-style Features
     # NL2SQL

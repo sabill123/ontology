@@ -178,6 +178,15 @@ class SimulationEngine:
         if source_col not in df_source.columns or target_col not in df_target.columns:
             return experiments
 
+        # 수치형 컬럼만 분석 가능 (문자열 컬럼은 percentile/mean 등 불가)
+        import pandas as pd
+        if not pd.api.types.is_numeric_dtype(df_source[source_col]):
+            logger.debug(f"Skipping segmentation: source column {source_col} is not numeric")
+            return experiments
+        if not pd.api.types.is_numeric_dtype(df_target[target_col]):
+            logger.debug(f"Skipping segmentation: target column {target_col} is not numeric")
+            return experiments
+
         # 데이터 정렬 (행 수 맞추기)
         min_rows = min(len(df_source), len(df_target))
         source_values = df_source[source_col].iloc[:min_rows].dropna()
@@ -344,6 +353,13 @@ class SimulationEngine:
         if source_col not in df_source.columns or target_col not in df_target.columns:
             return experiments
 
+        # 수치형 컬럼만 분석 가능
+        import pandas as pd
+        if not pd.api.types.is_numeric_dtype(df_source[source_col]):
+            return experiments
+        if not pd.api.types.is_numeric_dtype(df_target[target_col]):
+            return experiments
+
         min_rows = min(len(df_source), len(df_target))
         source_values = df_source[source_col].iloc[:min_rows].dropna()
         target_values = df_target[target_col].iloc[:min_rows].dropna()
@@ -460,6 +476,13 @@ class SimulationEngine:
         df_target = self.tables_data[target_table]
 
         if source_col not in df_source.columns or target_col not in df_target.columns:
+            return None
+
+        # 수치형 컬럼만 분석 가능
+        import pandas as pd
+        if not pd.api.types.is_numeric_dtype(df_source[source_col]):
+            return None
+        if not pd.api.types.is_numeric_dtype(df_target[target_col]):
             return None
 
         min_rows = min(len(df_source), len(df_target))

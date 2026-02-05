@@ -1127,7 +1127,7 @@ Respond ONLY with valid JSON."""
                         for source_table in (source_tables or [])[:3]:
                             subscription = cdc_engine.subscribe(
                                 table_name=source_table,
-                                callback=None,  # 실제 콜백은 나중에 등록
+                                handler=lambda e: None,  # 실제 핸들러는 나중에 등록
                             )
                             if subscription:
                                 subscriptions_created += 1
@@ -2376,7 +2376,7 @@ Respond ONLY with valid JSON."""
                                 if table_info.columns:
                                     first_col = table_info.columns[0].get("name", table_info.columns[0]) if isinstance(table_info.columns[0], dict) else table_info.columns[0]
                                     col_id = f"{table}.{first_col}"
-                                    impact = lineage_tracker.get_impact_analysis(col_id)
+                                    impact = lineage_tracker.analyze_impact(col_id)
                                     if impact:
                                         impact_analyses.append({
                                             "concept_id": concept.concept_id,

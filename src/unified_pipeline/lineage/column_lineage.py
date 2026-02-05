@@ -552,12 +552,9 @@ def build_lineage_from_context(
 
     logger.info(f"[LineageTracker] Built lineage: {len(tracker.nodes)} nodes, {edge_count} edges")
 
-    return {
-        "nodes_count": len(tracker.nodes),
-        "edges_count": len(tracker.edges),
-        "tables_count": len(tracker._table_columns),
-        "fk_paths_count": len(tracker.get_fk_lineage_paths()),
-    }
+    # tracker 객체를 반환하여 impact analysis 등을 직접 사용 가능하게 함
+    # summary dict는 이미 SharedContext에 저장됨
+    return tracker
 
 
 # 모듈 초기화

@@ -1224,4 +1224,4 @@ class SemanticReasoningAnalyzer:
                     )
                 )
 
-        return self.schema_reasoner.check_completeness()
+        return self.schema_reasoner.reasoner.check_completeness()
