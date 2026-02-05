@@ -2133,7 +2133,7 @@ Respond ONLY with valid JSON array."""
             response = self.llm_client.chat.completions.create(
                 model=llm_model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=4000,
+                max_tokens=8000,
                 temperature=0.3,
             )
 

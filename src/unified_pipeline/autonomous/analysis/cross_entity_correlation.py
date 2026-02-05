@@ -309,11 +309,12 @@ class CrossEntityCorrelationAnalyzer:
 
     def _detect_categorical_columns(self, df: Any) -> List[str]:
         """v12.0: 카테고리/세그먼트 컬럼 감지"""
+        import pandas as pd
         categorical_cols = []
 
         for col in df.columns:
             # 문자열 컬럼이면서 고유값이 적당히 있는 경우
-            if df[col].dtype == 'object':
+            if pd.api.types.is_object_dtype(df[col]) or pd.api.types.is_string_dtype(df[col]):
                 nunique = df[col].nunique()
                 if 2 <= nunique <= 100:  # 2~100개 고유값
                     categorical_cols.append(col)

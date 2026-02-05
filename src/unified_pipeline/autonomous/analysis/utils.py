@@ -20,6 +20,45 @@ logger = logging.getLogger(__name__)
 T = TypeVar('T')
 
 
+def _repair_truncated_json(json_str: str) -> str:
+    """잘린 JSON 문자열 복구: 열린 문자열/괄호를 닫음"""
+    # 1. 마지막 완전한 값 이후의 불완전한 부분을 제거
+    # 열린 문자열 닫기: 이스케이프되지 않은 따옴표 수가 홀수이면 닫기
+    in_string = False
+    last_complete_idx = 0
+    i = 0
+    while i < len(json_str):
+        c = json_str[i]
+        if c == '\\' and in_string:
+            i += 2  # 이스케이프 문자 건너뛰기
+            continue
+        if c == '"':
+            if in_string:
+                in_string = False
+                last_complete_idx = i
+            else:
+                in_string = True
+        elif not in_string and c in '{}[]:,':
+            last_complete_idx = i
+        i += 1
+
+    if in_string:
+        # 문자열 중간에서 잘림 → 마지막 열린 따옴표 이전까지의 완전한 항목 찾기
+        # 현재 열린 문자열을 닫고 이후 괄호 추가
+        json_str = json_str[:i] + '"'
+
+    # 2. 마지막 불완전한 key-value 쌍 제거 (trailing comma 처리)
+    json_str = re.sub(r',\s*$', '', json_str.rstrip())
+
+    # 3. 누락된 닫는 괄호 추가
+    open_braces = json_str.count('{') - json_str.count('}')
+    open_brackets = json_str.count('[') - json_str.count(']')
+    json_str += '}' * max(0, open_braces)
+    json_str += ']' * max(0, open_brackets)
+
+    return json_str
+
+
 def parse_llm_json(
     response: str,
     key: Optional[str] = None,
@@ -71,17 +110,9 @@ def parse_llm_json(
     try:
         start = response.find('{')
         if start != -1:
-            json_str = response[start:]
-            # 열린 괄호 수 계산
-            open_braces = json_str.count('{') - json_str.count('}')
-            open_brackets = json_str.count('[') - json_str.count(']')
-
-            # 누락된 닫는 괄호 추가
-            json_str += ']' * open_brackets
-            json_str += '}' * open_braces
-
+            json_str = _repair_truncated_json(response[start:])
             data = json.loads(json_str)
-            logger.info(f"Recovered truncated JSON (added {open_braces} braces, {open_brackets} brackets)")
+            logger.info("Recovered truncated JSON object via repair")
             return _ensure_return_type(data, default, key)
     except json.JSONDecodeError:
         pass
@@ -101,13 +132,9 @@ def parse_llm_json(
     try:
         start = response.find('[')
         if start != -1:
-            json_str = response[start:]
-            open_braces = json_str.count('{') - json_str.count('}')
-            open_brackets = json_str.count('[') - json_str.count(']')
-            json_str += '}' * max(0, open_braces)
-            json_str += ']' * max(0, open_brackets)
+            json_str = _repair_truncated_json(response[start:])
             data = json.loads(json_str)
-            logger.info(f"Recovered truncated array JSON (added {open_braces} braces, {open_brackets} brackets)")
+            logger.info("Recovered truncated JSON array via repair")
             return _ensure_return_type(data, default, key)
     except json.JSONDecodeError:
         pass
