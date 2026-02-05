@@ -6,7 +6,6 @@ Usage:
 """
 
 import argparse
-import asyncio
 import json
 import logging
 import os
@@ -38,7 +37,7 @@ def parse_args():
     return parser.parse_args()
 
 
-async def run_pipeline(data_path: str, domain_hint: str, scenario_name: str):
+def run_pipeline(data_path: str, domain_hint: str, scenario_name: str):
     from src.unified_pipeline.unified_main import OntologyPlatform, PipelineConfig
 
     output_dir = str(PROJECT_ROOT / "data" / "output")
@@ -60,7 +59,7 @@ async def run_pipeline(data_path: str, domain_hint: str, scenario_name: str):
 
     start_time = time.time()
 
-    result = await platform.run_async_collect(
+    result = platform.run(
         data_source=data_path,
         scenario_name=scenario_name,
         domain_hint=domain_hint or None,
@@ -186,5 +185,5 @@ def _build_summary(result, elapsed: float, data_path: str, domain_hint: str) -> 
 
 if __name__ == "__main__":
     args = parse_args()
-    result = asyncio.run(run_pipeline(args.data, args.domain, args.name))
+    result = run_pipeline(args.data, args.domain, args.name)
     sys.exit(0 if result.success else 1)
