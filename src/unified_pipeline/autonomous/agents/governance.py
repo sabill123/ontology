@@ -1120,7 +1120,7 @@ Respond ONLY with valid JSON."""
                 # 거버넌스 결정 기반 동기화 구독 설정
                 subscriptions_created = 0
                 for decision in governance_decisions[:10]:  # 상위 10개
-                    if decision.decision == "approve":
+                    if decision.decision_type == "approve":
                         # 승인된 개념에 대해 CDC 구독 생성
                         for source_table in (decision.source_tables or [])[:3]:
                             subscription = cdc_engine.subscribe(
@@ -1162,7 +1162,7 @@ Respond ONLY with valid JSON."""
                         decision_type="governance",
                         decision_data={
                             "concept_id": decision.concept_id,
-                            "decision": decision.decision,
+                            "decision": decision.decision_type,
                             "confidence": decision.confidence,
                             "reasoning": decision.reasoning[:200] if decision.reasoning else "",
                         },
@@ -1678,8 +1678,6 @@ Respond with ONLY valid JSON matching this schema."""
                     trigger = Trigger(
                         trigger_id=f"trigger_{action_data.get('action_id', '')}",
                         trigger_type=trigger_type,
-                        name=f"Trigger for {action_data.get('title', 'Action')[:30]}",
-                        description=f"Auto-generated trigger for priority action",
                     )
 
                     # 액션 생성 및 등록
@@ -3165,7 +3163,7 @@ Respond ONLY with valid JSON."""
                                         "predictions": forecast.predictions[:5],
                                         "trend": forecast.trend.value if hasattr(forecast.trend, 'value') else forecast.trend,
                                         "model": forecast.model_used.value if hasattr(forecast.model_used, 'value') else forecast.model_used,
-                                        "confidence": forecast.confidence,
+                                        "confidence": 1.0 - forecast.metrics.get("mape", 50) / 100.0 if forecast.metrics else 0.5,
                                     }
 
                 logger.info(f"TimeSeriesForecaster: {len(forecast_results)} forecasts generated")

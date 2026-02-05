@@ -238,7 +238,8 @@ Respond with JSON only, no additional text."""
         table_names = [name.lower() for name in context.tables.keys()]
         all_columns = []
         for t in context.tables.values():
-            all_columns.extend([c.lower() for c in t.columns])
+            cols = t.columns if not isinstance(t.columns, dict) else list(t.columns.keys())
+            all_columns.extend([str(c).lower() for c in cols])
 
         text = " ".join(table_names + all_columns)
 
@@ -264,7 +265,8 @@ Respond with JSON only, no additional text."""
         table_names = [name.lower() for name in context.tables.keys()]
         all_columns = []
         for t in context.tables.values():
-            all_columns.extend([c.lower() for c in t.columns])
+            cols = t.columns if not isinstance(t.columns, dict) else list(t.columns.keys())
+            all_columns.extend([str(c).lower() for c in cols])
 
         text = " ".join(table_names + all_columns)
 

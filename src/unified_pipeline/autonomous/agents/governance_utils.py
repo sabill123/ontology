@@ -574,7 +574,7 @@ Evaluate this governance decision. Return JSON only:
         thresholds: Dict[str, Any]
     ) -> Dict[str, Any]:
         """v9.5: LLM이 도메인 컨텍스트 기반으로 Rule-based 점수를 보정"""
-        from ..llm_utils import chat_completion
+        from src.common.utils.llm import chat_completion
 
         domain_desc = thresholds.get("description", "일반 도메인")
         risk_tolerance = thresholds.get("risk_tolerance", "medium")

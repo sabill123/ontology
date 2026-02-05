@@ -3302,7 +3302,7 @@ Respond with structured JSON matching this schema."""
                 top_central_nodes = [{"node": n, "pagerank": pr} for n, pr in sorted_nodes]
 
             graph_embedding_results = {
-                "embeddings_computed": len(embeddings) if embeddings else 0,
+                "embeddings_computed": len(embeddings.node_embeddings) if embeddings and hasattr(embeddings, 'node_embeddings') else 0,
                 "communities_found": len(communities) if communities else 0,
                 "community_details": [
                     {"id": c.id, "tables": c.nodes[:5], "size": len(c.nodes)}

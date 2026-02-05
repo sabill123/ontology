@@ -1163,7 +1163,7 @@ class SemanticReasoningAnalyzer:
         """
         # 트리플을 KnowledgeBase에 추가
         for triple in triples:
-            self.schema_reasoner.kb.add_triple(
+            self.schema_reasoner.reasoner.kb.add_triple(
                 Triple(
                     subject=triple.get("subject", ""),
                     predicate=triple.get("predicate", ""),
@@ -1172,11 +1172,12 @@ class SemanticReasoningAnalyzer:
             )
 
         # 추론 실행
-        inferred = self.schema_reasoner.forward_chainer.infer(self.schema_reasoner.kb)
+        result = self.schema_reasoner.reasoner.infer()
+        all_inferred = result.get("rdfs_inferred", []) + result.get("owl_inferred", []) + result.get("custom_inferred", [])
 
         return [
-            {"subject": t.subject, "predicate": t.predicate, "object": t.object}
-            for t in inferred
+            {"subject": t[0], "predicate": t[1], "object": t[2]}
+            for t in all_inferred
         ]
 
     def check_consistency(self, triples: List[Dict[str, Any]] = None) -> 'ConsistencyReport':
@@ -1192,7 +1193,7 @@ class SemanticReasoningAnalyzer:
         # 트리플이 제공되면 먼저 추가
         if triples:
             for triple in triples:
-                self.schema_reasoner.kb.add_triple(
+                self.schema_reasoner.reasoner.kb.add_triple(
                     Triple(
                         subject=triple.get("subject", ""),
                         predicate=triple.get("predicate", ""),
@@ -1215,7 +1216,7 @@ class SemanticReasoningAnalyzer:
         # 트리플이 제공되면 먼저 추가
         if triples:
             for triple in triples:
-                self.schema_reasoner.kb.add_triple(
+                self.schema_reasoner.reasoner.kb.add_triple(
                     Triple(
                         subject=triple.get("subject", ""),
                         predicate=triple.get("predicate", ""),

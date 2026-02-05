@@ -34,6 +34,23 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _get_table_sample_data(table_info) -> list:
+    """TableInfo(dataclass) 또는 dict에서 sample_data를 안전하게 추출"""
+    if hasattr(table_info, 'sample_data'):
+        return table_info.sample_data or []
+    elif isinstance(table_info, dict):
+        return table_info.get("sample_data", [])
+    return []
+
+
+def _set_table_sample_data(table_info, data):
+    """TableInfo(dataclass) 또는 dict에 sample_data를 안전하게 설정"""
+    if hasattr(table_info, 'sample_data'):
+        table_info.sample_data = data
+    elif isinstance(table_info, dict):
+        table_info["sample_data"] = data
+
+
 class IssueType(str, Enum):
     """이슈 유형"""
     MISSING_VALUES = "missing_values"
@@ -422,8 +439,9 @@ class RemediationEngine:
                 return False
 
             # 원본 데이터 복원
-            self.context.tables[table]["sample_data"] = result.rollback_data.get(
-                "original_data", []
+            _set_table_sample_data(
+                self.context.tables[table],
+                result.rollback_data.get("original_data", [])
             )
 
             self.stats["rollbacks"] += 1
@@ -773,7 +791,7 @@ class RemediationEngine:
         import copy
         return {
             "original_data": copy.deepcopy(
-                self.context.tables[action.table].get("sample_data", [])
+                _get_table_sample_data(self.context.tables[action.table])
             ),
         }
 
@@ -782,7 +800,7 @@ class RemediationEngine:
         if not self.context or action.table not in self.context.tables:
             return 0
 
-        data = self.context.tables[action.table].get("sample_data", [])
+        data = _get_table_sample_data(self.context.tables[action.table])
         column = action.column
 
         # 평균 계산
@@ -814,7 +832,7 @@ class RemediationEngine:
         if not self.context or action.table not in self.context.tables:
             return 0
 
-        data = self.context.tables[action.table].get("sample_data", [])
+        data = _get_table_sample_data(self.context.tables[action.table])
         column = action.column
 
         values = []
@@ -844,7 +862,7 @@ class RemediationEngine:
         if not self.context or action.table not in self.context.tables:
             return 0
 
-        data = self.context.tables[action.table].get("sample_data", [])
+        data = _get_table_sample_data(self.context.tables[action.table])
         column = action.column
 
         values = [row.get(column) for row in data if row.get(column)]
@@ -870,7 +888,7 @@ class RemediationEngine:
         if not self.context or action.table not in self.context.tables:
             return 0
 
-        data = self.context.tables[action.table].get("sample_data", [])
+        data = _get_table_sample_data(self.context.tables[action.table])
         column = action.column
         default_value = action.parameters.get("default_value", "N/A")
 
@@ -888,7 +906,7 @@ class RemediationEngine:
             return 0
 
         rows_to_remove = set(action.parameters.get("rows_to_remove", []))
-        data = self.context.tables[action.table].get("sample_data", [])
+        data = _get_table_sample_data(self.context.tables[action.table])
 
         new_data = [
             row for i, row in enumerate(data)
@@ -896,7 +914,7 @@ class RemediationEngine:
         ]
 
         removed = len(data) - len(new_data)
-        self.context.tables[action.table]["sample_data"] = new_data
+        _set_table_sample_data(self.context.tables[action.table], new_data)
 
         return removed
 
@@ -905,7 +923,7 @@ class RemediationEngine:
         if not self.context or action.table not in self.context.tables:
             return 0
 
-        data = self.context.tables[action.table].get("sample_data", [])
+        data = _get_table_sample_data(self.context.tables[action.table])
         column = action.column
         mean = action.parameters.get("mean", 0)
         std = action.parameters.get("std", 1)
@@ -933,7 +951,7 @@ class RemediationEngine:
         if not self.context or action.table not in self.context.tables:
             return 0
 
-        data = self.context.tables[action.table].get("sample_data", [])
+        data = _get_table_sample_data(self.context.tables[action.table])
 
         seen = set()
         new_data = []
@@ -945,7 +963,7 @@ class RemediationEngine:
                 new_data.append(row)
 
         removed = len(data) - len(new_data)
-        self.context.tables[action.table]["sample_data"] = new_data
+        _set_table_sample_data(self.context.tables[action.table], new_data)
 
         return removed
 
@@ -959,7 +977,7 @@ class RemediationEngine:
         if not self.context or action.table not in self.context.tables:
             return 0
 
-        data = self.context.tables[action.table].get("sample_data", [])
+        data = _get_table_sample_data(self.context.tables[action.table])
         column = action.column
 
         if not data or not column:
@@ -1039,7 +1057,9 @@ class RemediationEngine:
 
         # 컬럼 메타데이터
         if self.context and table in self.context.tables:
-            col_info = self.context.tables[table].get("columns", {}).get(column, {})
+            ti = self.context.tables[table]
+            cols = ti.columns if hasattr(ti, 'columns') else ti.get("columns", {}) if isinstance(ti, dict) else {}
+            col_info = cols.get(column, {}) if isinstance(cols, dict) else {}
             dtype = col_info.get("dtype", "unknown")
             sample_values = col_info.get("sample_values", [])
         else:

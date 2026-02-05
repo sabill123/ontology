@@ -1671,6 +1671,12 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
             definition = link.get("definition", {})
             source = definition.get("source", "")
             target = definition.get("target", "")
+            if isinstance(source, dict):
+                source = source.get("name", str(source))
+            if isinstance(target, dict):
+                target = target.get("name", str(target))
+            source = str(source)
+            target = str(target)
 
             if source and target:
                 # 테이블 간 관계에서 인과 방향 추론
@@ -3189,19 +3195,28 @@ Respond ONLY with valid JSON."""
         try:
             # OWL2 Reasoning 실행
             owl2_result = run_owl2_reasoning_and_update_context(context)
-            owl2_results = {
-                "axioms_discovered": owl2_result.axioms_discovered,
-                "inferred_triples": owl2_result.inferred_count,
-                "reasoning_time_ms": owl2_result.reasoning_time_ms,
-                "by_axiom_type": dict(owl2_result.by_axiom_type) if owl2_result.by_axiom_type else {},
-            }
+            if isinstance(owl2_result, dict):
+                owl2_results = {
+                    "axioms_discovered": owl2_result.get("axioms_discovered", 0),
+                    "inferred_triples": owl2_result.get("inferred_count", owl2_result.get("inferred_triples", 0)),
+                    "reasoning_time_ms": owl2_result.get("reasoning_time_ms", 0),
+                    "by_axiom_type": owl2_result.get("by_axiom_type", {}),
+                }
+            else:
+                owl2_results = {
+                    "axioms_discovered": getattr(owl2_result, 'axioms_discovered', 0),
+                    "inferred_triples": getattr(owl2_result, 'inferred_count', 0),
+                    "reasoning_time_ms": getattr(owl2_result, 'reasoning_time_ms', 0),
+                    "by_axiom_type": dict(owl2_result.by_axiom_type) if getattr(owl2_result, 'by_axiom_type', None) else {},
+                }
             logger.info(
-                f"[v16.0] OWL2 Reasoner: {owl2_result.axioms_discovered} axioms, "
-                f"{owl2_result.inferred_count} inferred triples"
+                f"[v16.0] OWL2 Reasoner: {owl2_results.get('axioms_discovered', 0)} axioms, "
+                f"{owl2_results.get('inferred_triples', 0)} inferred triples"
             )
 
             # OWL2 추론 결과를 inferred_triples에 추가
-            for triple in owl2_result.inferred_triples:
+            raw_triples = owl2_result.get("inferred_triples_list", []) if isinstance(owl2_result, dict) else getattr(owl2_result, 'inferred_triples', [])
+            for triple in (raw_triples if isinstance(raw_triples, list) else []):
                 inferred_triples.append({
                     "subject": triple.subject,
                     "predicate": triple.predicate,
@@ -3219,16 +3234,25 @@ Respond ONLY with valid JSON."""
         try:
             # SHACL Validation 실행
             shacl_result = run_shacl_validation_and_update_context(context)
-            shacl_results = {
-                "is_conformant": shacl_result.is_conformant,
-                "violations_count": shacl_result.violations_count,
-                "warnings_count": shacl_result.warnings_count,
-                "by_severity": dict(shacl_result.by_severity) if shacl_result.by_severity else {},
-                "by_constraint_type": dict(shacl_result.by_constraint_type) if shacl_result.by_constraint_type else {},
-            }
+            if isinstance(shacl_result, dict):
+                shacl_results = {
+                    "is_conformant": shacl_result.get("is_conformant", True),
+                    "violations_count": shacl_result.get("violations_count", 0),
+                    "warnings_count": shacl_result.get("warnings_count", 0),
+                    "by_severity": shacl_result.get("by_severity", {}),
+                    "by_constraint_type": shacl_result.get("by_constraint_type", {}),
+                }
+            else:
+                shacl_results = {
+                    "is_conformant": getattr(shacl_result, 'is_conformant', True),
+                    "violations_count": getattr(shacl_result, 'violations_count', 0),
+                    "warnings_count": getattr(shacl_result, 'warnings_count', 0),
+                    "by_severity": dict(shacl_result.by_severity) if getattr(shacl_result, 'by_severity', None) else {},
+                    "by_constraint_type": dict(shacl_result.by_constraint_type) if getattr(shacl_result, 'by_constraint_type', None) else {},
+                }
             logger.info(
-                f"[v16.0] SHACL Validator: conformant={shacl_result.is_conformant}, "
-                f"violations={shacl_result.violations_count}, warnings={shacl_result.warnings_count}"
+                f"[v16.0] SHACL Validator: conformant={shacl_results.get('is_conformant')}, "
+                f"violations={shacl_results.get('violations_count', 0)}, warnings={shacl_results.get('warnings_count', 0)}"
             )
 
         except Exception as e:
