@@ -97,6 +97,21 @@ def parse_llm_json(
     except json.JSONDecodeError:
         pass
 
+    # 3.5. 잘린 배열 형태 복구 시도
+    try:
+        start = response.find('[')
+        if start != -1:
+            json_str = response[start:]
+            open_braces = json_str.count('{') - json_str.count('}')
+            open_brackets = json_str.count('[') - json_str.count(']')
+            json_str += '}' * max(0, open_braces)
+            json_str += ']' * max(0, open_brackets)
+            data = json.loads(json_str)
+            logger.info(f"Recovered truncated array JSON (added {open_braces} braces, {open_brackets} brackets)")
+            return _ensure_return_type(data, default, key)
+    except json.JSONDecodeError:
+        pass
+
     # 4. 전체 문자열 시도
     try:
         data = json.loads(response.strip())

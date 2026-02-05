@@ -271,7 +271,7 @@ Respond with ONLY valid JSON matching this schema."""
                     }
 
             # 카테고리형 컬럼 (unique 비율 < 50% 이면 카테고리로 간주)
-            elif series.dtype == "object":
+            elif pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
                 non_null = series.dropna()
                 nunique = non_null.nunique()
                 if nunique <= 50 and len(non_null) > 0:
@@ -293,9 +293,10 @@ Respond with ONLY valid JSON matching this schema."""
                         }
 
             # 날짜형 컬럼 시도
-            if series.dtype == "object" and any(kw in col.lower() for kw in ["date", "time", "dt", "_at"]):
+            if pd.api.types.is_object_dtype(series) and any(kw in col.lower() for kw in ["date", "time", "dt", "_at"]):
                 try:
-                    parsed = pd.to_datetime(non_null, errors="coerce").dropna()
+                    date_non_null = series.dropna()
+                    parsed = pd.to_datetime(date_non_null, errors="coerce").dropna()
                     if len(parsed) > 0:
                         stats["date_ranges"][col] = {
                             "min": str(parsed.min()),

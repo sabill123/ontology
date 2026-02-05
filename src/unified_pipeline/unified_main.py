@@ -293,10 +293,10 @@ class OntologyPlatform:
                 domain_detected=domain.industry,
                 domain_confidence=domain.industry_confidence,
                 tables_processed=len(context.tables),
-                entities_found=len(context.unified_entities),
-                relationships_found=len(context.concept_relationships or []),
+                entities_found=len([c for c in context.ontology_concepts if c.concept_type == "object_type"]) or len(context.unified_entities),
+                relationships_found=len([c for c in context.ontology_concepts if c.concept_type == "link_type"]) or len(context.concept_relationships or []),
                 insights_generated=len(context.business_insights or []),
-                governance_actions=len(context.action_backlog or []),
+                governance_actions=len(context.governance_decisions or []),
                 context=context.to_dict() if self.config.save_intermediate else None,
                 execution_time_seconds=execution_time,
             )

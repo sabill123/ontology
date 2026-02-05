@@ -498,6 +498,17 @@ Respond ONLY with valid JSON."""
                 "causal_insights": causal_insights,  # v6.1: 인과 인사이트
                 "virtual_entities": virtual_entities,  # v6.1: 가상 엔티티
                 "palantir_insights": palantir_insights,  # v10.0: 팔란티어 스타일 예측 인사이트
+                "concept_relationships": [
+                    {
+                        "source": c.definition.get("source", "") if isinstance(c.definition, dict) else "",
+                        "target": c.definition.get("target", "") if isinstance(c.definition, dict) else "",
+                        "relationship_type": c.definition.get("relationship_type", "related_to") if isinstance(c.definition, dict) else "related_to",
+                        "name": c.name,
+                        "concept_id": c.concept_id,
+                        "confidence": c.confidence,
+                    }
+                    for c in ontology_concepts if c.concept_type == "link_type"
+                ],
             },
             metadata={
                 "raw_concepts": len(extracted_concepts),
