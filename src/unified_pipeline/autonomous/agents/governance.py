@@ -2381,8 +2381,8 @@ Respond ONLY with valid JSON."""
                                         impact_analyses.append({
                                             "concept_id": concept.concept_id,
                                             "source_column": col_id,
-                                            "direct_downstream": impact.direct_downstream,
-                                            "total_affected": impact.total_affected,
+                                            "direct_dependencies": impact.direct_dependencies,
+                                            "total_impact_count": impact.total_impact_count,
                                             "max_depth": impact.max_depth,
                                             "affected_tables": list(impact.affected_tables)[:5],
                                         })

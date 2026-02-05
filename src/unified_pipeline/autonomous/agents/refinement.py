@@ -2156,7 +2156,8 @@ If no additional relationships can be confidently inferred, return an empty arra
                 return valid_relationships
 
         except Exception as e:
-            logger.warning(f"LLM relationship inference failed: {e}")
+            import traceback
+            logger.warning(f"LLM relationship inference failed: {e}\n{traceback.format_exc()}")
 
         return []
 

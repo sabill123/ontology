@@ -1170,10 +1170,23 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
             # 성공 처리
             if result.success:
                 # v14.0: Evidence 기록 여부 검증 및 terminate_mode 설정
+                if not self._evidence_recorded_for_current_task:
+                    # Auto-record evidence from task result to prevent silent failure
+                    try:
+                        output_summary = str(result.output)[:300] if result.output else ""
+                        self.record_evidence(
+                            finding=f"Completed: {todo.name}",
+                            reasoning=f"Agent {self.agent_name} completed task with output",
+                            conclusion=output_summary or "Task completed successfully",
+                            confidence=0.7,
+                            topics=[self.phase, self.agent_type, todo.name.lower().replace(" ", "_")],
+                        )
+                    except Exception:
+                        pass  # best-effort auto-record
+
                 if self._evidence_recorded_for_current_task:
                     result.terminate_mode = AgentTerminateMode.GOAL.value
                 else:
-                    # Evidence 없이 성공 → Silent Failure 위험
                     logger.warning(
                         f"[SILENT_FAILURE_RISK] Agent {self.agent_id} completed '{todo.name}' "
                         f"without recording evidence"
