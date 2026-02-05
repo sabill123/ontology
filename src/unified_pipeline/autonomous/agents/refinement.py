@@ -2061,6 +2061,20 @@ Return ONLY a JSON array. Preserve ALL original fields and ADD the new analysis 
                 "confidence": h.confidence,
             })
 
+        # Pre-build lists outside f-string to avoid {{}} parsing issues
+        object_types_summary = [
+            {"name": c.get("name"), "source_tables": c.get("source_tables", [])}
+            for c in object_types
+        ]
+        existing_links_summary = [
+            {
+                "name": c.get("name"),
+                "source": str(c.get("definition", {}).get("source", "")),
+                "target": str(c.get("definition", {}).get("target", "")),
+            }
+            for c in existing_links[:15]
+        ]
+
         prompt = f"""You are an expert ontologist specializing in semantic relationship inference.
 
 ## Task
@@ -2071,10 +2085,10 @@ Focus on business-level semantic relationships, not just FK relationships.
 - Industry: {domain}
 
 ## Existing Object Types (Entities)
-{json.dumps([{{"name": c.get("name"), "source_tables": c.get("source_tables", [])}} for c in object_types], indent=2, default=str)}
+{json.dumps(object_types_summary, indent=2, default=str)}
 
 ## Already Discovered Relationships (FK-based)
-{json.dumps([{{"name": c.get("name"), "source": str(c.get("definition", {{}}).get("source", "")), "target": str(c.get("definition", {{}}).get("target", ""))}} for c in existing_links[:15]], indent=2, default=str)}
+{json.dumps(existing_links_summary, indent=2, default=str)}
 
 ## Homeomorphism Evidence
 {json.dumps(homeo_summary, indent=2, default=str)}
