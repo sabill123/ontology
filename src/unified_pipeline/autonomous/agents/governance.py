@@ -2075,7 +2075,7 @@ Respond ONLY with valid JSON."""
 
         # 운영 리스크 요소 추출
         operational_risk_factors = []
-        if operational_insights:
+        if operational_insights and isinstance(operational_insights, dict):
             # 높은 취소율, 오류율 등은 리스크 증가 요인
             for key, value in operational_insights.items():
                 if isinstance(value, dict):
@@ -2092,15 +2092,25 @@ Respond ONLY with valid JSON."""
         # 상태 분석에서 문제 있는 필드 추출
         problematic_status_fields = []
         if status_analysis:
-            for table, analysis in status_analysis.items():
-                if isinstance(analysis, dict):
-                    for field, info in analysis.items():
-                        if isinstance(info, dict) and info.get("has_issues", False):
-                            problematic_status_fields.append({
-                                "table": table,
-                                "field": field,
-                                "issue_type": info.get("issue_type", "unknown"),
-                            })
+            if isinstance(status_analysis, list):
+                # Discovery stores status_analysis as list of dicts
+                for item in status_analysis:
+                    if isinstance(item, dict) and item.get("problem_ratio", 0) > 0.05:
+                        problematic_status_fields.append({
+                            "table": item.get("table", "unknown"),
+                            "field": item.get("column", "unknown"),
+                            "issue_type": "high_problem_ratio",
+                        })
+            elif isinstance(status_analysis, dict):
+                for table, analysis in status_analysis.items():
+                    if isinstance(analysis, dict):
+                        for field, info in analysis.items():
+                            if isinstance(info, dict) and info.get("has_issues", False):
+                                problematic_status_fields.append({
+                                    "table": table,
+                                    "field": field,
+                                    "issue_type": info.get("issue_type", "unknown"),
+                                })
             if problematic_status_fields:
                 logger.info(f"[v17.1] Found {len(problematic_status_fields)} problematic status fields")
 
@@ -3132,7 +3142,7 @@ Respond ONLY with valid JSON."""
             # v22.1: 전체 데이터 로드 (샘플링 금지)
             sample_data = context.get_all_full_data()
 
-            if sample_data:
+            if sample_data and isinstance(sample_data, dict):
                 # 시계열 메트릭 예측 (예: 데이터 품질 트렌드)
                 for table_name, rows in sample_data.items():
                     if rows and len(rows) >= 10:
