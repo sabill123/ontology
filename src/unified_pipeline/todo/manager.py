@@ -298,8 +298,21 @@ class TodoManager:
             )
 
             # 후속 Todo들의 상태 체크
-            for dependent_id in self._dependent_graph.get(todo_id, set()):
-                self._check_and_update_status(dependent_id)
+            dependents = self._dependent_graph.get(todo_id, set())
+            print(f"[TODO] Completed: '{todo.name}' ({todo_id}). Checking {len(dependents)} dependents: {[self._todos[d].name for d in dependents if d in self._todos]}")
+            for dependent_id in dependents:
+                dep_todo = self._todos.get(dependent_id)
+                if dep_todo:
+                    old_status = dep_todo.status.value
+                    self._check_and_update_status(dependent_id)
+                    new_status = dep_todo.status.value
+                    if old_status != new_status:
+                        print(f"[TODO] Dependent '{dep_todo.name}' changed: {old_status} -> {new_status}")
+                    else:
+                        # Show why it didn't change
+                        unmet = dep_todo.dependencies - self._completed_todos
+                        unmet_names = [self._todos[u].name for u in unmet if u in self._todos]
+                        print(f"[TODO] Dependent '{dep_todo.name}' stays {old_status} (unmet deps: {unmet_names})")
 
             # 모든 Todo 완료 체크
             if self._check_all_complete():
@@ -513,10 +526,17 @@ class TodoManager:
     def is_phase_complete(self, phase: str) -> bool:
         """Phase 완료 여부"""
         phase_todos = self.get_todos_by_phase(phase)
-        return all(
+        # v22.1: 디버깅 - 빈 리스트면 True 반환하는 문제 확인
+        if not phase_todos:
+            print(f"[DEBUG] is_phase_complete('{phase}'): NO TODOS FOUND - returning True (BUG?)")
+            return True
+        result = all(
             t.status in {TodoStatus.COMPLETED, TodoStatus.CANCELLED}
             for t in phase_todos
         )
+        if result:
+            print(f"[DEBUG] is_phase_complete('{phase}'): True - all {len(phase_todos)} todos done")
+        return result
 
     def get_phase_stats(self, phase: str) -> TodoStats:
         """Phase별 통계"""

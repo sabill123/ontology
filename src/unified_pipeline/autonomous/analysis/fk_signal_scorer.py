@@ -67,6 +67,12 @@ class FKSignalScorer:
         "campaign": {"campaign", "cmp", "promotion", "marketing"},
         "employee": {"emp", "employee", "worker", "staff"},
         "account": {"acct", "account"},
+        # Healthcare domain (v22.0 추가)
+        "doctor": {"doctor", "physician", "provider", "clinician", "doc", "dr",
+                   "attending", "ordering", "prescribing", "referring"},
+        "patient": {"patient", "pt", "pat", "member", "enrollee", "beneficiary"},
+        "appointment": {"appointment", "appt", "visit", "encounter", "consultation"},
+        "medication": {"medication", "med", "meds", "drug", "rx", "prescription"},
     }
 
     def compute_signals(

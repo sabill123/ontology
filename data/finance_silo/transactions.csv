@@ -1,0 +1,26 @@
+transaction_id,account_id,transaction_type,amount,currency,transaction_date,description,category,merchant_id,status,balance_after
+TXN0001,ACC001,debit,150.00,USD,2024-01-02,Grocery Store,groceries,MERCH001,completed,14850.50
+TXN0002,ACC001,debit,45.99,USD,2024-01-03,Gas Station,transportation,MERCH002,completed,14804.51
+TXN0003,ACC001,credit,3500.00,USD,2024-01-05,Payroll Deposit,income,,completed,18304.51
+TXN0004,ACC002,credit,500.00,USD,2024-01-05,Transfer from Checking,transfer,,completed,45500.00
+TXN0005,ACC003,debit,89.50,USD,2024-01-06,Restaurant,dining,MERCH003,completed,8411.25
+TXN0006,ACC003,debit,250.00,USD,2024-01-07,Utility Bill,utilities,,completed,8161.25
+TXN0007,ACC005,debit,35.00,USD,2024-01-08,Streaming Service,entertainment,MERCH004,completed,3165.25
+TXN0008,ACC007,credit,4200.00,USD,2024-01-10,Payroll Deposit,income,,completed,26200.00
+TXN0009,ACC007,debit,1200.00,USD,2024-01-11,Rent Payment,housing,,completed,25000.00
+TXN0010,ACC009,debit,65.00,USD,2024-01-12,Online Shopping,shopping,MERCH005,completed,5535.80
+TXN0011,ACC011,debit,500.00,USD,2024-01-13,ATM Withdrawal,cash,,completed,11500.00
+TXN0012,ACC013,credit,2800.00,USD,2024-01-15,Payroll Deposit,income,,completed,7300.00
+TXN0013,ACC016,debit,180.00,USD,2024-01-16,Insurance Premium,insurance,,completed,9620.00
+TXN0014,ACC017,debit,75.50,USD,2024-01-17,Phone Bill,utilities,,completed,15424.50
+TXN0015,ACC019,credit,3200.00,USD,2024-01-18,Payroll Deposit,income,,completed,10400.00
+TXN0016,ACC001,debit,299.99,USD,2024-01-19,Electronics Store,shopping,MERCH006,completed,18004.52
+TXN0017,ACC003,credit,2950.00,USD,2024-01-20,Payroll Deposit,income,,completed,11111.25
+TXN0018,ACC005,debit,120.00,USD,2024-01-21,Medical Copay,healthcare,MERCH007,completed,3045.25
+TXN0019,ACC007,debit,450.00,USD,2024-01-22,Car Payment,transportation,,completed,24550.00
+TXN0020,ACC009,debit,85.00,USD,2024-01-23,Gym Membership,fitness,MERCH008,completed,5450.80
+TXN0021,ACC011,credit,3100.00,USD,2024-01-24,Payroll Deposit,income,,completed,14600.00
+TXN0022,ACC013,debit,42.50,USD,2024-01-25,Coffee Shop,dining,MERCH009,completed,7257.50
+TXN0023,ACC016,debit,200.00,USD,2024-01-26,Grocery Store,groceries,MERCH001,completed,9420.00
+TXN0024,ACC017,credit,3800.00,USD,2024-01-27,Payroll Deposit,income,,completed,19224.50
+TXN0025,ACC019,debit,95.00,USD,2024-01-28,Restaurant,dining,MERCH003,completed,10305.00

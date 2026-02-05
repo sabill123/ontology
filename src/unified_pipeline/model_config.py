@@ -7,8 +7,12 @@ Unified Pipeline Model Configuration
 - gpt-5.1 (fast): 빠른 처리, 데이터 분석, 구조적 작업에 최적
 - claude-opus-4-5-20251101 (balanced): 복잡한 추론, 의미 분석, 판단에 최적
 - gemini-3-pro-preview (creative): 창의적 탐색, 관계 발견, 패턴 인식에 최적
+- gemini-3-pro-preview (high_context): 대용량 입력 (전체 CSV 등) 처리에 최적
+
+v22.1: HIGH_CONTEXT 모델 타입 추가 — input token이 매우 많은 데이터 분석 태스크용
 """
 
+import os
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -16,22 +20,69 @@ from typing import Dict, List, Optional
 
 class ModelType(str, Enum):
     """모델 유형"""
-    FAST = "fast"           # 빠른 처리, 명확한 작업
-    BALANCED = "balanced"   # 균형잡힌 성능, 복잡한 추론
-    CREATIVE = "creative"   # 창의적 탐색, 패턴 발견
+    FAST = "fast"                 # 빠른 처리, 명확한 작업
+    BALANCED = "balanced"         # 균형잡힌 성능, 복잡한 추론
+    CREATIVE = "creative"         # 창의적 탐색, 패턴 발견
+    HIGH_CONTEXT = "high_context" # v22.1: 대용량 입력 (전체 CSV 데이터 분석 등)
 
 
-# 모델 이름 매핑 (Letsur AI Gateway)
+# =============================================================================
+# v22.1: Model Specifications — 모델별 토큰 한도
+# =============================================================================
+MODEL_SPECS: Dict[str, Dict[str, int]] = {
+    "gemini-3-pro-preview":       {"input_max": 1_048_576, "output_max": 65_535},
+    "gpt-5.2":                    {"input_max": 400_000,   "output_max": 128_000},
+    "claude-sonnet-4-20250514":   {"input_max": 1_000_000, "output_max": 64_000},
+    # 기존 모델 (참고용)
+    "gpt-5.1":                    {"input_max": 400_000,   "output_max": 128_000},
+    "claude-opus-4-5-20251101":   {"input_max": 200_000,   "output_max": 32_000},
+}
+
+
+# 모델 이름 매핑 (Letsur AI Gateway) — 환경변수로 오버라이드 가능
 MODELS = {
-    ModelType.FAST: "gpt-5.1",
-    ModelType.BALANCED: "claude-opus-4-5-20251101",
-    ModelType.CREATIVE: "gemini-3-pro-preview",
+    ModelType.FAST: os.environ.get("MODEL_FAST", "gpt-5.1"),
+    ModelType.BALANCED: os.environ.get("MODEL_BALANCED", "claude-opus-4-5-20251101"),
+    ModelType.CREATIVE: os.environ.get("MODEL_CREATIVE", "gemini-3-pro-preview"),
+    ModelType.HIGH_CONTEXT: os.environ.get("MODEL_HIGH_CONTEXT", "gemini-3-pro-preview"),
 }
 
 
 def get_model(model_type: ModelType) -> str:
     """모델 타입으로 모델 이름 가져오기"""
     return MODELS.get(model_type, MODELS[ModelType.BALANCED])
+
+
+def get_model_spec(model_name: str) -> Dict[str, int]:
+    """모델의 토큰 스펙 가져오기 (input_max, output_max)"""
+    return MODEL_SPECS.get(model_name, {"input_max": 200_000, "output_max": 32_000})
+
+
+def get_best_model_for_tokens(estimated_input_tokens: int) -> str:
+    """
+    v22.1: 예상 입력 토큰 수에 따라 최적 모델 선택.
+    입력이 클수록 context window가 큰 모델을 선택한다.
+
+    Args:
+        estimated_input_tokens: 예상 입력 토큰 수
+
+    Returns:
+        모델 이름
+    """
+    # HIGH_CONTEXT 모델의 한도를 초과하지 않는 한 HIGH_CONTEXT 모델 사용
+    high_ctx_model = MODELS[ModelType.HIGH_CONTEXT]
+    high_ctx_spec = get_model_spec(high_ctx_model)
+
+    if estimated_input_tokens <= high_ctx_spec["input_max"]:
+        return high_ctx_model
+
+    # 모든 모델 중 input_max가 충분한 모델 찾기
+    for model_name, spec in sorted(MODEL_SPECS.items(), key=lambda x: x[1]["input_max"], reverse=True):
+        if estimated_input_tokens <= spec["input_max"]:
+            return model_name
+
+    # 가장 큰 모델 반환 (truncation은 호출 측에서 처리)
+    return max(MODEL_SPECS.items(), key=lambda x: x[1]["input_max"])[0]
 
 
 # =============================================================================
@@ -42,6 +93,7 @@ def get_model(model_type: ModelType) -> str:
 # - 관계 탐지는 creative 모델
 
 DISCOVERY_AGENT_MODELS = {
+    "data_analyst": ModelType.HIGH_CONTEXT, # v22.1: 전체 CSV 데이터 입력 → 대용량 컨텍스트 모델 (gemini 1M)
     "tda_expert": ModelType.FAST,           # 위상 분석: 수학적, 구조적 → GPT (fast)
     "schema_analyst": ModelType.FAST,       # 스키마 분석: 구조적 → GPT (fast)
     "value_matcher": ModelType.FAST,        # 값 매칭: 데이터 비교 → GPT (fast)
@@ -304,6 +356,65 @@ def get_agents_by_model_type(model_type: ModelType) -> List[str]:
     ]
 
 
+# =============================================================================
+# v17.0 Service Model Assignments
+# =============================================================================
+# v17.0 서비스별 모델 할당 - 각 서비스의 특성에 맞게 선택
+
+V17_SERVICE_MODELS = {
+    # 분석 및 추론 서비스 - balanced (복잡한 추론 필요)
+    "what_if_analyzer": ModelType.BALANCED,      # What-If 분석: 시나리오 해석
+    "decision_explainer": ModelType.BALANCED,    # XAI: 결정 설명 생성
+    "report_generator": ModelType.BALANCED,      # 보고서: 자연어 생성
+
+    # 데이터 처리 서비스 - fast (구조적 작업)
+    "remediation_engine": ModelType.FAST,        # 데이터 수정: 규칙 기반 + LLM 보조
+    "semantic_searcher": ModelType.FAST,         # 검색: 쿼리 이해
+    "nl2sql_engine": ModelType.FAST,             # NL2SQL: SQL 변환
+
+    # 도구 선택 및 실시간 - creative (패턴 인식)
+    "tool_selector": ModelType.CREATIVE,         # 도구 선택: 창의적 매칭
+    "streaming_reasoner": ModelType.CREATIVE,    # 실시간: 패턴 발견
+}
+
+
+def get_v17_service_model(service_name: str) -> str:
+    """v17.0 서비스 이름으로 모델 가져오기"""
+    model_type = V17_SERVICE_MODELS.get(service_name, ModelType.BALANCED)
+    return get_model(model_type)
+
+
+# =============================================================================
+# v21.0 Insight Pipeline Multi-Agent Model Assignments
+# =============================================================================
+# UnifiedInsightPipeline 내부 멀티에이전트 — 각 에이전트 전문성에 맞는 모델
+
+INSIGHT_PIPELINE_MODELS = {
+    "data_validator": ModelType.FAST,           # 수치 검증, 데이터 그라운딩 → GPT (fast)
+    "business_interpreter": ModelType.BALANCED,  # 인과 추론, 비즈니스 해석 → Claude (balanced)
+    "pattern_discoverer": ModelType.CREATIVE,    # 교차 패턴, 신규 연결 → Gemini (creative)
+    "insight_synthesizer": ModelType.BALANCED,   # 최종 합성, 처방적 액션 → Claude (balanced)
+}
+
+# 유틸리티 서비스 모델 (에이전트 시스템 우회 코드용)
+UTILITY_SERVICE_MODELS = {
+    "schema_analysis": ModelType.FAST,            # llm_schema_analyzer.py: 구조 분석
+    "fk_verification": ModelType.FAST,            # llm_fk_verifier.py: FK 방향 검증
+    "governance_judge": ModelType.BALANCED,        # governance_utils.py: 규칙 판단
+    "domain_detection": ModelType.BALANCED,        # domain_detector.py: 도메인 감지
+    "cross_entity_scenario": ModelType.CREATIVE,   # cross_entity_correlation.py: 시나리오 설계
+    "cross_entity_interpret": ModelType.BALANCED,  # cross_entity_correlation.py: 해석
+    "default_pipeline": ModelType.BALANCED,        # unified_main.py: 기본값
+}
+
+
+def get_service_model(service_name: str) -> str:
+    """v21.0: 서비스/파이프라인 에이전트 이름으로 모델 가져오기"""
+    combined = {**INSIGHT_PIPELINE_MODELS, **UTILITY_SERVICE_MODELS}
+    model_type = combined.get(service_name, ModelType.BALANCED)
+    return get_model(model_type)
+
+
 def print_model_assignments():
     """모델 할당 현황 출력"""
     print("\n" + "=" * 60)
@@ -318,5 +429,12 @@ def print_model_assignments():
             config = UNIFIED_AGENT_CONFIGS.get(agent)
             if config:
                 print(f"  - {config.name} ({config.stage})")
+
+    # v17.0 서비스
+    print("\n" + "-" * 40)
+    print("v17.0 SERVICES:")
+    for service, model_type in V17_SERVICE_MODELS.items():
+        model_name = get_model(model_type)
+        print(f"  - {service}: {model_name}")
 
     print("\n" + "=" * 60)

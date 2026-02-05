@@ -1,7 +1,7 @@
 # 도메인 탐지 다이어그램
 
-> **버전**: v14.0
-> **최종 업데이트**: 2026-01-19
+> **버전**: v1.0
+> **최종 업데이트**: 2026-01-27
 
 ## 1. 도메인 탐지 파이프라인 (LLM-First v13.0)
 
@@ -43,16 +43,22 @@ flowchart TB
         C4["Insight Patterns"]
     end
 
+    subgraph AGENTBUS["AgentBus v1.0"]
+        AB1["publish('domain.detected', result)"]
+    end
+
     INPUT --> LLM_ANALYSIS
     L1 --> L2 --> L3 --> L4
     L4 --> SCORING
     S1 & S2 & S3 & S4 & S5 --> R1
     R1 --> R2 & R3 & R4
     R2 --> CONFIG
+    R4 --> AGENTBUS
 
     style LLM_ANALYSIS fill:#e3f2fd
     style SCORING fill:#fff3e0
     style CONFIG fill:#c8e6c9
+    style AGENTBUS fill:#b2dfdb
 ```
 
 ## 2. 지원 도메인
@@ -141,30 +147,33 @@ graph TB
     style WEB_ANALYTICS fill:#e1bee7
 ```
 
-## 4. Data Analyst v13.0 도메인 탐지
+## 4. 도메인 탐지 흐름 (v1.0 통합)
 
 ```mermaid
 sequenceDiagram
     participant AO as Agent Orchestrator
-    participant DA as Data Analyst Agent
+    participant DD as Domain Detector
+    participant BUS as AgentBus v1.0
     participant LLM as LLM Service
     participant SC as SharedContext
 
-    AO->>DA: assign_todo(analyze_domain)
-    DA->>SC: read table_data
-    SC-->>DA: tables with samples
+    AO->>DD: detect_domain()
+    DD->>SC: read table_data
+    SC-->>DD: tables with samples
 
-    DA->>DA: prepare_llm_prompt()
-    Note over DA: 전체 테이블 정보 포함<br/>컬럼명, 샘플값, 통계
+    DD->>DD: prepare_llm_prompt()
+    Note over DD: 전체 테이블 정보 포함<br/>컬럼명, 샘플값, 통계
 
-    DA->>LLM: analyze_domain(prompt)
-    LLM-->>DA: domain_analysis_result
+    DD->>LLM: analyze_domain(prompt)
+    LLM-->>DD: domain_analysis_result
 
-    Note over DA: Result includes:<br/>- primary_domain<br/>- confidence<br/>- column_classifications<br/>- business_context
+    Note over DD: Result includes:<br/>- primary_domain<br/>- confidence<br/>- column_classifications<br/>- business_context
 
-    DA->>SC: write domain_context
-    DA->>SC: write column_profiles
-    DA-->>AO: task_complete(DONE)
+    DD->>SC: write domain_context
+    DD->>SC: write column_profiles
+    DD->>BUS: publish("domain.detected", result)
+    DD->>BUS: publish("column.classified", profiles)
+    DD-->>AO: detection_complete(DONE)
 ```
 
 ## 5. Supply Chain 도메인 예시
@@ -200,6 +209,12 @@ graph TB
         I3["고객별 주문 패턴"]
     end
 
+    subgraph V16_FEATURES["v1.0 Features"]
+        V1["Hierarchy: plant → warehouse"]
+        V2["Temporal FK: order_date range"]
+        V3["Composite FK: (plant, product)"]
+    end
+
     T1 --> E1
     T2 --> E2
     T3 --> E3
@@ -211,10 +226,12 @@ graph TB
     E5 --> R4 --> E4
 
     E1 & E2 & E3 --> INSIGHTS
+    INSIGHTS --> V16_FEATURES
 
     style TABLES fill:#ffccbc
     style ENTITIES fill:#c8e6c9
     style INSIGHTS fill:#e1bee7
+    style V16_FEATURES fill:#b2dfdb
 ```
 
 ## 6. Web Analytics 도메인 예시
@@ -290,15 +307,25 @@ flowchart TB
         U5["시계열 분석"]
     end
 
+    subgraph V16_MAPPING["v1.0 Module Mapping"]
+        V1["Enhanced FK Pipeline"]
+        V2["OWL2 Property Definition"]
+        V3["SHACL Constraint Inference"]
+        V4["Column Lineage Tracking"]
+    end
+
     CT1 --> EX1 --> U1
     CT2 --> EX2 --> U2
     CT3 --> EX3 --> U3
     CT4 --> EX4 --> U4
     CT5 --> EX5 --> U5
 
+    U1 & U2 & U3 & U4 & U5 --> V16_MAPPING
+
     style COLUMN_TYPES fill:#e3f2fd
     style EXAMPLES fill:#fff3e0
     style USAGE fill:#c8e6c9
+    style V16_MAPPING fill:#b2dfdb
 ```
 
 ## 8. 도메인 신뢰도 계산
@@ -416,15 +443,59 @@ classDiagram
         +classify_columns(columns) List
     }
 
-    class DataAnalystAgent {
+    class DomainDetectionPipeline {
         +DomainDetector detector
-        +analyze_domain(tables) DomainContext
+        +AgentBus bus v1.0
+        +detect_domain(tables) DomainContext
         +classify_columns(tables) List[ColumnProfile]
         +assess_data_quality() Dict
+        +publish_results() void
     }
 
-    DataAnalystAgent --> DomainDetector
-    DataAnalystAgent --> DomainContext
-    DataAnalystAgent --> ColumnProfile
+    DomainDetectionPipeline --> DomainDetector
+    DomainDetectionPipeline --> DomainContext
+    DomainDetectionPipeline --> ColumnProfile
     DomainDetector --> DomainContext
+```
+
+## 11. v1.0 통합: 도메인과 모듈 연결
+
+```mermaid
+flowchart TB
+    subgraph DOMAIN["Domain Detection Result"]
+        D1[domain: supply_chain]
+        D2[confidence: 0.85]
+        D3[column_profiles]
+    end
+
+    subgraph MODULES["v1.0 Module Configuration"]
+        subgraph FK["Enhanced FK Pipeline"]
+            FK1[Domain-specific synonyms]
+            FK2[Entity reference patterns]
+        end
+
+        subgraph OWL["OWL2 Reasoner"]
+            OWL1[Domain class hierarchy]
+            OWL2[Business property constraints]
+        end
+
+        subgraph SHACL["SHACL Validator"]
+            SH1[Domain-specific shapes]
+            SH2[Value constraints]
+        end
+
+        subgraph ACTIONS["Actions Engine"]
+            ACT1[Domain KPI actions]
+            ACT2[Business rule actions]
+        end
+    end
+
+    D1 --> FK1 & OWL1 & SH1 & ACT1
+    D3 --> FK2 & OWL2 & SH2 & ACT2
+
+    style DOMAIN fill:#e3f2fd
+    style FK fill:#c8e6c9
+    style OWL fill:#f3e5f5
+    style SHACL fill:#f3e5f5
+    style ACTIONS fill:#e1bee7
 ```

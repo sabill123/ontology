@@ -72,6 +72,32 @@ except ImportError:
     EvidenceBundle = None
     EvidenceFactory = None
 
+# v16.0: AgentCommunicationBus 통합 (Direct Agent-to-Agent Messaging)
+try:
+    from ..agent_bus import (
+        AgentCommunicationBus,
+        AgentMessage,
+        MessageType,
+        MessagePriority,
+        get_agent_bus,
+        create_info_message,
+        create_discovery_message,
+    )
+    AGENT_BUS_AVAILABLE = True
+except ImportError:
+    AGENT_BUS_AVAILABLE = False
+    AgentCommunicationBus = None
+    get_agent_bus = None
+
+# v16.0: Column-level Lineage (Impact Analysis during Consensus)
+try:
+    from ...lineage import LineageTracker, build_lineage_from_context, ImpactAnalysis
+    LINEAGE_AVAILABLE = True
+except ImportError:
+    LINEAGE_AVAILABLE = False
+    LineageTracker = None
+    build_lineage_from_context = None
+
 if TYPE_CHECKING:
     from ..base import AutonomousAgent
     from ...shared_context import SharedContext
@@ -204,7 +230,7 @@ class PipelineConsensusEngine:
         provisional_threshold: float = 0.5,
         min_agreement: float = 0.6,
         min_agents_for_consensus: int = 3,
-        round_timeout: float = 60.0,  # Phase 3: 라운드 타임아웃 (초)
+        round_timeout: float = 0,  # v18.0: 타임아웃 비활성화 (무제한)
         enable_debate_protocol: bool = True,  # Phase 3: Debate Protocol 활성화
         fast_track_threshold: float = 0.55,  # v8.1: Fast-track 임계값 (55%+면 즉시 종료)
         strong_consensus_threshold: float = 0.85,  # v8.1: 강한 합의 임계값
@@ -233,7 +259,25 @@ class PipelineConsensusEngine:
         self._debate_protocol: Optional["DebateProtocol"] = None
         self._enable_debate_protocol = enable_debate_protocol
 
-        logger.info(f"PipelineConsensusEngine v3.0 initialized (Async/Fast-track enabled, timeout={round_timeout}s)")
+        # v16.0: AgentCommunicationBus 통합 (Direct Agent-to-Agent Messaging)
+        self._agent_bus: Optional[AgentCommunicationBus] = None
+        if AGENT_BUS_AVAILABLE and get_agent_bus:
+            try:
+                self._agent_bus = get_agent_bus()
+                logger.debug("[v16.0] AgentCommunicationBus integrated with ConsensusEngine")
+            except Exception as e:
+                logger.warning(f"[v16.0] AgentCommunicationBus integration failed: {e}")
+
+        # v16.0: Consensus topics for pub/sub
+        self._consensus_topics = {
+            "vote_cast": "consensus.vote_cast",
+            "round_start": "consensus.round_start",
+            "round_end": "consensus.round_end",
+            "consensus_reached": "consensus.consensus_reached",
+            "challenge_issued": "consensus.challenge_issued",
+        }
+
+        logger.info(f"PipelineConsensusEngine v3.0 initialized (Async/Fast-track enabled, timeout={round_timeout}s, bus={'enabled' if self._agent_bus else 'disabled'})")
 
     def enable_logging(self, log_dir: str = "./data/logs/conversations") -> None:
         self._conversation_logger = ConversationLogger(log_dir)
@@ -263,6 +307,155 @@ class PipelineConsensusEngine:
         for agent_id in agent_ids:
             self.unregister_agent(agent_id)
         logger.debug(f"Cleared {len(agent_ids)} agents from consensus engine")
+
+    # --------------------------------------------------------
+    # v16.0: AgentCommunicationBus Integration
+    # --------------------------------------------------------
+
+    async def _publish_consensus_event(
+        self,
+        event_type: str,
+        data: Dict[str, Any],
+    ) -> int:
+        """
+        v16.0: 합의 이벤트를 AgentCommunicationBus를 통해 발행
+
+        Args:
+            event_type: 이벤트 유형 (vote_cast, round_start, round_end, consensus_reached)
+            data: 이벤트 데이터
+
+        Returns:
+            전달된 구독자 수
+        """
+        if not self._agent_bus or not AGENT_BUS_AVAILABLE:
+            return 0
+
+        topic = self._consensus_topics.get(event_type, f"consensus.{event_type}")
+        try:
+            message = create_info_message(
+                sender_id="consensus_engine",
+                content={
+                    "event_type": event_type,
+                    "timestamp": datetime.now().isoformat(),
+                    **data,
+                },
+                topic=topic,
+            )
+            count = await self._agent_bus.publish(topic, message)
+            logger.debug(f"[v16.0] Consensus event published: {event_type} to {count} subscribers")
+            return count
+        except Exception as e:
+            logger.warning(f"[v16.0] Failed to publish consensus event: {e}")
+            return 0
+
+    async def _notify_agents_via_bus(
+        self,
+        recipients: List[str],
+        content: Dict[str, Any],
+        message_type: str = "info",
+    ) -> int:
+        """
+        v16.0: 특정 에이전트들에게 메시지 전송
+
+        Args:
+            recipients: 수신자 에이전트 ID 리스트
+            content: 메시지 내용
+            message_type: 메시지 유형
+
+        Returns:
+            성공적으로 전달된 수
+        """
+        if not self._agent_bus or not AGENT_BUS_AVAILABLE:
+            return 0
+
+        success_count = 0
+        for recipient_id in recipients:
+            try:
+                # MessageType 매핑
+                type_map = {
+                    "info": MessageType.INFO,
+                    "collaboration": MessageType.COLLABORATION,
+                    "validation": MessageType.VALIDATION,
+                    "feedback": MessageType.FEEDBACK,
+                }
+                msg_type = type_map.get(message_type, MessageType.INFO)
+
+                message = AgentMessage(
+                    message_id=f"consensus_{datetime.now().strftime('%Y%m%d%H%M%S')}_{recipient_id[:8]}",
+                    message_type=msg_type,
+                    sender_id="consensus_engine",
+                    recipient_id=recipient_id,
+                    content=content,
+                    priority=MessagePriority.HIGH,
+                )
+                if await self._agent_bus.send_to(recipient_id, message):
+                    success_count += 1
+            except Exception as e:
+                logger.warning(f"[v16.0] Failed to notify {recipient_id}: {e}")
+
+        return success_count
+
+    async def request_collaborative_analysis(
+        self,
+        requesting_agent_id: str,
+        target_agents: List[str],
+        analysis_type: str,
+        data: Dict[str, Any],
+        timeout: float = 30.0,
+    ) -> List[Dict[str, Any]]:
+        """
+        v16.0: 다중 에이전트에 협업 분석 요청 (Parallel Request/Response)
+
+        Args:
+            requesting_agent_id: 요청 에이전트 ID
+            target_agents: 대상 에이전트 ID 리스트
+            analysis_type: 분석 유형
+            data: 분석 데이터
+            timeout: 응답 대기 시간 (초)
+
+        Returns:
+            각 에이전트의 응답 리스트
+        """
+        if not self._agent_bus or not AGENT_BUS_AVAILABLE:
+            return []
+
+        responses = []
+
+        async def request_single(agent_id: str) -> Optional[Dict[str, Any]]:
+            try:
+                from ..agent_bus import create_validation_request
+                message = create_validation_request(
+                    sender_id=requesting_agent_id,
+                    validation_type=analysis_type,
+                    data=data,
+                )
+                response = await self._agent_bus.request(agent_id, message, timeout)
+                if response:
+                    return {
+                        "agent_id": agent_id,
+                        "response": response.content,
+                        "success": True,
+                    }
+            except Exception as e:
+                logger.warning(f"[v16.0] Collaborative analysis request to {agent_id} failed: {e}")
+            return {"agent_id": agent_id, "response": None, "success": False}
+
+        # 병렬 요청
+        tasks = [request_single(agent_id) for agent_id in target_agents]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for result in results:
+            if isinstance(result, dict):
+                responses.append(result)
+            else:
+                logger.warning(f"[v16.0] Unexpected result: {result}")
+
+        logger.info(f"[v16.0] Collaborative analysis: {len([r for r in responses if r.get('success')])}/{len(target_agents)} responses")
+        return responses
+
+    def get_agent_bus(self) -> Optional[AgentCommunicationBus]:
+        """v16.0: AgentCommunicationBus 인스턴스 반환"""
+        return self._agent_bus
 
     # --------------------------------------------------------
     # Phase 3: Debate Protocol Integration
@@ -486,6 +679,17 @@ class PipelineConsensusEngine:
         if not council_agents:
             return {"fallback": True, "reason": "No council agents created"}
 
+        # === v22.0: 투표 시작 이벤트 발행 ===
+        await self._publish_consensus_event(
+            event_type="round_start",
+            data={
+                "round_type": "evidence_based_vote",
+                "proposal_summary": proposal[:100] if proposal else "",
+                "council_agent_count": len(council_agents),
+                "evidence_block_count": len(evidence_chain.get_all_blocks()) if evidence_chain else 0,
+            },
+        )
+
         votes: List[AgentVoteWithEvidence] = []
         role_votes: Dict[str, List[str]] = {
             "ontologist": [],
@@ -508,6 +712,19 @@ class PipelineConsensusEngine:
                 logger.debug(
                     f"[CouncilVote] {council_agent.name} ({council_agent.role}): "
                     f"{vote.decision.value} (conf={vote.confidence:.2f})"
+                )
+
+                # === v22.0: 개별 투표를 Agent Bus로 브로드캐스트 ===
+                await self._publish_consensus_event(
+                    event_type="vote_cast",
+                    data={
+                        "agent_id": agent_id,
+                        "agent_name": council_agent.name,
+                        "agent_role": council_agent.role,
+                        "decision": vote.decision.value,
+                        "confidence": vote.confidence,
+                        "cited_evidence_count": len(vote.cited_evidence),
+                    },
                 )
             except Exception as e:
                 logger.warning(f"CouncilAgent {council_agent.name} failed to vote: {e}")
@@ -566,6 +783,25 @@ class PipelineConsensusEngine:
         logger.info(
             f"[EvidenceBasedVote] {consensus} (approve={approve_ratio:.0%}, "
             f"conf={avg_confidence:.2f}, votes={total_count})"
+        )
+
+        # === v22.0: Agent Bus로 합의 결과 브로드캐스트 ===
+        # Evidence-based vote 결과를 모든 에이전트에게 알림
+        await self._publish_consensus_event(
+            event_type="consensus_reached",
+            data={
+                "consensus_type": "evidence_based",
+                "proposal_summary": proposal[:100] if proposal else "",
+                "consensus": consensus,
+                "confidence": avg_confidence,
+                "approve_ratio": approve_ratio,
+                "total_votes": total_count,
+                "role_breakdown_summary": {
+                    role: data.get("approve_pct", 0)
+                    for role, data in role_breakdown.items()
+                },
+                "evidence_block_count": len(evidence_chain.get_all_blocks()) if evidence_chain else 0,
+            },
         )
 
         return result
@@ -723,16 +959,12 @@ class PipelineConsensusEngine:
 
             # v14.0: NO_AGENTS 타입의 기본 결과 생성
             no_agent_result = ConsensusResult(
-                topic_id=topic_id,
-                topic_name=topic_name,
+                success=False,
                 result_type=ConsensusType.NO_AGENTS,
-                consensus_reached=False,
                 combined_confidence=0.0,
-                agreement_score=0.0,
+                agreement_level=0.0,
                 total_rounds=0,
-                participating_agents=[],
-                decision_path=[],
-                detailed_reasoning="No agents were registered for consensus. Using default provisonal acceptance.",
+                reasoning="No agents were registered for consensus. Using default provisional acceptance.",
             )
 
             yield {
@@ -938,7 +1170,8 @@ class PipelineConsensusEngine:
                 if agent_id != agent.agent_id:
                     other_opinions += f"- {op.agent_name}: {op.legacy_vote} (conf={op.confidence:.2f})\n"
 
-        prompt = f"""## Topic: {topic_name if 'topic_name' in locals() else topic_data.get('description', 'Discussion')}
+        topic_name = topic_data.get('description', topic_data.get('name', 'Discussion'))
+        prompt = f"""## Topic: {topic_name}
         
 ## Data
 {self._format_topic_data(topic_data)}
@@ -1502,7 +1735,7 @@ class DebateProtocol:
     def __init__(
         self,
         consensus_engine: "PipelineConsensusEngine",
-        round_timeout: float = 60.0,        # 기본 라운드 타임아웃 (초)
+        round_timeout: float = 0,            # v18.0: 타임아웃 비활성화 (무제한)
         max_debate_rounds: int = 3,          # 최대 토론 라운드
         escalation_threshold: int = 2,       # escalation까지 실패 횟수
     ):
@@ -1813,20 +2046,25 @@ class DebateProtocol:
 
         # 병렬 투표 수집
         tasks = []
+        valid_agent_ids = []
         for agent_id in participants:
             agent = self.consensus_engine._agents.get(agent_id)
             if agent:
                 tasks.append(self._get_revote_from_agent(agent, evidence_summary))
+                valid_agent_ids.append(agent_id)
 
         try:
-            # 타임아웃 적용
-            results = await asyncio.wait_for(
-                asyncio.gather(*tasks, return_exceptions=True),
-                timeout=timeout,
-            )
+            # v18.0: timeout=0이면 무제한 대기
+            if timeout and timeout > 0:
+                results = await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=timeout,
+                )
+            else:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for i, result in enumerate(results):
-                agent_id = participants[i]
+                agent_id = valid_agent_ids[i]
                 if isinstance(result, Exception):
                     logger.warning(f"Agent {agent_id} revote failed: {result}")
                     continue

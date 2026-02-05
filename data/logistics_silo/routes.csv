@@ -1,0 +1,16 @@
+route_id,origin_warehouse_id,destination_region,carrier_id,distance_miles,transit_time_hours,cost_per_mile,frequency,active
+RTE001,WH001,northeast,CAR001,250,8,2.50,daily,true
+RTE002,WH001,midwest,CAR003,800,24,2.35,daily,true
+RTE003,WH002,west,CAR002,450,12,2.75,daily,true
+RTE004,WH002,mountain,CAR005,900,28,2.45,weekly,true
+RTE005,WH003,midwest,CAR003,300,10,2.35,daily,true
+RTE006,WH003,south,CAR004,600,18,2.60,daily,true
+RTE007,WH004,south,CAR004,400,12,2.60,daily,true
+RTE008,WH004,west,CAR002,1200,36,2.75,weekly,true
+RTE009,WH005,west,CAR005,350,10,2.45,daily,true
+RTE010,WH006,south,CAR004,500,14,2.60,daily,true
+RTE011,WH006,northeast,CAR001,850,26,2.50,weekly,true
+RTE012,WH007,mountain,CAR005,200,6,2.45,daily,true
+RTE013,WH008,south,CAR004,350,10,2.60,daily,true
+RTE014,WH001,international,CAR007,3500,168,1.25,weekly,true
+RTE015,WH002,international,CAR006,5000,24,8.50,daily,true

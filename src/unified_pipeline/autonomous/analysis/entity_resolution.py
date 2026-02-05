@@ -508,17 +508,24 @@ class MinHashBlocker:
 class SimilarityCalculator:
     """다양한 유사도 계산"""
 
-    def __init__(self, use_embeddings: bool = True):
+    def __init__(self, use_embeddings: bool = False):  # v7.5: 기본값 False로 변경 (메모리 이슈 방지)
         self.use_embeddings = use_embeddings and SENTENCE_TRANSFORMERS_AVAILABLE
-        self.embedding_model = None
+        self._embedding_model = None  # Lazy loading
+        self._model_loaded = False
 
-        if self.use_embeddings:
+    @property
+    def embedding_model(self):
+        """Lazy load embedding model only when needed"""
+        if self.use_embeddings and not self._model_loaded:
+            self._model_loaded = True
             try:
-                self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-                logger.info("Loaded sentence-transformers model")
+                self._embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+                logger.info("Loaded sentence-transformers model (lazy)")
             except Exception as e:
                 logger.warning(f"Failed to load embedding model: {e}")
                 self.use_embeddings = False
+                self._embedding_model = None
+        return self._embedding_model
 
     def levenshtein_distance(self, s1: str, s2: str) -> int:
         """레벤슈타인 거리"""
@@ -737,7 +744,7 @@ class EntityResolver:
         self,
         match_threshold: float = 0.7,
         use_blocking: bool = True,
-        use_embeddings: bool = True,
+        use_embeddings: bool = False,  # v7.5: 기본값 False (메모리 이슈 방지)
         use_active_learning: bool = False,
         active_learning_config: Optional[Dict[str, Any]] = None,
     ):

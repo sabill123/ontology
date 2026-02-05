@@ -77,6 +77,7 @@ def get_openai_client() -> openai.OpenAI:
     return openai.OpenAI(
         base_url=LETSUR_BASE_URL,
         api_key=LETSUR_API_KEY,
+        timeout=300.0,  # 5 min timeout for multi-agent pipeline (v21.0)
     )
 
 
@@ -120,15 +121,16 @@ def chat_completion(
             "messages": messages,
             "temperature": temperature,
         }
-        if max_tokens is not None:
-            # gpt-5.x, o1, o3 모델은 max_completion_tokens 사용
-            if any(m in model.lower() for m in ["gpt-5", "o1", "o3"]):
-                kwargs["max_completion_tokens"] = max_tokens
-            else:
-                kwargs["max_tokens"] = max_tokens
+        # max_tokens intentionally omitted — let the model use its default limit
+
+        # Terminal logging for debugging
+        print(f"[LLM] Calling {model} (agent: {log_agent_name})...")
 
         response = client.chat.completions.create(**kwargs)
         response_content = response.choices[0].message.content or ""
+
+        # Terminal logging for response
+        print(f"[LLM] Response received: {len(response_content)} chars in {(time.time() - start_time):.2f}s")
 
         # 토큰 사용량 추출
         if hasattr(response, "usage") and response.usage:
@@ -138,6 +140,7 @@ def chat_completion(
     except Exception as e:
         success = False
         error_msg = str(e)
+        print(f"[LLM] ERROR: {e}")
         raise RuntimeError(f"LLM request failed: {e}")
     finally:
         # JobLogger에 기록
@@ -237,12 +240,7 @@ def chat_completion_with_json(
             "messages": messages,
             "temperature": temperature,
         }
-        if max_tokens is not None:
-            # gpt-5.x, o1, o3 모델은 max_completion_tokens 사용
-            if any(m in model.lower() for m in ["gpt-5", "o1", "o3"]):
-                kwargs["max_completion_tokens"] = max_tokens
-            else:
-                kwargs["max_tokens"] = max_tokens
+        # max_tokens intentionally omitted — let the model use its default limit
 
         # Enable JSON mode for supported models
         if "gpt" in model.lower():
@@ -259,6 +257,7 @@ def chat_completion_with_json(
     except Exception as e:
         success = False
         error_msg = str(e)
+        print(f"[LLM] ERROR: {e}")
         raise RuntimeError(f"LLM request failed: {e}")
     finally:
         # JobLogger에 기록
@@ -314,11 +313,12 @@ def extract_json_from_response(response: str) -> Dict[str, Any]:
     return {}
 
 
-# Available models (aligned with production agents)
+# Available models (aligned with production agents) — v22.1: 환경변수 오버라이드
 MODELS = {
-    "fast": "gpt-5.1",
-    "balanced": "claude-opus-4-5-20251101",
-    "creative": "gemini-3-pro-preview",
+    "fast": os.environ.get("MODEL_FAST", "gpt-5.1"),
+    "balanced": os.environ.get("MODEL_BALANCED", "claude-opus-4-5-20251101"),
+    "creative": os.environ.get("MODEL_CREATIVE", "gemini-3-pro-preview"),
+    "high_context": os.environ.get("MODEL_HIGH_CONTEXT", "gemini-3-pro-preview"),
 }
 
 
@@ -817,7 +817,6 @@ Return only valid JSON."""
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,
-            max_tokens=4000,
             client=client,
         )
         result = extract_json_from_response(response)

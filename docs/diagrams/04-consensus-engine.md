@@ -1,9 +1,9 @@
 # 합의 엔진 다이어그램
 
-> **버전**: v14.0
-> **최종 업데이트**: 2026-01-19
+> **버전**: v1.0
+> **최종 업데이트**: 2026-01-27
 
-## 1. 합의 엔진 개요 (v7.0+)
+## 1. 합의 엔진 개요 (v1.0 + AgentBus)
 
 ```mermaid
 flowchart TB
@@ -14,11 +14,18 @@ flowchart TB
         T4[governance_decision]
     end
 
+    subgraph AGENTBUS["Agent Bus Integration v1.0"]
+        AB1[Broadcast Vote Request]
+        AB2[Collect Votes via Subscribe]
+        AB3[Request/Response for Challenge]
+        AB4[Publish Final Decision]
+    end
+
     subgraph SMART["Smart Consensus v8.2"]
         S1{Consensus Mode?}
         S2["full_skip<br/>Phase 1 Discovery"]
         S3["lightweight<br/>Few Concepts / High Quality"]
-        S4["full_consensus<br/>Complex Cases"]
+        S4["full_consensus<br/>Multi-Agent + AgentBus"]
     end
 
     subgraph BFT["BFT Protocol"]
@@ -50,7 +57,8 @@ flowchart TB
 
     S2 --> R1
     S3 --> R1
-    S4 --> BFT
+    S4 --> AGENTBUS
+    AGENTBUS --> BFT
 
     F1 --> F2
     F2 -->|Yes| F3
@@ -62,56 +70,68 @@ flowchart TB
     D4 --> RESULT
 
     style SMART fill:#e8f5e9
+    style AGENTBUS fill:#b2dfdb
     style BFT fill:#fff3e0
     style DS fill:#e3f2fd
     style RESULT fill:#f3e5f5
 ```
 
-## 2. BFT 합의 프로세스
+## 2. BFT 합의 프로세스 (v1.0 with AgentBus)
 
 ```mermaid
 sequenceDiagram
     participant Chair as Consensus Chair
+    participant BUS as AgentBus v1.0
     participant A1 as Ontologist
     participant A2 as Risk Assessor
     participant A3 as Business Strategist
     participant A4 as Data Steward
     participant DS as DS Fusion
 
-    Note over Chair: Round 1: Initial Vote
+    Note over Chair,DS: Round 1: Initial Vote via AgentBus
 
-    par Parallel Voting
-        Chair->>A1: Request Vote
-        Chair->>A2: Request Vote
-        Chair->>A3: Request Vote
-        Chair->>A4: Request Vote
+    Chair->>BUS: broadcast(vote_request, priority=HIGH)
+
+    par Parallel Vote Delivery
+        BUS->>A1: deliver(vote_request)
+        BUS->>A2: deliver(vote_request)
+        BUS->>A3: deliver(vote_request)
+        BUS->>A4: deliver(vote_request)
     end
 
-    A1-->>Chair: APPROVE (conf: 0.85)
-    A2-->>Chair: REJECT (reason: Risk)
-    A3-->>Chair: APPROVE (conf: 0.90)
-    A4-->>Chair: APPROVE (conf: 0.75)
+    A1->>BUS: send_to("chair", vote: APPROVE, conf: 0.85)
+    A2->>BUS: send_to("chair", vote: REJECT, conf: 0.70)
+    A3->>BUS: send_to("chair", vote: APPROVE, conf: 0.90)
+    A4->>BUS: send_to("chair", vote: APPROVE, conf: 0.75)
 
-    Note over Chair: Conflict Detected (3:1)
+    BUS->>Chair: collect_votes()
 
-    Chair->>A2: Challenge: Why REJECT?
-    A2-->>Chair: Risk evidence presented
+    Note over Chair,DS: Conflict Detected (3:1)
 
-    Note over Chair: Round 2: Deep Debate
+    Chair->>BUS: request(A2, "Why REJECT?", timeout=30s)
+    BUS->>A2: deliver(challenge_request)
+    A2->>BUS: respond(risk_evidence)
+    BUS->>Chair: deliver(response)
 
-    Chair->>DS: Validate "Risk" claim
+    Note over Chair,DS: Round 2: Deep Debate
+
+    Chair->>DS: validate("Risk" claim)
     DS-->>Chair: Risk Score: Low
 
-    Chair->>A2: Challenge with evidence
-    A2-->>Chair: APPROVE (revised, conf: 0.60)
+    Chair->>BUS: send_to(A2, challenge_with_evidence)
+    A2->>BUS: send_to("chair", revised_vote: APPROVE, conf: 0.60)
 
-    Note over Chair: Re-Vote Complete
+    Note over Chair,DS: Re-Vote Complete
 
     Chair->>DS: Dempster-Shafer Fusion
     DS->>DS: m₁ ⊕ m₂ ⊕ m₃ ⊕ m₄
     DS-->>Chair: Combined conf: 0.82
 
-    Chair-->>Output: APPROVED (0.82)
+    Chair->>BUS: publish("consensus.result", APPROVED)
+    BUS->>A1: notify
+    BUS->>A2: notify
+    BUS->>A3: notify
+    BUS->>A4: notify
 ```
 
 ## 3. Dempster-Shafer Fusion 상세
@@ -168,7 +188,7 @@ flowchart TB
     subgraph MODES["Consensus Modes"]
         M1["full_skip<br/>합의 완전 생략<br/>Phase 1 탐색"]
         M2["lightweight<br/>단일 LLM 검증<br/>소수 개념"]
-        M3["full_consensus<br/>다중 에이전트 합의<br/>복잡한 결정"]
+        M3["full_consensus<br/>다중 에이전트 합의<br/>AgentBus 통합"]
     end
 
     subgraph CRITERIA["Selection Criteria"]
@@ -193,7 +213,7 @@ flowchart TB
     style M3 fill:#ffcdd2
 ```
 
-## 5. Evidence-Based Debate (v11.0)
+## 5. Evidence-Based Debate (v1.0 with AgentBus)
 
 ```mermaid
 flowchart TB
@@ -202,11 +222,11 @@ flowchart TB
         P2["Initial Evidence"]
     end
 
-    subgraph VOTE1["Round 1: Initial Vote"]
-        V1["Agent 1: APPROVE"]
-        V2["Agent 2: REJECT"]
-        V3["Agent 3: APPROVE"]
-        V4["Agent 4: ABSTAIN"]
+    subgraph VOTE1["Round 1: Initial Vote via AgentBus"]
+        V1["Agent 1: APPROVE<br/>(via send_to)"]
+        V2["Agent 2: REJECT<br/>(via send_to)"]
+        V3["Agent 3: APPROVE<br/>(via send_to)"]
+        V4["Agent 4: ABSTAIN<br/>(via send_to)"]
     end
 
     subgraph CONFLICT["Conflict Detection"]
@@ -215,10 +235,10 @@ flowchart TB
         CF3["No: Fast-track"]
     end
 
-    subgraph DEBATE["Challenge Round"]
+    subgraph DEBATE["Challenge Round via AgentBus"]
         D1["반대 의견 에이전트"]
-        D2["Challenge 발언"]
-        D3["Evidence 제시"]
+        D2["request() for Challenge"]
+        D3["respond() with Evidence"]
     end
 
     subgraph EVIDENCE["Evidence Types"]
@@ -226,11 +246,13 @@ flowchart TB
         E2["Algorithmic: TDA, Betti"]
         E3["Domain: Business Rule"]
         E4["Historical: Past Decisions"]
+        E5["OWL2: Axiom Validation v1.0"]
+        E6["SHACL: Constraint Check v1.0"]
     end
 
     subgraph REVOTE["Re-Vote"]
         R1["새 증거 반영"]
-        R2["투표 변경"]
+        R2["투표 변경<br/>(via AgentBus)"]
         R3["Convergence Check"]
     end
 
@@ -246,16 +268,17 @@ flowchart TB
     CF1 -->|No| F1
     D1 --> D2 --> D3
     D3 --> EVIDENCE
-    E1 & E2 & E3 & E4 --> REVOTE
+    E1 & E2 & E3 & E4 & E5 & E6 --> REVOTE
     R1 --> R2 --> R3
     R3 --> FINAL
 
+    style VOTE1 fill:#b2dfdb
     style DEBATE fill:#fff3e0
     style EVIDENCE fill:#e3f2fd
     style FINAL fill:#c8e6c9
 ```
 
-## 6. Agent Opinion 데이터 구조
+## 6. Agent Opinion 데이터 구조 (v1.0)
 
 ```mermaid
 classDiagram
@@ -303,12 +326,81 @@ classDiagram
         NEEDS_REVIEW
     }
 
+    class AgentMessage {
+        +String message_id
+        +MessageType message_type
+        +String sender_id
+        +String recipient_id
+        +String topic
+        +Dict content
+        +MessagePriority priority
+        +Bool requires_response
+        +String correlation_id
+    }
+
+    class MessageType {
+        <<enumeration>>
+        INFO
+        DISCOVERY
+        ALERT
+        REQUEST
+        RESPONSE
+        COLLABORATION
+        VALIDATION
+        FEEDBACK
+        HEARTBEAT
+        STATUS
+    }
+
     AgentOpinion --> VoteType
     ConsensusResult --> ConsensusType
     ConsensusResult o-- AgentOpinion : contains
+    AgentOpinion ..> AgentMessage : sent via
 ```
 
-## 7. 합의 결과 임계값
+## 7. AgentBus 통합 합의 흐름 (v1.0)
+
+```mermaid
+sequenceDiagram
+    participant CE as Consensus Engine
+    participant BUS as AgentBus
+    participant TOPIC as Topic: consensus.vote
+    participant A1 as Agent 1
+    participant A2 as Agent 2
+    participant A3 as Agent 3
+
+    Note over CE,A3: 1. Subscribe to Topic
+    A1->>BUS: subscribe("consensus.vote", callback)
+    A2->>BUS: subscribe("consensus.vote", callback)
+    A3->>BUS: subscribe("consensus.vote", callback)
+
+    Note over CE,A3: 2. Broadcast Vote Request
+    CE->>BUS: publish("consensus.vote", request)
+    BUS->>TOPIC: route message
+    TOPIC->>A1: deliver
+    TOPIC->>A2: deliver
+    TOPIC->>A3: deliver
+
+    Note over CE,A3: 3. Collect Responses
+    A1->>BUS: send_to("consensus_engine", vote)
+    A2->>BUS: send_to("consensus_engine", vote)
+    A3->>BUS: send_to("consensus_engine", vote)
+    BUS->>CE: deliver votes
+
+    Note over CE,A3: 4. Challenge via Request/Response
+    CE->>BUS: request(A2, challenge, timeout=30)
+    BUS->>A2: deliver(requires_response=true)
+    A2->>BUS: respond(original_msg, evidence)
+    BUS->>CE: deliver(response)
+
+    Note over CE,A3: 5. Publish Final Result
+    CE->>BUS: publish("consensus.result", decision)
+    BUS->>A1: notify
+    BUS->>A2: notify
+    BUS->>A3: notify
+```
+
+## 8. 합의 결과 임계값
 
 ```mermaid
 flowchart LR
@@ -334,7 +426,7 @@ flowchart LR
 
     subgraph RESULT["Result"]
         R1["APPROVED"]
-        R2["Actions Generated"]
+        R2["Actions Generated v1.0"]
     end
 
     INPUTS --> CALC
@@ -347,7 +439,7 @@ flowchart LR
     style RESULT fill:#c8e6c9
 ```
 
-## 8. Convergence Detection
+## 9. Convergence Detection
 
 ```mermaid
 stateDiagram-v2
@@ -374,29 +466,36 @@ stateDiagram-v2
     FinalDecision --> Rejected: conf < 0.30
     FinalDecision --> Escalated: Unresolved
 
-    Approved --> [*]
-    Provisional --> [*]
+    Approved --> ActionsEngine: v1.0
+    Provisional --> ActionsEngine: v1.0
     Rejected --> [*]
     Escalated --> HumanReview
+    ActionsEngine --> [*]
     HumanReview --> [*]
 ```
 
-## 9. Agent Council 4인 위원회
+## 10. Agent Council 4인 위원회 (v1.0)
 
 ```mermaid
 graph TB
     subgraph COUNCIL["Agent Council"]
-        A1["Ontologist<br/>논리적 일관성 검증"]
-        A2["Risk Assessor<br/>리스크 평가"]
-        A3["Business Strategist<br/>비즈니스 가치 판단"]
-        A4["Data Steward<br/>데이터 품질 검증"]
+        A1["Ontologist<br/>논리적 일관성 검증<br/>+ OWL2 Axiom 검증"]
+        A2["Risk Assessor<br/>리스크 평가<br/>+ Impact Analysis"]
+        A3["Business Strategist<br/>비즈니스 가치 판단<br/>+ Action Priority"]
+        A4["Data Steward<br/>데이터 품질 검증<br/>+ SHACL Validation"]
     end
 
-    subgraph QUESTIONS["검증 관점"]
-        Q1["이 정의가 모순되지 않는가?"]
-        Q2["이 인사이트에 따라 행동 시 위험은?"]
-        Q3["이것이 비즈니스 임팩트가 있는가?"]
-        Q4["데이터 품질과 컴플라이언스 문제는?"]
+    subgraph QUESTIONS["검증 관점 v1.0"]
+        Q1["OWL2 Axiom이 일관적인가?"]
+        Q2["Lineage Impact는?"]
+        Q3["Action 우선순위는?"]
+        Q4["SHACL Constraint 통과?"]
+    end
+
+    subgraph BUS["AgentBus Communication"]
+        B1["Direct Message"]
+        B2["Pub/Sub Topics"]
+        B3["Request/Response"]
     end
 
     A1 --> Q1
@@ -404,8 +503,58 @@ graph TB
     A3 --> Q3
     A4 --> Q4
 
+    COUNCIL --> BUS
+
     style A1 fill:#bbdefb
     style A2 fill:#ffcdd2
     style A3 fill:#c8e6c9
     style A4 fill:#fff9c4
+    style BUS fill:#b2dfdb
+```
+
+## 11. v1.0 합의 후 처리 흐름
+
+```mermaid
+flowchart TB
+    subgraph CONSENSUS["Consensus Result"]
+        CR[Combined Confidence: 0.82]
+        DEC[Decision: APPROVED]
+    end
+
+    subgraph ACTIONS["Actions Engine v1.0"]
+        A1[Generate Actions]
+        A2[DataAction<br/>GovernanceAction<br/>QualityAction]
+        A3[Priority Scoring]
+    end
+
+    subgraph CDC["CDC Sync v1.0"]
+        C1[Detect Changes]
+        C2[Apply to Ontology]
+        C3[Update Lineage]
+    end
+
+    subgraph LINEAGE["Lineage Tracking v1.0"]
+        L1[Column Impact Analysis]
+        L2[Upstream Dependencies]
+        L3[Downstream Effects]
+    end
+
+    subgraph OUTPUT["Outputs"]
+        O1[governance_decisions.json]
+        O2[actions.json]
+        O3[lineage.json]
+    end
+
+    CONSENSUS --> ACTIONS
+    A1 --> A2 --> A3
+    A3 --> CDC
+    C1 --> C2 --> C3
+    C3 --> LINEAGE
+    L1 --> L2 --> L3
+    L3 --> OUTPUT
+
+    style CONSENSUS fill:#c8e6c9
+    style ACTIONS fill:#e1bee7
+    style CDC fill:#ffccbc
+    style LINEAGE fill:#b2dfdb
 ```

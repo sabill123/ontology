@@ -1,0 +1,154 @@
+name: Run Ontoloty Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: '데이터셋 선택 (pre-registered)'
+        required: true
+        default: 'sample_csv/patients.csv'
+        type: choice
+        options:
+          # === Single CSV (sample_csv) ===
+          - sample_csv/patients.csv
+          - sample_csv/shipments.csv
+          - sample_csv/employees.csv
+          - sample_csv/production.csv
+          - sample_csv/sales.csv
+          - sample_csv/students.csv
+          # === Multi-table Silo (전체 디렉토리) ===
+          - healthcare_silo
+          - finance_silo
+          - ecommerce_silo
+          - logistics_silo
+          - manufacturing_silo
+          - education_silo
+          - hr_silo
+          - airport_silo
+          - marketing_silo
+          # === Custom path ===
+          - custom
+      custom_path:
+        description: 'custom 선택 시 직접 경로 입력 (예: data/my_data/file.csv)'
+        required: false
+        default: ''
+        type: string
+      domain_hint:
+        description: '도메인 힌트 (비워두면 자동 감지)'
+        required: false
+        default: ''
+        type: string
+      scenario_name:
+        description: '시나리오 이름 (비워두면 자동 생성)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Resolve data path
+        id: resolve
+        run: |
+          DATASET="${{ inputs.dataset }}"
+          CUSTOM="${{ inputs.custom_path }}"
+
+          if [ "$DATASET" = "custom" ]; then
+            if [ -z "$CUSTOM" ]; then
+              echo "::error::custom 선택 시 custom_path를 입력해야 합니다"
+              exit 1
+            fi
+            DATA_PATH="$CUSTOM"
+          elif echo "$DATASET" | grep -q "_silo$"; then
+            # Multi-table silo directory
+            DATA_PATH="data/${DATASET}"
+          elif echo "$DATASET" | grep -q "/"; then
+            # Single CSV from sample_csv/
+            DATA_PATH="data/${DATASET}"
+          else
+            DATA_PATH="data/${DATASET}"
+          fi
+
+          # Verify path exists
+          if [ ! -e "$DATA_PATH" ]; then
+            echo "::error::경로가 존재하지 않습니다: $DATA_PATH"
+            exit 1
+          fi
+
+          # Auto-generate scenario name if not provided
+          SCENARIO="${{ inputs.scenario_name }}"
+          if [ -z "$SCENARIO" ]; then
+            BASENAME=$(basename "$DATA_PATH" .csv)
+            SCENARIO="ci_${BASENAME}_$(date +%Y%m%d_%H%M%S)"
+          fi
+
+          echo "data_path=$DATA_PATH" >> "$GITHUB_OUTPUT"
+          echo "scenario=$SCENARIO" >> "$GITHUB_OUTPUT"
+          echo "📂 Data: $DATA_PATH"
+          echo "📝 Scenario: $SCENARIO"
+
+      - name: Show system resources
+        run: |
+          echo "=== Memory ==="
+          free -h
+          echo "=== CPU ==="
+          nproc
+          echo "=== Data info ==="
+          DATA_PATH="${{ steps.resolve.outputs.data_path }}"
+          if [ -d "$DATA_PATH" ]; then
+            echo "Directory mode: $(ls "$DATA_PATH"/*.csv 2>/dev/null | wc -l) CSV files"
+            ls -lh "$DATA_PATH"/*.csv 2>/dev/null
+          else
+            echo "Single file mode: $(wc -l < "$DATA_PATH") rows"
+            head -1 "$DATA_PATH"
+          fi
+
+      - name: Run Pipeline
+        env:
+          LETSUR_API_KEY: ${{ secrets.LETSUR_API_KEY }}
+          MODEL_FAST: ${{ vars.MODEL_FAST || 'gpt-5.1' }}
+          MODEL_BALANCED: ${{ vars.MODEL_BALANCED || 'claude-opus-4-5-20251101' }}
+          MODEL_CREATIVE: ${{ vars.MODEL_CREATIVE || 'gemini-3-pro-preview' }}
+          MODEL_HIGH_CONTEXT: ${{ vars.MODEL_HIGH_CONTEXT || 'gemini-3-pro-preview' }}
+        run: |
+          python scripts/run_pipeline_ci.py \
+            --data "${{ steps.resolve.outputs.data_path }}" \
+            --domain "${{ inputs.domain_hint }}" \
+            --name "${{ steps.resolve.outputs.scenario }}"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-${{ steps.resolve.outputs.scenario }}
+          path: |
+            data/output/ci_*
+          retention-days: 30
+
+      - name: Print summary
+        if: always()
+        run: |
+          echo "## Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f data/output/ci_result_summary.md ]; then
+            cat data/output/ci_result_summary.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No summary file generated." >> $GITHUB_STEP_SUMMARY
+          fi

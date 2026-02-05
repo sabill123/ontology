@@ -14,6 +14,7 @@ References:
 - Cleveland "Visualizing Data" (1993)
 """
 
+import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -76,7 +77,7 @@ class BusinessInsight:
     business_impact: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "insight_id": self.insight_id,
             "title": self.title,
             "description": self.description,
@@ -95,6 +96,14 @@ class BusinessInsight:
             "recommendations": self.recommendations,
             "business_impact": self.business_impact,
         }
+        # v19.4: Palantir-style fields (UnifiedInsightPipeline에서 설정)
+        for attr in ("_hypothesis", "_evidence", "_validation_summary",
+                      "_prescriptive_actions", "_confidence_breakdown",
+                      "_algorithm_findings", "_simulation_evidence", "_phases_completed"):
+            val = getattr(self, attr, None)
+            if val is not None:
+                result[attr.lstrip("_")] = val
+        return result
 
 
 class BusinessInsightsAnalyzer:
@@ -194,6 +203,7 @@ class BusinessInsightsAnalyzer:
         tables: Dict[str, Dict[str, Any]],
         data: Dict[str, List[Dict[str, Any]]],
         column_semantics: Optional[Dict[str, Dict[str, Any]]] = None,
+        pipeline_context: Optional[Dict[str, Any]] = None,
     ) -> List[BusinessInsight]:
         """
         전체 데이터셋 분석 및 인사이트 도출
@@ -203,6 +213,9 @@ class BusinessInsightsAnalyzer:
             data: {table_name: [row_dicts]}
             column_semantics: LLM이 분석한 컬럼 의미론 정보 (v14.0)
                 {column_name: {"business_role": "optional_input", "nullable_by_design": True, ...}}
+            pipeline_context: v18.3 — Phase 2 분석 모델 결과
+                {"causal_insights": {...}, "counterfactual_analysis": [...],
+                 "anomaly_results": {...}, "virtual_entities": [...], ...}
 
         Returns:
             비즈니스 인사이트 리스트
@@ -210,6 +223,7 @@ class BusinessInsightsAnalyzer:
         self.insights = []
         self.insight_counter = 0
         self.column_semantics = column_semantics or {}
+        self._pipeline_context = pipeline_context or {}
 
         # v14.0: 도메인 정보 추출 (LLM 분석용)
         self._extract_domain_info()
@@ -254,7 +268,7 @@ class BusinessInsightsAnalyzer:
             # 10. 광고/마케팅 도메인 전용 분석 (v3.0)
             self._analyze_advertising_metrics(table_name, rows, table_info, system)
 
-        # 11. v14.0: LLM 기반 도메인 특화 인사이트 생성 (전체 데이터 한 번에 분석)
+        # 11. v18.3: LLM 기반 도메인 특화 인사이트 생성 (분석 모델 결과 포함)
         if self.llm_client and self.domain_context:
             self._generate_llm_domain_insights(tables, data)
 
@@ -548,6 +562,50 @@ class BusinessInsightsAnalyzer:
                 )
                 self.insights.append(insight)
 
+    def _infer_kpi_threshold(self, col: str, values: List[float]):
+        """
+        v20: 데이터 스케일 기반 적응형 KPI 벤치마크 추론.
+        1순위: domain_context KPI 정의 (threshold)
+        2순위: 데이터 min/max 기반 스케일 감지
+        Returns None if no meaningful threshold.
+        """
+        col_lower = col.lower()
+
+        # 1순위: domain_context KPI 정의
+        if self.domain_context:
+            domain_kpis = getattr(self.domain_context, 'kpis', [])
+            for kpi_def in domain_kpis:
+                kpi_name = kpi_def.get("name", "").lower()
+                if kpi_name in col_lower or col_lower in kpi_name:
+                    t = kpi_def.get("threshold")
+                    if t is not None:
+                        return float(t)
+
+        # 2순위: 데이터 스케일 감지
+        val_max = max(values)
+        if val_max <= 0:
+            return None
+
+        # rate 컬럼 (0-1 스케일)
+        if "rate" in col_lower and val_max <= 1.0:
+            return 0.7
+
+        # 명시적 퍼센트 컬럼
+        if ("pct" in col_lower or "percent" in col_lower) and val_max <= 100:
+            return 70.0
+
+        # Likert 스케일 (1-5, 1-10 등)
+        if val_max <= 10:
+            return round(0.7 * val_max, 1)
+
+        # 0-100 스케일
+        if val_max <= 100:
+            return 70.0
+
+        # 대형 스케일 (수백~수천) — 범위의 70% 지점
+        val_min = min(values)
+        return round(val_min + 0.7 * (val_max - val_min), 1)
+
     def _extract_kpis(
         self,
         table_name: str,
@@ -578,16 +636,19 @@ class BusinessInsightsAnalyzer:
                 if len(values) >= 10:
                     avg_value = statistics.mean(values)
 
-                    # 성과 지표 저하 탐지
-                    low_threshold = 0.7 if "rate" in col_lower else 70  # rate는 0-1, score는 0-100
+                    # v20: 데이터 스케일 기반 적응형 벤치마크
+                    low_threshold = self._infer_kpi_threshold(col, values)
+                    if low_threshold is None:
+                        continue
 
                     low_count = sum(1 for v in values if v < low_threshold)
                     if low_count >= 10:
                         percentage = (low_count / len(values)) * 100
 
+                        val_min, val_max = min(values), max(values)
                         insight = self._create_insight(
                             title=f"Low {col.replace('_', ' ').title()} Performance",
-                            description=f"Found {low_count:,} items ({percentage:.1f}%) with {col} below threshold ({low_threshold})",
+                            description=f"Found {low_count:,} items ({percentage:.1f}%) with {col} below threshold ({low_threshold}) [scale: {val_min:.1f}-{val_max:.1f}]",
                             insight_type=InsightType.KPI,
                             severity=InsightSeverity.MEDIUM if percentage < 20 else InsightSeverity.HIGH,
                             source_table=table_name,
@@ -869,6 +930,25 @@ class BusinessInsightsAnalyzer:
 
     # === v2.0 ML 이상치 앙상블 분석 ===
 
+    # v18.2: ML 이상탐지에서 제외할 기술적 컬럼 패턴
+    _SKIP_ML_COLUMN_PATTERNS = {
+        "id", "key", "code", "uuid", "hash", "seq", "index", "idx",
+        "pk", "fk", "created", "updated", "modified", "deleted",
+        "timestamp", "version", "row_num", "row_number", "record_id",
+    }
+
+    def _is_business_metric_column(self, col_name: str) -> bool:
+        """비즈니스 메트릭 컬럼인지 판별 (기술적 ID/키 컬럼 제외)"""
+        col_lower = col_name.lower().strip()
+        # 정확히 'id'이거나 '_id'로 끝나는 컬럼 제외
+        if col_lower == "id" or col_lower.endswith("_id"):
+            return False
+        # 기술적 패턴 매칭
+        for pattern in self._SKIP_ML_COLUMN_PATTERNS:
+            if col_lower == pattern or col_lower.startswith(pattern + "_") or col_lower.endswith("_" + pattern):
+                return False
+        return True
+
     def _analyze_ml_anomalies(
         self,
         table_name: str,
@@ -876,15 +956,17 @@ class BusinessInsightsAnalyzer:
         table_info: Dict,
         system: str,
     ):
-        """ML 기반 앙상블 이상치 탐지 (v2.0)"""
+        """ML 기반 앙상블 이상치 탐지 (v2.0, v18.2: 비즈니스 메트릭 컬럼만 분석)"""
         if not self._anomaly_detector or not rows:
             return
 
         sample_row = rows[0]
 
-        # 숫자 컬럼만 선택
+        # 숫자 컬럼만 선택 (v18.2: 기술적 ID/키 컬럼 제외)
         for col in sample_row.keys():
             if not col:
+                continue
+            if not self._is_business_metric_column(col):
                 continue
             values = [
                 r.get(col) for r in rows
@@ -1945,10 +2027,10 @@ class BusinessInsightsAnalyzer:
         data: Dict[str, List[Dict[str, Any]]],
     ):
         """
-        v14.0: LLM 기반 도메인 특화 인사이트 생성
+        v18.3: LLM 기반 도메인 특화 인사이트 생성
 
-        LLM이 데이터를 분석하여 도메인에 맞는 KPI, 리스크, 권장 조치를 직접 판단합니다.
-        하드코딩된 패턴 없이 LLM의 지식을 활용합니다.
+        데이터 요약 + 파이프라인 분석 모델 결과(인과분석, 시뮬레이션, 이상탐지 등)를
+        종합하여 LLM이 고수준 비즈니스 인사이트를 도출합니다.
         """
         if not self.llm_client:
             logger.debug("[v14.0] LLM client not available, skipping domain-specific insights")
@@ -1963,47 +2045,93 @@ class BusinessInsightsAnalyzer:
         # 데이터 요약 생성
         data_summary = self._create_data_summary_for_llm(tables, data)
 
-        prompt = f"""You are a business analyst expert in the **{self._detected_domain}** domain.
+        # v18.3: 파이프라인 분석 모델 결과 요약 생성
+        analysis_summary = self._create_analysis_results_summary()
 
-Analyze the following dataset and generate domain-specific business insights.
+        # v18.3: 자체 ML 분석에서 이미 발견한 이상탐지 결과 요약
+        ml_findings = self._summarize_current_insights()
 
-## Dataset Summary
+        prompt = f"""You are a senior business intelligence analyst at a Palantir-class analytics firm, specializing in **{self._detected_domain}**.
+
+You have access to THREE sources of evidence. Synthesize ALL of them to produce executive-level insights.
+
+## Source 1: Raw Dataset Summary
 {data_summary}
+
+## Source 2: Predictive & Causal Model Results (from pipeline analysis modules)
+{analysis_summary if analysis_summary else "(No model results available — rely on data summary only)"}
+
+## Source 3: ML Anomaly Detection Findings (already computed)
+{ml_findings if ml_findings else "(No ML findings yet)"}
 
 ## Your Task
 
-Based on your knowledge of the **{self._detected_domain}** industry, identify:
+Produce insights that SYNTHESIZE the model results with the data. You MUST reference specific model outputs when available. Examples of model-grounded insights:
 
-1. **Key KPIs**: Which columns represent important KPIs for this domain? Are there any concerning values?
-2. **Risk Indicators**: What potential risks do you see in this data?
-3. **Concentration Risks**: Is there over-reliance on specific entities (e.g., single supplier, carrier, plant)?
-4. **Operational Issues**: Any patterns suggesting inefficiencies or problems?
+- "Causal impact analysis confirms data integration yields 20.3% ATE improvement (p<0.001, robust). Combined with the 35% high-turnover-risk workforce, prioritizing integrated HR analytics could reduce attrition cost by $467K annually."
+- "Counterfactual simulation: improving data quality from 75%→90% for Employee entity is projected to [impact]. Given salary anomalies in 10% of records, this quality gap directly affects compensation analytics reliability."
+- "ML ensemble detected 10% salary anomalies (IsolationForest + LOF). Cross-referencing with the causal graph edge salary→turnover_risk suggests pay inequity is a statistically validated driver of attrition."
 
-## Output Format (JSON)
+DO NOT simply restate the raw data statistics. Every insight MUST either:
+1. Reference a specific model result (ATE, p-value, simulation scenario, anomaly rate) AND connect it to business impact, OR
+2. Synthesize across multiple analysis results to surface a non-obvious pattern
 
-Return a JSON array of insights. Each insight should have:
+## Output Format (JSON) — v19.0 Palantir-Style Prescriptive Insights
+
+Return a JSON array where each insight follows hypothesis → evidence → validation → prescriptive actions:
+
 ```json
 [
   {{
-    "title": "Short descriptive title",
-    "description": "Detailed explanation of the finding",
-    "insight_type": "kpi" | "risk" | "anomaly" | "operational",
-    "severity": "critical" | "high" | "medium" | "low" | "info",
+    "title": "[{self._detected_domain}] Concise executive-level title",
+    "description": "2-3 sentence executive summary grounded in model results with specific numbers",
+
+    "hypothesis": "Testable business claim (e.g., 'Junior employees with high tenure are underpaid, driving turnover')",
+
+    "evidence": [
+      {{
+        "model": "CausalImpact|AnomalyDetection|CorrelationAnalysis|TimeSeries|Simulation",
+        "finding": "Specific result with numbers (ATE=-4827, p<0.001, anomaly_rate=10%)",
+        "metrics": {{"key": "value"}}
+      }}
+    ],
+
+    "validation_summary": "How evidence confirms hypothesis (synthesis, NOT restatement)",
+
+    "prescriptive_actions": [
+      {{
+        "action": "Specific actionable step",
+        "expected_impact": "Quantified outcome (e.g., 15% reduction in turnover)",
+        "estimated_savings": "Dollar or KPI improvement",
+        "priority": "immediate|short_term|long_term"
+      }}
+    ],
+
+    "insight_type": "kpi|risk|anomaly|operational|prediction",
+    "severity": "critical|high|medium|low",
     "source_table": "table name",
-    "source_column": "column name",
-    "metric_value": <number or null>,
-    "recommendations": ["action 1", "action 2"],
-    "business_impact": "Impact description"
+    "source_column": "key columns",
+    "metric_value": null,
+    "recommendations": ["Action 1", "Action 2"],
+    "business_impact": "Quantified overall business impact",
+    "confidence_breakdown": {{"algorithm": 0.XX, "simulation": 0.XX, "llm": 0.XX}},
+    "evidence_models": ["CausalImpact", "AnomalyDetection"]
   }}
 ]
 ```
 
-Generate 2-5 domain-specific insights. Focus on actionable findings relevant to **{self._detected_domain}** operations.
+CRITICAL: Every insight MUST have hypothesis, evidence[] (min 2 models), validation_summary, prescriptive_actions[] with quantified impact.
+DO NOT create shallow insights like "X% anomalies detected" — synthesize across multiple analysis sources.
+
+Generate 4-6 prescriptive insights. Prioritize by business impact.
 Respond ONLY with valid JSON array."""
 
         try:
+            # v18.2: Letsur AI Gateway 모델 사용 (하드코딩 제거)
+            from src.unified_pipeline.model_config import get_model, ModelType
+            llm_model = get_model(ModelType.BALANCED)
             response = self.llm_client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=llm_model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=2000,
                 temperature=0.3,
@@ -2057,7 +2185,7 @@ Respond ONLY with valid JSON array."""
             logger.info(f"[v14.0] Generated {len(llm_insights)} LLM-based domain insights for {self._detected_domain}")
 
         except Exception as e:
-            logger.warning(f"[v14.0] LLM domain insight generation failed: {e}")
+            logger.warning(f"[v18.3] LLM domain insight generation failed: {e}")
 
     def _create_data_summary_for_llm(
         self,
@@ -2077,11 +2205,11 @@ Respond ONLY with valid JSON array."""
             sample_row = rows[0]
             columns = list(sample_row.keys())
 
-            # 숫자형 컬럼 통계
+            # 숫자형 컬럼 통계 — v18.3: 전체 데이터 사용
             numeric_stats = []
             for col in columns:
                 numeric_values = []
-                for row in rows[:100]:  # 샘플링
+                for row in rows:
                     val = row.get(col)
                     if val is not None:
                         try:
@@ -2093,17 +2221,94 @@ Respond ONLY with valid JSON array."""
                     avg = sum(numeric_values) / len(numeric_values)
                     min_val = min(numeric_values)
                     max_val = max(numeric_values)
-                    numeric_stats.append(f"  - {col}: avg={avg:.2f}, min={min_val:.2f}, max={max_val:.2f}")
+                    numeric_stats.append(f"  - {col}: avg={avg:.2f}, min={min_val:.2f}, max={max_val:.2f} (n={len(numeric_values)})")
 
-            # 카테고리형 컬럼 분포
+            # 카테고리형 컬럼 분포 — v18.3: 전체 데이터 사용
             categorical_stats = []
             for col in columns:
-                values = [str(row.get(col, "")) for row in rows[:100] if row.get(col)]
+                values = [str(row.get(col, "")) for row in rows if row.get(col)]
                 if values and len(set(values)) <= 20:  # 유니크 값이 적으면 카테고리
                     value_counts = Counter(values)
                     top_3 = value_counts.most_common(3)
                     dist = ", ".join([f"'{v}': {c}" for v, c in top_3])
                     categorical_stats.append(f"  - {col}: {dist}")
+
+            # v18.4: 카테고리 × 숫자 그룹별 교차 분석
+            cross_analysis = []
+            from collections import defaultdict
+
+            # 카테고리 컬럼 식별: 문자열 이진(2~5값)을 우선, 숫자형 소수값은 후순위
+            cat_cols_priority = []  # (priority, col) — 낮은 값이 높은 우선순위
+            for col in columns:
+                str_values = [str(row.get(col, "")) for row in rows if row.get(col) is not None]
+                if not str_values:
+                    continue
+                unique = set(str_values)
+                n_unique = len(unique)
+                if n_unique < 2 or n_unique > 15:
+                    continue
+                # 숫자형인지 확인
+                is_numeric = True
+                for u in list(unique)[:5]:
+                    try:
+                        float(u)
+                    except (ValueError, TypeError):
+                        is_numeric = False
+                        break
+                # id 컬럼 제외
+                if any(p in col.lower() for p in ["id", "index", "번호"]):
+                    continue
+                # 문자열 이진 (Yes/No 등) → 최고 우선순위
+                if not is_numeric and n_unique == 2:
+                    cat_cols_priority.append((0, col))
+                elif not is_numeric and n_unique <= 5:
+                    cat_cols_priority.append((1, col))
+                elif not is_numeric:
+                    cat_cols_priority.append((2, col))
+                elif n_unique <= 5:
+                    cat_cols_priority.append((3, col))
+
+            cat_cols_priority.sort(key=lambda x: x[0])
+            cat_cols_for_cross = [c for _, c in cat_cols_priority[:6]]
+
+            # 숫자 컬럼 식별 (id 제외)
+            num_cols_for_cross = []
+            for col in columns:
+                if any(p in col.lower() for p in ["id", "index", "번호"]):
+                    continue
+                n_vals = []
+                for row in rows:
+                    v = row.get(col)
+                    if v is not None:
+                        try:
+                            n_vals.append(float(v))
+                        except (ValueError, TypeError):
+                            pass
+                if len(n_vals) >= 5 and len(set(n_vals)) > 5:
+                    num_cols_for_cross.append(col)
+
+            for cat_col in cat_cols_for_cross:
+                for num_col in num_cols_for_cross[:6]:
+                    if cat_col == num_col:
+                        continue
+                    groups = defaultdict(list)
+                    for row in rows:
+                        cat_val = row.get(cat_col)
+                        num_val = row.get(num_col)
+                        if cat_val is not None and num_val is not None:
+                            try:
+                                groups[str(cat_val)].append(float(num_val))
+                            except (ValueError, TypeError):
+                                pass
+
+                    if len(groups) >= 2:
+                        group_avgs = {}
+                        for k, v in groups.items():
+                            if len(v) >= 3:
+                                group_avgs[k] = sum(v) / len(v)
+                        if len(group_avgs) >= 2:
+                            parts = ", ".join(f"{k}: avg={v:.1f} (n={len(groups[k])})" for k, v in sorted(group_avgs.items()))
+                            cross_analysis.append(f"  - {num_col} by {cat_col}: {parts}")
 
             summary_parts.append(f"""
 ### Table: {table_name}
@@ -2115,6 +2320,189 @@ Numeric columns:
 
 Categorical columns:
 {chr(10).join(categorical_stats[:5]) if categorical_stats else '  (none)'}
+
+Group-level analysis (numeric by category):
+{chr(10).join(cross_analysis[:10]) if cross_analysis else '  (none)'}
 """)
 
         return "\n".join(summary_parts[:5])  # 최대 5개 테이블
+
+    def _create_analysis_results_summary(self) -> str:
+        """
+        v18.3: 파이프라인 분석 모델 결과를 LLM 프롬프트용 텍스트로 요약
+
+        Phase 2(Refinement)에서 실행된 CausalImpact, Granger, Counterfactual,
+        VirtualEntity 등의 결과를 구조화된 텍스트로 변환합니다.
+        """
+        ctx = self._pipeline_context
+        if not ctx:
+            return ""
+
+        parts = []
+
+        # 1. Causal Impact Analysis (인과 영향 분석)
+        causal = ctx.get("causal_insights", {})
+        if isinstance(causal, dict) and causal:
+            impact = causal.get("impact_analysis", {})
+            if isinstance(impact, dict) and impact:
+                summary = impact.get("summary", {})
+
+                # v18.5: data_driven 결과 (실제 데이터 기반) vs 기존 합성 데이터 결과
+                if summary.get("data_driven"):
+                    # 실제 데이터 기반 인과 분석 결과
+                    effects = impact.get("treatment_effects", [])
+                    recs = impact.get("recommendations", [])
+                    group_comps = impact.get("group_comparisons", [])
+
+                    effect_lines = []
+                    for te in effects[:8]:
+                        strat = te.get("stratified_analysis")
+                        gc = te.get("group_comparison", {})
+                        g1 = gc.get("group_1", {})
+                        g0 = gc.get("group_0", {})
+
+                        if strat:
+                            conf = strat.get("confounder", "?")
+                            effect_lines.append(
+                                f"  - {te.get('type', '?')}: "
+                                f"Naive ATE={te.get('naive_ate', 0):+.1f} "
+                                f"({g1.get('label','?')}={g1.get('mean',0):.1f} vs {g0.get('label','?')}={g0.get('mean',0):.1f}), "
+                                f"Adjusted ATE={te.get('estimate', 0):+.1f} "
+                                f"(confounding by {conf} removed {strat.get('confounding_reduction_pct', 0):.0f}%), "
+                                f"p={te.get('p_value', 1):.4f}, sig={'YES' if te.get('significant') else 'no'}"
+                            )
+                            # 층별 세부 정보
+                            for s in strat.get("strata", [])[:4]:
+                                effect_lines.append(
+                                    f"    └ {s['stratum']}: "
+                                    f"treated={s['treated_mean']:.1f}(n={s['treated_n']}), "
+                                    f"control={s['control_mean']:.1f}(n={s['control_n']}), "
+                                    f"stratum ATE={s['stratum_ate']:+.1f}"
+                                )
+                        else:
+                            effect_lines.append(
+                                f"  - {te.get('type', '?')}: "
+                                f"ATE={te.get('estimate', 0):+.1f}, "
+                                f"p={te.get('p_value', 1):.4f}, "
+                                f"sig={'YES' if te.get('significant') else 'no'}"
+                            )
+
+                    parts.append(f"""### CausalImpactAnalyzer (실제 데이터 기반)
+- Data-driven: True
+- Total effects analyzed: {summary.get('total_effects_analyzed', 0)}
+- Statistically significant: {summary.get('significant_effects', 0)}
+- Sample size: {summary.get('sample_size', 0)}
+
+IMPORTANT - Treatment Effects (교란변수 보정 포함):
+{chr(10).join(effect_lines) if effect_lines else '  (none)'}
+
+Recommendations:
+{chr(10).join('  - ' + r for r in recs[:5]) if recs else '  (none)'}
+
+CRITICAL NOTE: When interpreting causal effects, ALWAYS use the Adjusted ATE (not Naive ATE).
+Naive ATE includes confounding bias. Adjusted ATE controls for confounding variables.
+If Naive ATE and Adjusted ATE differ significantly, the confounding variable is important.""")
+
+                else:
+                    # 기존 합성 데이터 결과 (fallback)
+                    ate = summary.get("estimated_ate")
+                    ci = summary.get("ate_confidence_interval")
+                    sig = summary.get("ate_significant")
+                    robust = summary.get("robustness")
+                    sample = summary.get("sample_size")
+                    effects = impact.get("treatment_effects", [])
+                    recs = impact.get("recommendations", [])
+                    parts.append(f"""### CausalImpactAnalyzer (metadata-based estimate)
+- Average Treatment Effect (ATE): {ate}
+- Confidence Interval: {ci}
+- Statistically Significant: {sig}
+- Robustness Score: {robust}
+- Sample Size: {sample}
+- Treatment Effects: {len(effects)} detected
+- Recommendations: {'; '.join(recs[:3]) if recs else 'N/A'}
+NOTE: This is a metadata-based estimate, not based on actual data values.""")
+
+            # Granger Causality
+            granger = causal.get("granger_causality", [])
+            if isinstance(granger, list) and granger:
+                pairs = []
+                for g in granger[:5]:
+                    if isinstance(g, dict):
+                        pairs.append(f"{g.get('cause', '?')} → {g.get('effect', '?')} (p={g.get('p_value', '?')})")
+                if pairs:
+                    parts.append(f"""### Granger Causality (시계열 인과관계)
+- {len(granger)} causal links detected
+- Key links: {', '.join(pairs)}""")
+
+            # Causal Graph
+            nodes = causal.get("causal_graph_nodes", [])
+            edges = causal.get("causal_graph_edges", [])
+            if nodes or edges:
+                edge_strs = []
+                for e in edges[:6]:
+                    if isinstance(e, dict):
+                        edge_strs.append(f"{e.get('source', '?')} → {e.get('target', '?')}")
+                parts.append(f"""### Causal Graph (인과 DAG)
+- {len(nodes)} nodes, {len(edges)} edges
+- Key edges: {', '.join(edge_strs)}""")
+
+        # 2. Counterfactual Analysis (반사실 시뮬레이션)
+        counterfactual = ctx.get("counterfactual_analysis", [])
+        if isinstance(counterfactual, list) and counterfactual:
+            cf_lines = []
+            for cf in counterfactual[:3]:
+                if isinstance(cf, dict):
+                    scenario = cf.get("scenario", "?")
+                    rec = cf.get("recommendation", "")
+                    cf_lines.append(f"  - Scenario: {scenario} → {rec}")
+            if cf_lines:
+                parts.append(f"""### Counterfactual Simulation (반사실 시뮬레이션)
+- {len(counterfactual)} scenarios analyzed
+{chr(10).join(cf_lines)}""")
+
+        # 3. Virtual Entities (가상 시나리오 엔티티)
+        virtual = ctx.get("virtual_entities", [])
+        if isinstance(virtual, list) and virtual:
+            ve_names = [v.get("name", "?") for v in virtual[:5] if isinstance(v, dict)]
+            if ve_names:
+                parts.append(f"""### Virtual Entity Simulation
+- {len(virtual)} virtual entities generated: {', '.join(ve_names)}""")
+
+        # 4. Causal Relationships
+        causal_rels = ctx.get("causal_relationships", [])
+        if isinstance(causal_rels, list) and causal_rels:
+            rel_strs = []
+            for r in causal_rels[:5]:
+                if isinstance(r, dict):
+                    rel_strs.append(f"{r.get('source', '?')} → {r.get('target', '?')} (type={r.get('relationship_type', '?')}, conf={r.get('confidence', '?')})")
+            if rel_strs:
+                parts.append(f"""### Causal Relationships
+- {len(causal_rels)} relationships discovered
+- {'; '.join(rel_strs)}""")
+
+        # 5. Anomaly Results (if available from governance)
+        anomaly = ctx.get("anomaly_results", {})
+        if isinstance(anomaly, dict) and anomaly:
+            parts.append(f"""### Anomaly Detection Results
+- {json.dumps(anomaly, default=str)[:300]}""")
+
+        return "\n\n".join(parts) if parts else ""
+
+    def _summarize_current_insights(self) -> str:
+        """
+        v18.3: 현재까지 이 Analyzer가 발견한 ML 기반 인사이트를 요약
+
+        LLM 프롬프트에서 이미 발견된 이상탐지/리스크 결과를 참조할 수 있도록 합니다.
+        중복 인사이트를 방지하고, 모델 결과를 cross-reference 하도록 유도합니다.
+        """
+        if not self.insights:
+            return ""
+
+        lines = []
+        for ins in self.insights[:15]:
+            lines.append(f"- [{ins.severity.value}] {ins.title}: {ins.description[:120]}")
+
+        return f"""Already detected {len(self.insights)} findings:
+{chr(10).join(lines)}
+
+IMPORTANT: Do NOT repeat these findings. Instead, SYNTHESIZE them with the model results above to produce higher-order insights."""

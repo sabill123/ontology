@@ -1,0 +1,16 @@
+maintenance_id,equipment_id,maintenance_type,scheduled_date,completed_date,technician_id,duration_hours,cost,parts_replaced,notes
+MNT001,EQP001,preventive,2024-01-12,2024-01-12,TECH001,4.0,850.00,Spindle bearings,Regular maintenance completed
+MNT002,EQP002,preventive,2024-01-10,2024-01-10,TECH002,3.0,520.00,Servo motors lubricated,All axes calibrated
+MNT003,EQP003,preventive,2024-01-15,2024-01-15,TECH003,5.0,1200.00,Hydraulic fluid|Filters,Full system check
+MNT004,EQP004,preventive,2024-01-08,2024-01-08,TECH004,2.0,380.00,Nozzles|Feeders,Pick accuracy verified
+MNT005,EQP005,corrective,2024-01-20,,TECH004,0.0,0.00,,Heating element failure - parts ordered
+MNT006,EQP006,preventive,2024-01-14,2024-01-14,TECH005,6.0,2500.00,Hydraulic seals|Press pads,Annual overhaul
+MNT007,EQP007,preventive,2024-01-16,2024-01-16,TECH002,3.5,780.00,Paint nozzles|Filters,Spray pattern optimized
+MNT008,EQP008,preventive,2024-01-11,2024-01-11,TECH006,2.5,420.00,Cutting blades,Blade alignment adjusted
+MNT009,EQP009,preventive,2024-01-18,2024-01-18,TECH005,4.5,1800.00,Barrel heaters|Screw tip,Injection pressure calibrated
+MNT010,EQP010,preventive,2024-01-13,2024-01-13,TECH001,5.0,2200.00,Ball screws lubricated,5-axis alignment verified
+MNT011,EQP011,preventive,2024-01-09,2024-01-09,TECH007,2.0,350.00,Belt tensioners,Conveyor speed adjusted
+MNT012,EQP012,preventive,2024-01-17,2024-01-17,TECH007,2.0,350.00,Belt tensioners,Conveyor speed adjusted
+MNT013,EQP001,predictive,2024-01-05,2024-01-05,TECH001,1.0,0.00,,Vibration analysis - normal
+MNT014,EQP006,predictive,2024-01-07,2024-01-07,TECH005,1.5,0.00,,Oil analysis - normal levels
+MNT015,EQP009,predictive,2024-01-10,2024-01-10,TECH005,1.0,0.00,,Thermal imaging - no issues

@@ -46,6 +46,60 @@ class EvidenceType(str, Enum):
     DEBATE_ARGUMENT = "debate_argument"  # 토론 주장
     FINAL_DECISION = "final_decision"  # 최종 결정
 
+    # v17.0: Palantir-style Features
+    # NL2SQL
+    NL2SQL_TRANSLATION = "nl2sql_translation"  # 자연어→SQL 변환 결과
+    NL2SQL_VALIDATION = "nl2sql_validation"  # SQL 검증 결과
+    QUERY_EXECUTION = "query_execution"  # 쿼리 실행 결과
+
+    # Function Calling
+    TOOL_SELECTION = "tool_selection"  # 도구 선택 결과
+    TOOL_EXECUTION = "tool_execution"  # 도구 실행 결과
+    TOOL_CHAIN = "tool_chain"  # 도구 체인 실행 결과
+
+    # Versioning & Branching
+    VERSION_COMMIT = "version_commit"  # 버전 커밋
+    VERSION_CHECKOUT = "version_checkout"  # 버전 체크아웃
+    BRANCH_CREATE = "branch_create"  # 브랜치 생성
+    MERGE_DECISION = "merge_decision"  # 머지 결정
+    CONFLICT_RESOLUTION_VERSION = "conflict_resolution_version"  # 버전 충돌 해결
+
+    # Writeback
+    WRITEBACK_ACTION = "writeback_action"  # Writeback 액션
+    WRITEBACK_VALIDATION = "writeback_validation"  # Writeback 검증
+    WRITEBACK_ROLLBACK = "writeback_rollback"  # Writeback 롤백
+
+    # Calibration & Uncertainty
+    CALIBRATION = "calibration"  # 신뢰도 보정
+    UNCERTAINTY_ESTIMATE = "uncertainty_estimate"  # 불확실성 추정
+
+    # Real-time Reasoning
+    STREAMING_INSIGHT = "streaming_insight"  # 스트리밍 인사이트
+    EVENT_TRIGGER = "event_trigger"  # 이벤트 트리거 발동
+    ANOMALY_DETECTION = "anomaly_detection"  # 이상 탐지
+
+    # Semantic Search
+    SEMANTIC_SEARCH = "semantic_search"  # 의미 검색 결과
+    ENTITY_LINKING = "entity_linking"  # 엔티티 연결
+
+    # Auto-remediation
+    REMEDIATION_ACTION = "remediation_action"  # 자동 수정 액션
+    REMEDIATION_VALIDATION = "remediation_validation"  # 수정 검증
+
+    # XAI (Explanation)
+    DECISION_EXPLANATION = "decision_explanation"  # 결정 설명
+    FEATURE_ATTRIBUTION = "feature_attribution"  # Feature Attribution
+    COUNTERFACTUAL = "counterfactual"  # 반사실적 설명
+
+    # What-If Analysis
+    SCENARIO_DEFINITION = "scenario_definition"  # 시나리오 정의
+    SCENARIO_SIMULATION = "scenario_simulation"  # 시나리오 시뮬레이션
+    IMPACT_PREDICTION = "impact_prediction"  # 영향 예측
+
+    # NL Reports
+    REPORT_GENERATION = "report_generation"  # 보고서 생성
+    NARRATIVE_SYNTHESIS = "narrative_synthesis"  # 내러티브 합성
+
 
 @dataclass
 class EvidenceBlock:
@@ -226,6 +280,10 @@ class EvidenceChain:
         """블록 조회"""
         return self.blocks.get(block_id)
 
+    def get_all_blocks(self) -> List[EvidenceBlock]:
+        """모든 블록을 생성 순서대로 반환"""
+        return [self.blocks[bid] for bid in self.chain_order if bid in self.blocks]
+
     def get_blocks_by_phase(self, phase: str) -> List[EvidenceBlock]:
         """Phase별 블록 조회"""
         block_ids = self.phase_blocks.get(phase, [])
@@ -348,6 +406,25 @@ class EvidenceChain:
                 lines.append(f"  Supports: {', '.join(block.supporting_block_ids)}")
 
         return "\n".join(lines)
+
+    def get_statistics(self) -> Dict[str, Any]:
+        """통계 정보 반환"""
+        evidence_by_type = {}
+        for block in self.blocks.values():
+            type_name = block.evidence_type.value if hasattr(block.evidence_type, 'value') else str(block.evidence_type)
+            evidence_by_type[type_name] = evidence_by_type.get(type_name, 0) + 1
+
+        phase_counts = {phase: len(blocks) for phase, blocks in self.phase_blocks.items()}
+        agent_counts = {agent: len(blocks) for agent, blocks in self.agent_blocks.items()}
+
+        return {
+            "total_blocks": len(self.blocks),
+            "chain_length": len(self.chain_order),
+            "evidence_by_type": evidence_by_type,
+            "blocks_by_phase": phase_counts,
+            "blocks_by_agent": agent_counts,
+            "unique_agents": len(self.agent_blocks),
+        }
 
     def to_dict(self) -> Dict[str, Any]:
         """전체 체인을 딕셔너리로 변환"""

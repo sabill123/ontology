@@ -1,0 +1,9 @@
+warehouse_id,warehouse_name,address,city,state,country,zip_code,capacity_sqft,current_utilization,manager_id,region,opened_date
+WH001,East Coast Hub,100 Distribution Way,Newark,NJ,USA,07102,500000,78.5,MGR001,northeast,2015-03-15
+WH002,West Coast Center,250 Logistics Blvd,Los Angeles,CA,USA,90001,650000,82.3,MGR002,west,2012-08-20
+WH003,Midwest Distribution,400 Freight St,Chicago,IL,USA,60601,450000,71.2,MGR003,midwest,2018-01-10
+WH004,Southern Hub,600 Shipping Lane,Houston,TX,USA,77001,380000,68.9,MGR004,south,2019-06-25
+WH005,Pacific Northwest,800 Harbor Dr,Seattle,WA,USA,98101,320000,75.4,MGR005,west,2020-02-15
+WH006,Southeast Center,150 Commerce Pkwy,Atlanta,GA,USA,30301,420000,80.1,MGR006,south,2016-11-08
+WH007,Mountain Region,300 Industrial Ave,Denver,CO,USA,80201,280000,62.5,MGR007,mountain,2021-04-20
+WH008,Florida Hub,500 Trade Way,Miami,FL,USA,33101,350000,73.8,MGR008,south,2017-09-12

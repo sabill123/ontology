@@ -51,9 +51,7 @@ def parse_llm_json(
     for match in matches:
         try:
             data = json.loads(match.strip())
-            if key:
-                return data.get(key, default)
-            return data
+            return _ensure_return_type(data, default, key)
         except json.JSONDecodeError:
             continue
 
@@ -65,9 +63,7 @@ def parse_llm_json(
         if start != -1 and end != -1 and end > start:
             json_str = response[start:end + 1]
             data = json.loads(json_str)
-            if key:
-                return data.get(key, default)
-            return data
+            return _ensure_return_type(data, default, key)
     except json.JSONDecodeError:
         pass
 
@@ -86,9 +82,7 @@ def parse_llm_json(
 
             data = json.loads(json_str)
             logger.info(f"Recovered truncated JSON (added {open_braces} braces, {open_brackets} brackets)")
-            if key:
-                return data.get(key, default)
-            return data
+            return _ensure_return_type(data, default, key)
     except json.JSONDecodeError:
         pass
 
@@ -99,21 +93,32 @@ def parse_llm_json(
         if start != -1 and end != -1 and end > start:
             json_str = response[start:end + 1]
             data = json.loads(json_str)
-            return data
+            return _ensure_return_type(data, default, key)
     except json.JSONDecodeError:
         pass
 
     # 4. 전체 문자열 시도
     try:
         data = json.loads(response.strip())
-        if key:
-            return data.get(key, default)
-        return data
+        return _ensure_return_type(data, default, key)
     except json.JSONDecodeError:
         pass
 
     logger.warning(f"Failed to parse JSON from response: {response[:200]}...")
     return default
+
+
+def _ensure_return_type(data: Any, default: Any, key: Optional[str]) -> Any:
+    """parse_llm_json 반환값의 타입을 default와 일치시킴"""
+    if key:
+        if isinstance(data, dict):
+            return data.get(key, default)
+        return default
+    # default가 dict인데 파싱 결과가 dict가 아니면 default 반환
+    if isinstance(default, dict) and not isinstance(data, dict):
+        logger.warning(f"Expected dict but got {type(data).__name__}, returning default")
+        return default
+    return data
 
 
 def retry_with_backoff(

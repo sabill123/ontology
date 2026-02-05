@@ -1,0 +1,16 @@
+employee_id,first_name,last_name,email,phone,plant_id,department,position,hire_date,shift,hourly_rate,supervisor_id
+EMP001,James,Smith,jsmith@manufacturing.com,555-8001,PLT001,production,line_supervisor,2015-03-15,day,35.00,MGR001
+EMP002,Maria,Garcia,mgarcia@manufacturing.com,555-8002,PLT001,production,operator,2018-06-20,day,22.00,EMP001
+EMP003,Robert,Johnson,rjohnson@manufacturing.com,555-8003,PLT001,production,operator,2019-09-10,day,22.00,EMP001
+EMP004,Lisa,Chen,lchen@manufacturing.com,555-8004,PLT001,quality,inspector,2017-04-15,day,28.00,MGR001
+EMP005,Michael,Brown,mbrown@manufacturing.com,555-8005,PLT002,production,line_supervisor,2016-08-01,day,35.00,MGR002
+EMP006,Sarah,Wilson,swilson@manufacturing.com,555-8006,PLT002,production,operator,2020-01-15,day,22.00,EMP005
+EMP007,David,Lee,dlee@manufacturing.com,555-8007,PLT002,production,operator,2021-03-20,night,24.00,EMP005
+EMP008,Jennifer,Martinez,jmartinez@manufacturing.com,555-8008,PLT003,production,line_supervisor,2014-11-10,day,36.00,MGR003
+EMP009,William,Taylor,wtaylor@manufacturing.com,555-8009,PLT003,production,operator,2019-05-25,day,22.00,EMP008
+EMP010,Emily,Anderson,eanderson@manufacturing.com,555-8010,PLT003,quality,inspector,2018-08-15,day,28.00,MGR003
+EMP011,Daniel,Thomas,dthomas@manufacturing.com,555-8011,PLT004,production,line_supervisor,2017-02-28,day,34.00,MGR004
+EMP012,Amanda,Jackson,ajackson@manufacturing.com,555-8012,PLT004,production,operator,2020-07-10,day,21.00,EMP011
+EMP013,Christopher,White,cwhite@manufacturing.com,555-8013,PLT005,production,line_supervisor,2015-06-15,day,38.00,MGR005
+EMP014,Jessica,Harris,jharris@manufacturing.com,555-8014,PLT005,quality,inspector,2019-10-20,day,30.00,MGR005
+EMP015,Matthew,Martin,mmartin@manufacturing.com,555-8015,PLT006,production,line_supervisor,2018-01-05,day,32.00,MGR006

@@ -1,0 +1,9 @@
+carrier_id,carrier_name,carrier_type,contact_name,contact_phone,contact_email,base_rate,fuel_surcharge,on_time_rate,contract_start,contract_end,status
+CAR001,FastFreight Express,ground,John Smith,555-5001,jsmith@fastfreight.com,2.50,0.35,94.5,2023-01-01,2025-12-31,active
+CAR002,Pacific Shipping Co,ground,Lisa Chen,555-5002,lchen@pacificship.com,2.75,0.40,92.8,2023-03-15,2025-03-14,active
+CAR003,Midwest Carriers,ground,Mike Johnson,555-5003,mjohnson@midwestcarr.com,2.35,0.32,91.2,2023-06-01,2025-05-31,active
+CAR004,Southern Logistics,ground,Sarah Davis,555-5004,sdavis@southernlog.com,2.60,0.38,93.1,2023-02-01,2025-01-31,active
+CAR005,Northwest Transport,ground,Tom Wilson,555-5005,twilson@nwtransport.com,2.45,0.35,95.2,2023-04-01,2025-03-31,active
+CAR006,AirSpeed Freight,air,Emily Brown,555-5006,ebrown@airspeed.com,8.50,1.20,97.5,2023-01-15,2025-01-14,active
+CAR007,OceanLine Shipping,sea,Robert Lee,555-5007,rlee@oceanline.com,1.25,0.25,88.4,2023-05-01,2025-04-30,active
+CAR008,RailConnect,rail,Amanda Garcia,555-5008,agarcia@railconnect.com,1.80,0.28,90.6,2023-07-01,2025-06-30,active

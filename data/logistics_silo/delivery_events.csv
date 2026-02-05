@@ -1,0 +1,21 @@
+event_id,shipment_id,event_type,event_timestamp,location,notes,recorded_by
+EVT001,SHP001,picked_up,2024-01-15 08:30:00,Newark NJ,Package picked up from warehouse,DRIVER101
+EVT002,SHP001,in_transit,2024-01-15 14:00:00,Hartford CT,Package in transit,SYSTEM
+EVT003,SHP001,out_for_delivery,2024-01-17 06:00:00,Boston MA,Package out for delivery,DRIVER105
+EVT004,SHP001,delivered,2024-01-17 10:30:00,Boston MA,Delivered - signed by customer,DRIVER105
+EVT005,SHP002,picked_up,2024-01-16 09:00:00,Los Angeles CA,Package picked up from warehouse,DRIVER201
+EVT006,SHP002,in_transit,2024-01-16 15:30:00,Fresno CA,Package in transit,SYSTEM
+EVT007,SHP002,out_for_delivery,2024-01-18 07:00:00,San Francisco CA,Package out for delivery,DRIVER208
+EVT008,SHP002,delivered,2024-01-18 11:45:00,San Francisco CA,Delivered - left at door,DRIVER208
+EVT009,SHP003,picked_up,2024-01-17 07:45:00,Chicago IL,Package picked up from warehouse,DRIVER301
+EVT010,SHP003,in_transit,2024-01-17 16:00:00,Springfield IL,Package in transit,SYSTEM
+EVT011,SHP003,out_for_delivery,2024-01-19 06:30:00,St. Louis MO,Package out for delivery,DRIVER305
+EVT012,SHP003,delivered,2024-01-19 14:20:00,St. Louis MO,Delivered - signed by customer,DRIVER305
+EVT013,SHP004,picked_up,2024-01-18 08:00:00,Newark NJ,Package picked up from warehouse,DRIVER102
+EVT014,SHP004,in_transit,2024-01-18 12:30:00,Trenton NJ,Package in transit,SYSTEM
+EVT015,SHP005,picked_up,2024-01-18 09:15:00,Houston TX,Package picked up from warehouse,DRIVER401
+EVT016,SHP005,out_for_delivery,2024-01-20 07:30:00,Dallas TX,Package out for delivery,DRIVER405
+EVT017,SHP005,delivered,2024-01-20 12:00:00,Dallas TX,Delivered - signed by customer,DRIVER405
+EVT018,SHP006,picked_up,2024-01-19 08:30:00,Los Angeles CA,Package picked up from warehouse,DRIVER202
+EVT019,SHP006,in_transit,2024-01-19 18:00:00,Tucson AZ,Package in transit,SYSTEM
+EVT020,SHP007,picked_up,2024-01-19 07:00:00,Seattle WA,Package picked up from warehouse,DRIVER501

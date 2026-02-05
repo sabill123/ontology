@@ -153,6 +153,47 @@ class EnhancedFKDetector:
         "inv": "inventory",
         "promo": "promotion",
         "camp": "campaign",
+        # v22.0: 의료/헬스케어 축약어 추가
+        "doc": "doctor",
+        "dr": "doctor",
+        "pt": "patient",
+        "pat": "patient",
+        "appt": "appointment",
+        "rx": "prescription",
+        "dx": "diagnosis",
+        "diag": "diagnosis",
+        "med": "medication",
+        "meds": "medications",
+        "proc": "procedure",
+        "phys": "physician",
+        "surg": "surgery",
+        "hosp": "hospital",
+        "spec": "specialty",
+    }
+
+    # v22.0: 의미적 역할 → 테이블 매핑 (semantic role → target table)
+    # 컬럼명이 _doc, _physician, _by 등으로 끝나면 특정 테이블을 참조
+    SEMANTIC_ROLE_MAP = {
+        # _doc, _dr, _doctor 접미사 → doctors 테이블
+        "_doc": "doctor",
+        "_dr": "doctor",
+        "_doctor": "doctor",  # head_doctor, primary_doctor 등
+        # _physician 접미사 → doctors 테이블
+        "_physician": "doctor",
+        # _by 접미사 (의료 도메인에서 doctors 가능성 높음)
+        "diagnosed_by": "doctor",
+        "prescribing_": "doctor",
+        "ordering_": "doctor",
+        "attending_": "doctor",
+        "referring_": "doctor",
+        "head_": "doctor",  # head_doctor, head_of_dept
+        "primary_": "doctor",  # primary_doctor
+        "created_by": "user",
+        "updated_by": "user",
+        "assigned_to": "user",
+        # patient 관련
+        "_patient": "patient",
+        "patient_": "patient",
     }
 
     def __init__(self):
@@ -606,7 +647,7 @@ class EnhancedFKDetector:
         candidate.confidence = self._determine_confidence(candidate)
 
     def _compute_name_similarity(self, fk_name: str, pk_name: str, pk_table: str) -> float:
-        """컬럼명 유사도 계산 (v7.6 시맨틱 유사도 추가, v1 PK 테이블 우선순위 추가)"""
+        """컬럼명 유사도 계산 (v7.6 시맨틱 유사도 추가, v1 PK 테이블 우선순위 추가, v22.0 시맨틱 역할 추가)"""
         fk_lower = fk_name.lower()
         pk_lower = pk_name.lower()
         pk_table_lower = pk_table.lower()
@@ -622,6 +663,24 @@ class EnhancedFKDetector:
         # 정확히 같은 이름
         if fk_lower == pk_lower:
             return 1.0
+
+        # v22.0: 시맨틱 역할 매핑 (ordering_physician → doctors.doctor_id)
+        for pattern, target_entity in self.SEMANTIC_ROLE_MAP.items():
+            if pattern.startswith("_"):
+                # 접미사 패턴 (_doc, _physician 등)
+                if fk_lower.endswith(pattern):
+                    if target_entity in table_base or table_base in target_entity:
+                        return 0.9  # 높은 유사도
+            elif pattern.endswith("_"):
+                # 접두사 패턴 (attending_, ordering_ 등)
+                if fk_lower.startswith(pattern):
+                    if target_entity in table_base or table_base in target_entity:
+                        return 0.9
+            else:
+                # 전체 매칭 (diagnosed_by 등)
+                if fk_lower == pattern or fk_lower.replace("_", "") == pattern.replace("_", ""):
+                    if target_entity in table_base or table_base in target_entity:
+                        return 0.9
 
         # v7.6: 축약어 확장 후 비교
         fk_base = self._extract_base_name(fk_name)
@@ -874,12 +933,29 @@ class EnhancedFKDetector:
         return False
 
     def _is_fk_pattern(self, col_name: str) -> bool:
-        """FK 패턴 확인"""
+        """FK 패턴 확인 (v22.0: 시맨틱 역할 패턴 추가)"""
         col_lower = col_name.lower()
 
+        # 기존 FK 패턴 확인
         for pattern in self.FK_PATTERNS:
             if re.match(pattern, col_lower):
                 return True
+
+        # v22.0: 시맨틱 역할 패턴 확인
+        # _doc, _physician 등으로 끝나거나, diagnosed_by, attending_ 등의 패턴
+        for pattern in self.SEMANTIC_ROLE_MAP.keys():
+            if pattern.startswith("_"):
+                # 접미사 패턴 (_doc, _physician 등)
+                if col_lower.endswith(pattern):
+                    return True
+            elif pattern.endswith("_"):
+                # 접두사 패턴 (attending_, ordering_ 등)
+                if col_lower.startswith(pattern):
+                    return True
+            else:
+                # 전체 매칭 (diagnosed_by 등)
+                if col_lower == pattern:
+                    return True
 
         return False
 

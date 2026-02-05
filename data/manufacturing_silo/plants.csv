@@ -1,0 +1,7 @@
+plant_id,plant_name,address,city,state,country,capacity_units_per_day,current_utilization,manager_id,established_year,certifications
+PLT001,North America Main,100 Industrial Pkwy,Detroit,MI,USA,5000,82.5,MGR001,1985,ISO9001|ISO14001|IATF16949
+PLT002,West Coast Facility,250 Manufacturing Blvd,Fremont,CA,USA,3500,78.2,MGR002,1998,ISO9001|ISO14001
+PLT003,Southern Assembly,400 Production Way,Austin,TX,USA,4200,85.0,MGR003,2005,ISO9001|IATF16949
+PLT004,Mexico Operations,600 Industria Ave,Monterrey,NL,Mexico,6000,88.5,MGR004,2010,ISO9001|ISO14001
+PLT005,European Hub,800 Fabrik Str,Munich,BY,Germany,4500,76.8,MGR005,1995,ISO9001|ISO14001|IATF16949
+PLT006,Asia Pacific,150 Manufacturing Rd,Shanghai,SH,China,8000,91.2,MGR006,2008,ISO9001|ISO14001

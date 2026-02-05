@@ -16,6 +16,8 @@ from datetime import datetime
 import json
 import logging
 
+from ..model_config import get_service_model
+
 from .domain_context import (
     DomainContext,
     InsightPattern,
@@ -138,6 +140,47 @@ DOMAIN_SIGNALS = {
             "conversions", "brand_awareness", "traffic", "engagement",
             "cpc", "cpm", "cpa", "roas", "maximize_clicks", "target_cpa"
         ]
+    },
+    "hr_human_resources": {
+        "column_signals": [
+            "employee", "salary", "department", "role", "position", "title",
+            "performance", "turnover", "overtime", "satisfaction", "tenure",
+            "years_exp", "experience", "hire_date", "termination", "leave",
+            "benefit", "bonus", "compensation", "payroll", "headcount",
+            "remote", "onboarding", "promotion", "appraisal", "attendance",
+            "manager", "team", "shift", "contract", "probation"
+        ],
+        "table_signals": [
+            "employees", "staff", "payroll", "departments", "positions",
+            "performance_reviews", "attendance", "leave", "benefits",
+            "compensation", "headcount", "workforce"
+        ],
+        "value_signals": [
+            "junior", "senior", "manager", "director", "lead",
+            "full_time", "part_time", "contract", "intern",
+            "high", "medium", "low", "active", "terminated", "resigned"
+        ]
+    },
+    "education": {
+        "column_signals": [
+            "student", "grade", "score", "math", "english", "science", "reading",
+            "writing", "attendance", "study_hours", "tutoring", "gpa", "credits",
+            "semester", "course", "exam", "quiz", "homework", "scholarship",
+            "enrollment", "teacher", "class", "subject", "curriculum", "academic",
+            "student_id", "math_score", "english_score", "science_score",
+            "private_tutoring", "parent_education", "school", "major",
+            "extracurricular", "library_hours", "absent_days", "dropout"
+        ],
+        "table_signals": [
+            "students", "courses", "enrollments", "grades", "exams", "classes",
+            "teachers", "subjects", "academic", "transcripts", "attendance",
+            "schools", "departments", "curricula", "semesters"
+        ],
+        "value_signals": [
+            "pass", "fail", "freshman", "sophomore", "junior", "senior",
+            "undergraduate", "graduate", "bachelor", "master", "doctorate",
+            "high_school", "middle_school", "elementary"
+        ]
     }
 }
 
@@ -203,6 +246,36 @@ INDUSTRY_RECOMMENDATIONS = {
             "chat_assistant"
         ]
     },
+    "hr_human_resources": {
+        "workflows": [
+            "employee_performance_analysis",
+            "turnover_prediction",
+            "compensation_benchmarking",
+            "workforce_planning",
+            "engagement_monitoring"
+        ],
+        "dashboards": [
+            "workforce_overview_dashboard",
+            "kpi_dashboard",
+            "turnover_risk_monitor",
+            "compensation_analysis_view"
+        ]
+    },
+    "education": {
+        "workflows": [
+            "student_performance_analysis",
+            "attendance_monitoring",
+            "learning_outcome_tracking",
+            "intervention_effectiveness",
+            "cohort_comparison"
+        ],
+        "dashboards": [
+            "student_performance_dashboard",
+            "kpi_dashboard",
+            "cohort_analysis_view",
+            "intervention_impact_view"
+        ]
+    },
     "general": {
         "workflows": [
             "general_monitoring",
@@ -251,11 +324,11 @@ class DomainDetector:
         self,
         use_llm: bool = True,
         llm_client=None,
-        model: str = "gpt-4o",
+        model: str = None,
     ):
         self.use_llm = use_llm
         self.llm_client = llm_client
-        self.model = model
+        self.model = model or get_service_model("domain_detection")
 
     def detect_domain(
         self,

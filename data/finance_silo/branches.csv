@@ -1,0 +1,7 @@
+branch_id,branch_name,address,city,state,zip_code,phone,manager_id,opened_date,total_employees,region
+BR001,Downtown Main,100 Financial Plaza,New York,NY,10005,555-1001,EMP001,2010-05-15,45,northeast
+BR002,Westside Branch,250 Commerce St,Los Angeles,CA,90015,555-1002,EMP002,2012-08-20,38,west
+BR003,Central Hub,500 Banking Ave,Chicago,IL,60602,555-1003,EMP003,2011-03-10,42,midwest
+BR004,South Regional,750 Trade Blvd,Houston,TX,77002,555-1004,EMP004,2015-01-05,35,south
+BR005,Tech District,320 Innovation Dr,San Francisco,CA,94102,555-1005,EMP005,2018-06-01,28,west
+BR006,Metro Center,180 Capital Way,Washington,DC,20001,555-1006,EMP006,2014-09-15,40,northeast

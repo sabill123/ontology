@@ -1,0 +1,13 @@
+customer_id,first_name,last_name,email,phone,date_of_birth,ssn_last4,address,city,state,zip_code,credit_score,customer_since
+CUST001,John,Smith,john.smith@email.com,555-0101,1985-03-15,1234,123 Main St,New York,NY,10001,750,2023-01-15
+CUST002,Sarah,Johnson,sarah.j@email.com,555-0102,1990-07-22,2345,456 Oak Ave,Los Angeles,CA,90001,720,2023-03-20
+CUST003,Michael,Williams,m.williams@email.com,555-0103,1978-11-30,3456,789 Pine Rd,Chicago,IL,60601,680,2023-05-10
+CUST004,Emily,Brown,emily.brown@email.com,555-0104,1992-04-18,4567,321 Elm St,Houston,TX,77001,790,2023-06-01
+CUST005,David,Jones,david.jones@email.com,555-0105,1988-09-05,5678,654 Maple Dr,Phoenix,AZ,85001,710,2023-07-15
+CUST006,Lisa,Garcia,lisa.garcia@email.com,555-0106,1983-12-10,6789,987 Cedar Ln,Philadelphia,PA,19101,695,2023-08-01
+CUST007,James,Martinez,james.m@email.com,555-0107,1995-02-28,7890,147 Birch Ct,San Antonio,TX,78201,650,2023-09-10
+CUST008,Jennifer,Anderson,jen.anderson@email.com,555-0108,1980-06-14,8901,258 Spruce Way,San Diego,CA,92101,800,2023-10-05
+CUST009,Robert,Taylor,rob.taylor@email.com,555-0109,1987-08-20,9012,369 Walnut Blvd,Dallas,TX,75201,735,2023-11-01
+CUST010,Maria,Thomas,maria.t@email.com,555-0110,1993-01-05,0123,741 Cherry St,San Jose,CA,95101,760,2023-12-01
+CUST011,William,Jackson,will.jackson@email.com,555-0111,1982-04-25,1122,852 Ash Ave,Austin,TX,78701,705,2024-01-10
+CUST012,Patricia,White,pat.white@email.com,555-0112,1975-10-12,2233,963 Hickory Rd,Jacksonville,FL,32201,780,2024-01-15

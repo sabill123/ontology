@@ -1,0 +1,16 @@
+course_id,course_code,course_name,department_id,credits,level,professor_id,max_enrollment,prerequisite_id,description
+CRS001,CS101,Introduction to Programming,DEPT001,3,undergraduate,PROF001,120,,Fundamentals of programming using Python
+CRS002,CS201,Data Structures,DEPT001,4,undergraduate,PROF001,80,CRS001,Arrays lists trees and graphs
+CRS003,CS301,Machine Learning,DEPT001,3,undergraduate,PROF007,60,CRS002,Introduction to ML algorithms
+CRS004,BUS101,Principles of Marketing,DEPT002,3,undergraduate,PROF002,150,,Marketing fundamentals and strategies
+CRS005,BUS201,Business Analytics,DEPT002,3,undergraduate,PROF002,90,CRS004,Data-driven decision making
+CRS006,BUS401,Strategic Management,DEPT002,4,undergraduate,PROF008,45,CRS005,Business strategy and planning
+CRS007,ENG101,Engineering Mechanics,DEPT003,4,undergraduate,PROF003,100,,Statics and dynamics fundamentals
+CRS008,ENG201,Structural Analysis,DEPT003,4,undergraduate,PROF003,75,CRS007,Analysis of structures and loads
+CRS009,BIO101,General Biology,DEPT004,4,undergraduate,PROF004,200,,Introduction to biological sciences
+CRS010,BIO301,Molecular Biology,DEPT004,3,undergraduate,PROF004,50,CRS009,DNA RNA and protein synthesis
+CRS011,PHY101,Physics I,DEPT005,4,undergraduate,PROF005,180,,Mechanics thermodynamics and waves
+CRS012,PHY201,Physics II,DEPT005,4,undergraduate,PROF005,120,CRS011,Electricity magnetism and optics
+CRS013,ENG201,American Literature,DEPT006,3,undergraduate,PROF006,80,,Survey of American literary works
+CRS014,CS501,Advanced Machine Learning,DEPT001,3,graduate,PROF001,30,CRS003,Deep learning and neural networks
+CRS015,BUS501,MBA Finance,DEPT002,4,graduate,PROF008,40,,Advanced corporate finance

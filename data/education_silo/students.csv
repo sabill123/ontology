@@ -1,0 +1,16 @@
+student_id,first_name,last_name,email,date_of_birth,enrollment_date,major_id,advisor_id,gpa,credits_completed,status,graduation_year
+STU001,Alex,Thompson,alex.t@university.edu,2002-05-15,2021-08-25,MAJ001,PROF001,3.75,96,active,2025
+STU002,Emma,Rodriguez,emma.r@university.edu,2001-11-22,2020-08-24,MAJ002,PROF002,3.92,128,active,2024
+STU003,Ryan,Kim,ryan.kim@university.edu,2003-03-10,2022-08-22,MAJ003,PROF003,3.45,64,active,2026
+STU004,Sophia,Patel,sophia.p@university.edu,2002-08-30,2021-08-25,MAJ004,PROF004,3.68,98,active,2025
+STU005,Noah,Martinez,noah.m@university.edu,2001-01-18,2020-08-24,MAJ001,PROF001,3.55,130,active,2024
+STU006,Olivia,Chen,olivia.c@university.edu,2003-07-05,2022-08-22,MAJ005,PROF005,3.88,62,active,2026
+STU007,Liam,Johnson,liam.j@university.edu,2002-12-20,2021-08-25,MAJ002,PROF002,3.22,94,active,2025
+STU008,Ava,Williams,ava.w@university.edu,2001-04-12,2020-08-24,MAJ003,PROF003,3.95,126,active,2024
+STU009,Mason,Garcia,mason.g@university.edu,2003-09-28,2022-08-22,MAJ004,PROF004,3.38,58,active,2026
+STU010,Isabella,Brown,isabella.b@university.edu,2002-02-08,2021-08-25,MAJ006,PROF006,3.72,100,active,2025
+STU011,Ethan,Lee,ethan.l@university.edu,2001-06-25,2020-08-24,MAJ005,PROF005,3.85,124,active,2024
+STU012,Mia,Davis,mia.d@university.edu,2003-10-14,2022-08-22,MAJ001,PROF001,3.62,60,active,2026
+STU013,Lucas,Wilson,lucas.w@university.edu,2002-07-19,2021-08-25,MAJ002,PROF002,3.48,92,active,2025
+STU014,Charlotte,Moore,charlotte.m@university.edu,2001-12-03,2020-08-24,MAJ006,PROF006,3.78,132,graduated,2024
+STU015,James,Taylor,james.t@university.edu,2003-04-22,2022-08-22,MAJ003,PROF003,3.55,56,active,2026

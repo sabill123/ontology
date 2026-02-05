@@ -34,6 +34,48 @@ from typing import Dict, List, Any, Optional, TYPE_CHECKING
 
 from .mixins import EnhancedAgentMixin
 
+# === v16.0: Agent Learning System ===
+try:
+    from .learning import (
+        AgentMemory,
+        Experience,
+        ExperienceType,
+        Outcome,
+        create_agent_memory_with_context,
+    )
+    AGENT_LEARNING_AVAILABLE = True
+except ImportError:
+    AGENT_LEARNING_AVAILABLE = False
+    AgentMemory = None
+    Experience = None
+    ExperienceType = None
+    Outcome = None
+    create_agent_memory_with_context = None
+
+# === v16.0: Agent Communication Bus ===
+try:
+    from .agent_bus import (
+        AgentCommunicationBus,
+        AgentMessage,
+        MessageType,
+        MessagePriority,
+        get_agent_bus,
+        create_info_message,
+        create_discovery_message,
+        create_validation_request,
+    )
+    AGENT_BUS_AVAILABLE = True
+except ImportError:
+    AGENT_BUS_AVAILABLE = False
+    AgentCommunicationBus = None
+    AgentMessage = None
+    MessageType = None
+    MessagePriority = None
+    get_agent_bus = None
+    create_info_message = None
+    create_discovery_message = None
+    create_validation_request = None
+
 if TYPE_CHECKING:
     from ..todo.manager import TodoManager
     from ..todo.models import PipelineTodo, TodoResult
@@ -328,7 +370,622 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
         # LLM 클라이언트 초기화
         self._init_llm_client()
 
+        # v16.0: Agent Learning System 초기화
+        self.agent_memory: Optional[AgentMemory] = None
+        self._init_agent_memory()
+
+        # v16.0: Agent Communication Bus 초기화
+        self.agent_bus: Optional[AgentCommunicationBus] = None
+        self._init_agent_bus()
+
         logger.info(f"Agent initialized: {self.agent_id} (type={self.agent_type})")
+
+    def _init_agent_memory(self):
+        """v16.0: Agent Memory 초기화 (Experience Replay)"""
+        if AGENT_LEARNING_AVAILABLE and create_agent_memory_with_context:
+            try:
+                self.agent_memory = create_agent_memory_with_context(self.shared_context)
+                logger.debug(f"[v16.0] Agent Memory initialized for {self.agent_id}")
+            except Exception as e:
+                logger.warning(f"[v16.0] Agent Memory init failed: {e}")
+                self.agent_memory = None
+
+    def _init_agent_bus(self):
+        """v16.0: Agent Communication Bus 초기화"""
+        if AGENT_BUS_AVAILABLE and get_agent_bus:
+            try:
+                self.agent_bus = get_agent_bus()
+                self.agent_bus.register_agent(self.agent_id, self)
+                logger.debug(f"[v16.0] Agent Bus initialized for {self.agent_id}")
+            except Exception as e:
+                logger.warning(f"[v16.0] Agent Bus init failed: {e}")
+                self.agent_bus = None
+
+    def record_experience(
+        self,
+        experience_type: str,
+        input_data: Dict[str, Any],
+        output_data: Dict[str, Any],
+        outcome: str,
+        confidence: float = 0.7,
+        feedback: Optional[str] = None,
+    ) -> bool:
+        """
+        v16.0: 에이전트 경험 기록 (Experience Replay용)
+
+        Args:
+            experience_type: 경험 유형 (fk_detection, entity_mapping 등)
+            input_data: 입력 데이터
+            output_data: 출력 데이터
+            outcome: 결과 (success, failure, partial)
+            confidence: 신뢰도 (0.0-1.0)
+            feedback: 피드백 (선택)
+
+        Returns:
+            성공 여부
+        """
+        if not self.agent_memory or not AGENT_LEARNING_AVAILABLE:
+            return False
+
+        try:
+            # ExperienceType 매핑
+            exp_type_map = {
+                "fk_detection": ExperienceType.FK_DETECTION,
+                "entity_mapping": ExperienceType.ENTITY_MAPPING,
+                "relationship_inference": ExperienceType.RELATIONSHIP_INFERENCE,
+                "conflict_resolution": ExperienceType.CONFLICT_RESOLUTION,
+                "quality_assessment": ExperienceType.QUALITY_ASSESSMENT,
+                "governance_decision": ExperienceType.GOVERNANCE_DECISION,
+            }
+            exp_type = exp_type_map.get(experience_type, ExperienceType.FK_DETECTION)
+
+            # Outcome 매핑
+            outcome_map = {
+                "success": Outcome.SUCCESS,
+                "failure": Outcome.FAILURE,
+                "partial": Outcome.PARTIAL,
+            }
+            exp_outcome = outcome_map.get(outcome.lower(), Outcome.PARTIAL)
+
+            # Experience 생성 및 저장
+            experience = Experience(
+                experience_type=exp_type,
+                agent_id=self.agent_id,
+                input_data=input_data,
+                output_data=output_data,
+                outcome=exp_outcome,
+                confidence=confidence,
+                feedback=feedback,
+            )
+
+            self.agent_memory.add_experience(experience)
+            logger.debug(f"[v16.0] Experience recorded: {experience_type} -> {outcome}")
+            return True
+
+        except Exception as e:
+            logger.warning(f"[v16.0] Failed to record experience: {e}")
+            return False
+
+    def get_similar_experiences(
+        self,
+        input_data: Dict[str, Any],
+        limit: int = 5,
+    ) -> List[Any]:
+        """
+        v16.0: 유사 경험 조회 (Few-shot Learning용)
+
+        Args:
+            input_data: 현재 입력 데이터
+            limit: 최대 반환 수
+
+        Returns:
+            유사 경험 리스트
+        """
+        if not self.agent_memory or not AGENT_LEARNING_AVAILABLE:
+            return []
+
+        try:
+            return self.agent_memory.get_similar_experiences(input_data, limit)
+        except Exception as e:
+            logger.warning(f"[v16.0] Failed to get similar experiences: {e}")
+            return []
+
+    # === v16.0: Inter-Agent Communication Methods ===
+
+    async def send_message_to_agent(
+        self,
+        recipient_id: str,
+        content: Dict[str, Any],
+        message_type: str = "info",
+        requires_response: bool = False,
+    ) -> bool:
+        """
+        v16.0: 다른 에이전트에 메시지 전송
+
+        Args:
+            recipient_id: 수신자 에이전트 ID
+            content: 메시지 내용
+            message_type: 메시지 유형 (info, discovery, alert, request, collaboration)
+            requires_response: 응답 필요 여부
+
+        Returns:
+            전송 성공 여부
+        """
+        if not self.agent_bus or not AGENT_BUS_AVAILABLE:
+            return False
+
+        try:
+            # MessageType 매핑
+            type_map = {
+                "info": MessageType.INFO,
+                "discovery": MessageType.DISCOVERY,
+                "alert": MessageType.ALERT,
+                "request": MessageType.REQUEST,
+                "collaboration": MessageType.COLLABORATION,
+                "validation": MessageType.VALIDATION,
+                "feedback": MessageType.FEEDBACK,
+            }
+            msg_type = type_map.get(message_type, MessageType.INFO)
+
+            message = AgentMessage(
+                message_id=f"msg_{self.agent_id}_{uuid.uuid4().hex[:8]}",
+                message_type=msg_type,
+                sender_id=self.agent_id,
+                content=content,
+                requires_response=requires_response,
+            )
+
+            result = await self.agent_bus.send_to(recipient_id, message)
+            logger.debug(f"[v16.0] Message sent: {self.agent_id} -> {recipient_id}")
+            return result
+
+        except Exception as e:
+            logger.warning(f"[v16.0] Failed to send message: {e}")
+            return False
+
+    async def broadcast_discovery(
+        self,
+        discovery_type: str,
+        data: Dict[str, Any],
+    ) -> int:
+        """
+        v16.0: 발견 결과를 모든 에이전트에 브로드캐스트
+
+        Args:
+            discovery_type: 발견 유형 (fk_detected, entity_found, relationship_detected 등)
+            data: 발견 데이터
+
+        Returns:
+            전달된 에이전트 수
+        """
+        if not self.agent_bus or not AGENT_BUS_AVAILABLE or not create_discovery_message:
+            return 0
+
+        try:
+            message = create_discovery_message(
+                sender_id=self.agent_id,
+                discovery_type=discovery_type,
+                data=data,
+            )
+            count = await self.agent_bus.broadcast(message)
+            logger.debug(f"[v16.0] Discovery broadcast: {discovery_type} to {count} agents")
+            return count
+
+        except Exception as e:
+            logger.warning(f"[v16.0] Failed to broadcast discovery: {e}")
+            return 0
+
+    async def request_validation(
+        self,
+        recipient_id: str,
+        validation_type: str,
+        data: Dict[str, Any],
+        timeout: float = 30.0,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        v16.0: 다른 에이전트에 검증 요청
+
+        Args:
+            recipient_id: 검증 요청할 에이전트 ID
+            validation_type: 검증 유형 (fk_validation, entity_validation 등)
+            data: 검증할 데이터
+            timeout: 응답 대기 시간 (초)
+
+        Returns:
+            검증 결과 또는 None (타임아웃)
+        """
+        if not self.agent_bus or not AGENT_BUS_AVAILABLE or not create_validation_request:
+            return None
+
+        try:
+            message = create_validation_request(
+                sender_id=self.agent_id,
+                validation_type=validation_type,
+                data=data,
+            )
+
+            response = await self.agent_bus.request(recipient_id, message, timeout)
+            if response:
+                logger.debug(f"[v16.0] Validation response received from {recipient_id}")
+                return response.content
+            return None
+
+        except Exception as e:
+            logger.warning(f"[v16.0] Failed to request validation: {e}")
+            return None
+
+    async def subscribe_to_topic(
+        self,
+        topic: str,
+        callback: callable,
+    ) -> Optional[str]:
+        """
+        v16.0: 토픽 구독 (Pub/Sub)
+
+        Args:
+            topic: 구독할 토픽 (예: "fk_detected", "entity_discovered")
+            callback: 메시지 수신 시 호출될 콜백 (async)
+
+        Returns:
+            구독 ID 또는 None
+        """
+        if not self.agent_bus or not AGENT_BUS_AVAILABLE:
+            return None
+
+        try:
+            subscription_id = await self.agent_bus.subscribe(
+                topic=topic,
+                subscriber_id=self.agent_id,
+                callback=callback,
+            )
+            logger.debug(f"[v16.0] Subscribed to topic: {topic}")
+            return subscription_id
+
+        except Exception as e:
+            logger.warning(f"[v16.0] Failed to subscribe to topic: {e}")
+            return None
+
+    async def publish_to_topic(
+        self,
+        topic: str,
+        content: Dict[str, Any],
+    ) -> int:
+        """
+        v16.0: 토픽에 메시지 발행
+
+        Args:
+            topic: 발행할 토픽
+            content: 메시지 내용
+
+        Returns:
+            전달된 구독자 수
+        """
+        if not self.agent_bus or not AGENT_BUS_AVAILABLE or not create_info_message:
+            return 0
+
+        try:
+            message = create_info_message(
+                sender_id=self.agent_id,
+                content=content,
+                topic=topic,
+            )
+            count = await self.agent_bus.publish(topic, message)
+            logger.debug(f"[v16.0] Published to topic {topic}: {count} subscribers")
+            return count
+
+        except Exception as e:
+            logger.warning(f"[v16.0] Failed to publish to topic: {e}")
+            return 0
+
+    async def check_messages(self, timeout: float = 0.1) -> Optional[Dict[str, Any]]:
+        """
+        v16.0: 대기 중인 메시지 확인
+
+        Args:
+            timeout: 대기 시간 (초)
+
+        Returns:
+            수신된 메시지 또는 None
+        """
+        if not self.agent_bus or not AGENT_BUS_AVAILABLE:
+            return None
+
+        try:
+            message = await self.agent_bus.receive(self.agent_id, timeout)
+            if message:
+                return message.to_dict()
+            return None
+
+        except Exception as e:
+            logger.warning(f"[v16.0] Failed to check messages: {e}")
+            return None
+
+    # === v22.0: Automatic Learning & Communication ===
+
+    def _record_task_experience(
+        self,
+        todo: "PipelineTodo",
+        result: "TodoResult",
+        execution_time: float,
+    ) -> None:
+        """v22.0: 작업 완료 후 자동 경험 기록 (Agent Learning System)"""
+        if not self.agent_memory or not AGENT_LEARNING_AVAILABLE:
+            return
+
+        try:
+            # agent_type → experience_type 매핑
+            exp_type_map = {
+                "data_analyst": "fk_detection",
+                "tda_expert": "relationship_inference",
+                "schema_analyst": "fk_detection",
+                "value_matcher": "fk_detection",
+                "entity_classifier": "entity_mapping",
+                "relationship_detector": "relationship_inference",
+                "ontology_architect": "ontology_generation",
+                "conflict_resolver": "conflict_resolution",
+                "quality_judge": "quality_assessment",
+                "semantic_validator": "validation",
+                "governance_strategist": "governance_decision",
+                "action_prioritizer": "governance_decision",
+                "risk_assessor": "governance_decision",
+                "policy_generator": "governance_decision",
+            }
+            exp_type = exp_type_map.get(self.agent_type, "agent_decision")
+
+            # output 요약 (너무 크면 잘라냄)
+            output_summary = {}
+            if isinstance(result.output, dict):
+                output_summary = {
+                    k: v for k, v in result.output.items()
+                    if not isinstance(v, (list, dict)) or (isinstance(v, list) and len(v) < 10)
+                }
+
+            outcome = "success" if result.success else "failure"
+
+            # AgentMemory.store_experience 직접 사용 (base의 record_experience보다 정확)
+            self.agent_memory.store_experience(
+                experience_type=ExperienceType(exp_type) if exp_type in [e.value for e in ExperienceType] else ExperienceType.AGENT_DECISION,
+                input_context={
+                    "task_name": todo.name,
+                    "task_description": todo.description[:200] if todo.description else "",
+                    "agent_type": self.agent_type,
+                },
+                agent_action=f"{self.agent_type}:{todo.name}",
+                outcome=Outcome(outcome) if outcome in [o.value for o in Outcome] else Outcome.UNKNOWN,
+                output_data=output_summary,
+                confidence=result.output.get("confidence", 0.7) if isinstance(result.output, dict) else 0.7,
+            )
+            logger.debug(f"[v22.0] Experience recorded: {self.agent_id} / {exp_type} / {outcome}")
+
+        except Exception as e:
+            logger.debug(f"[v22.0] Experience recording failed (non-critical): {e}")
+
+    async def _broadcast_task_result(
+        self,
+        todo: "PipelineTodo",
+        result: "TodoResult",
+    ) -> None:
+        """v22.0: 작업 완료 후 핵심 결과를 다른 에이전트에게 브로드캐스트 (Agent Bus)"""
+        if not self.agent_bus or not AGENT_BUS_AVAILABLE:
+            return
+        if not result.success:
+            return  # 실패한 작업은 브로드캐스트하지 않음
+
+        try:
+            # output에서 핵심 수치만 추출 (큰 데이터 제외)
+            broadcast_data = {}
+            if isinstance(result.output, dict):
+                broadcast_data = {
+                    k: v for k, v in result.output.items()
+                    if isinstance(v, (str, int, float, bool))
+                }
+
+            # context_updates 키 목록 (무엇이 업데이트되었는지만)
+            context_keys = list(result.context_updates.keys()) if result.context_updates else []
+
+            await self.broadcast_discovery(
+                discovery_type=f"{self.agent_type}_complete",
+                data={
+                    "agent_type": self.agent_type,
+                    "task_name": todo.name,
+                    "output_metrics": broadcast_data,
+                    "context_updates_keys": context_keys,
+                    "execution_time": result.execution_time_seconds,
+                },
+            )
+        except Exception as e:
+            logger.debug(f"[v22.0] Broadcast failed (non-critical): {e}")
+
+    # === v17.0: Unified Services Access Methods ===
+
+    def get_v17_service(self, service_name: str) -> Any:
+        """
+        v17.0: 통합 서비스 접근
+
+        Args:
+            service_name: 서비스 이름
+                - calibrator: ConfidenceCalibrator
+                - semantic_searcher: SemanticSearcher
+                - remediation_engine: RemediationEngine
+                - version_manager: VersionManager
+                - branch_manager: BranchManager
+                - osdk_client: OSDKClient
+                - writeback_engine: WritebackEngine
+                - decision_explainer: DecisionExplainer
+                - whatif_analyzer: WhatIfAnalyzer
+                - report_generator: ReportGenerator
+                - nl2sql_engine: NL2SQLEngine
+                - tool_registry: ToolRegistry
+                - streaming_reasoner: StreamingReasoner
+
+        Returns:
+            서비스 인스턴스 또는 None
+        """
+        return self.shared_context.get_v17_service(service_name)
+
+    def calibrate_confidence(
+        self,
+        raw_confidence: float,
+        record_evidence: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        v17.0: 신뢰도 보정 (v5.0 호환 인터페이스)
+
+        v17 Calibrator를 사용하되, v5.0과 동일한 반환 형식 유지.
+
+        Args:
+            raw_confidence: 원본 신뢰도 (0-1)
+            record_evidence: Evidence Chain에 기록 여부
+
+        Returns:
+            Dict with 'original', 'calibrated', 'confidence_interval'
+        """
+        # Type coercion: handle string/None input
+        try:
+            raw_confidence = float(raw_confidence) if raw_confidence is not None else 0.5
+        except (ValueError, TypeError):
+            raw_confidence = 0.5  # Default fallback
+
+        # Clamp to valid range
+        raw_confidence = max(0.0, min(1.0, raw_confidence))
+
+        calibrator = self.get_v17_service("calibrator")
+
+        if calibrator is None:
+            # v17 서비스 없으면 기본 반환
+            return {
+                "original": raw_confidence,
+                "calibrated": raw_confidence,
+                "temperature": 1.0,
+                "confidence_interval": (
+                    max(0, raw_confidence - 0.1),
+                    min(1, raw_confidence + 0.1),
+                ),
+            }
+
+        try:
+            result = calibrator.calibrate(
+                agent=self.agent_type,
+                raw_confidence=raw_confidence,
+                record_evidence=record_evidence,
+            )
+
+            # v5.0 호환 형식으로 변환
+            return {
+                "original": result.raw_confidence,
+                "calibrated": result.final_confidence,
+                "temperature": result.temperature_used,
+                "confidence_interval": (
+                    max(0, result.final_confidence - 0.1),
+                    min(1, result.final_confidence + 0.1),
+                ),
+                # v17.0 추가 정보
+                "v17_result": result.to_dict() if hasattr(result, "to_dict") else None,
+            }
+        except Exception as e:
+            logger.warning(f"[v17.0] Calibration failed: {e}, using raw confidence")
+            return {
+                "original": raw_confidence,
+                "calibrated": raw_confidence,
+                "temperature": 1.0,
+                "confidence_interval": (
+                    max(0, raw_confidence - 0.1),
+                    min(1, raw_confidence + 0.1),
+                ),
+            }
+
+    async def semantic_search(
+        self,
+        query: str,
+        limit: int = 10,
+        tables: Optional[List[str]] = None,
+        expand_query: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """
+        v17.0: 시맨틱 검색
+
+        Args:
+            query: 검색 쿼리
+            limit: 최대 결과 수
+            tables: 검색할 테이블 (None이면 전체)
+            expand_query: LLM으로 쿼리 확장 여부
+
+        Returns:
+            검색 결과 목록
+        """
+        searcher = self.get_v17_service("semantic_searcher")
+
+        if searcher is None:
+            logger.debug(f"[v17.0] SemanticSearcher not available")
+            return []
+
+        try:
+            results = await searcher.search(
+                query=query,
+                limit=limit,
+                tables=tables,
+                expand_query=expand_query,
+            )
+            return [r.to_dict() for r in results]
+        except Exception as e:
+            logger.warning(f"[v17.0] Semantic search failed: {e}")
+            return []
+
+    async def auto_remediate(
+        self,
+        table: str,
+        issue_types: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        v17.0: 데이터 품질 자동 수정
+
+        Args:
+            table: 테이블 이름
+            issue_types: 처리할 이슈 유형
+
+        Returns:
+            수정 결과 요약
+        """
+        engine = self.get_v17_service("remediation_engine")
+
+        if engine is None:
+            logger.debug(f"[v17.0] RemediationEngine not available")
+            return {"actions_taken": 0, "issues_fixed": 0}
+
+        try:
+            result = await engine.remediate(
+                table=table,
+                auto_approve=True,
+                issue_types=issue_types,
+            )
+            return result.to_dict() if hasattr(result, "to_dict") else {}
+        except Exception as e:
+            logger.warning(f"[v17.0] Auto-remediation failed: {e}")
+            return {"actions_taken": 0, "issues_fixed": 0, "error": str(e)}
+
+    def commit_version(self, message: str) -> Optional[str]:
+        """
+        v17.0: 버전 커밋
+
+        Args:
+            message: 커밋 메시지
+
+        Returns:
+            버전 ID 또는 None
+        """
+        version_manager = self.get_v17_service("version_manager")
+
+        if version_manager is None:
+            return None
+
+        try:
+            return version_manager.commit(
+                message=message,
+                author=self.agent_type,
+            )
+        except Exception as e:
+            logger.warning(f"[v17.0] Version commit failed: {e}")
+            return None
 
     def _init_llm_client(self):
         """LLM 클라이언트 초기화"""
@@ -507,6 +1164,12 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
             result.execution_time_seconds = execution_time
             result.agent_id = self.agent_id
 
+            # v22.0: Agent Learning — 경험 기록 (성공/실패 모두)
+            self._record_task_experience(todo, result, execution_time)
+
+            # v22.0: Agent Communication Bus — 핵심 결과 브로드캐스트
+            await self._broadcast_task_result(todo, result)
+
             # 성공 처리
             if result.success:
                 # v14.0: Evidence 기록 여부 검증 및 terminate_mode 설정
@@ -555,6 +1218,8 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
 
         except Exception as e:
             # 예외 처리
+            import traceback
+            traceback.print_exc()
             logger.error(f"Agent {self.agent_id} error: {e}", exc_info=True)
 
             execution_time = time.time() - start_time
@@ -617,6 +1282,7 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
         max_tokens: int = 2000,
         purpose: str = None,
         thinking_before: str = None,
+        model_override: str = None,
     ) -> str:
         """
         LLM 호출
@@ -627,13 +1293,21 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
             max_tokens: 최대 토큰
             purpose: LLM 호출 목적 (예: "entity classification")
             thinking_before: 호출 전 에이전트의 사고 과정
+            model_override: v22.1 — 모델 타입 직접 지정 ("high_context" 등).
+                           지정 시 에이전트 기본 모델 대신 해당 모델 사용.
 
         Returns:
             LLM 응답
         """
-        from ..model_config import get_agent_model
+        from ..model_config import get_agent_model, get_model, ModelType
 
-        model = get_agent_model(self.agent_type)
+        if model_override:
+            try:
+                model = get_model(ModelType(model_override))
+            except ValueError:
+                model = model_override  # 모델 이름 직접 전달도 허용
+        else:
+            model = get_agent_model(self.agent_type)
 
         # LLM 클라이언트가 없으면 빈 JSON 응답 반환 (알고리즘 우선 모드)
         if self.llm_client is None:
@@ -656,11 +1330,94 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
                     phase=self.phase,
                 )
 
-            response = chat_completion(
+            # v22.0: Few-shot learning — 유사 경험을 프롬프트에 추가
+            enriched_prompt = user_prompt
+            if self.agent_memory and AGENT_LEARNING_AVAILABLE:
+                try:
+                    few_shot = self.agent_memory.get_few_shot_examples(
+                        experience_type=ExperienceType.AGENT_DECISION,
+                        n=2,
+                        only_success=True,
+                    )
+                    if few_shot:
+                        examples_text = "\n".join(
+                            f"- Prior: {exp.agent_action} → {exp.outcome.value}" +
+                            (f" (confidence: {exp.confidence_score:.2f})" if exp.confidence_score else "")
+                            for exp in few_shot
+                        )
+                        enriched_prompt = f"{user_prompt}\n\n[Historical context from similar tasks]\n{examples_text}"
+                except Exception:
+                    pass  # Few-shot 실패해도 원본 프롬프트로 진행
+
+            # v22.0: Agent Bus — 다른 에이전트 메시지를 컨텍스트에 추가
+            bus_context = ""
+            if self.agent_bus and AGENT_BUS_AVAILABLE:
+                try:
+                    pending_count = self.agent_bus.get_pending_messages(self.agent_id)
+                    if pending_count > 0:
+                        messages_text = []
+                        for _ in range(min(pending_count, 5)):
+                            msg = await self.agent_bus.receive(self.agent_id, timeout=0.1)
+                            if msg:
+                                sender = msg.sender_id
+                                content_summary = str(msg.content)[:300]
+                                messages_text.append(f"- From {sender}: {content_summary}")
+                        if messages_text:
+                            bus_context = "\n\n[Inter-agent communications]\n" + "\n".join(messages_text)
+                except Exception:
+                    pass  # Bus 실패해도 진행
+
+            # v22.0: v17 서비스 컨텍스트 자동 주입 — 모든 에이전트가 v17 정보 활용
+            v17_context = ""
+            if self.shared_context:
+                try:
+                    v17_services = self.shared_context.get_dynamic("_v17_services", {})
+                    v17_parts = []
+
+                    # Calibration 요약
+                    calibrator = v17_services.get("calibrator")
+                    if calibrator:
+                        try:
+                            cal_summary = calibrator.get_calibration_summary()
+                            if cal_summary.get("total_calibrations", 0) > 0:
+                                v17_parts.append(f"- Calibration: {cal_summary.get('total_calibrations', 0)} calibrations tracked")
+                        except Exception:
+                            pass
+
+                    # Semantic search 가용 여부
+                    if v17_services.get("semantic_searcher"):
+                        v17_parts.append("- Semantic search: available for entity lookup")
+
+                    # Remediation 상태
+                    if v17_services.get("remediation_engine"):
+                        v17_parts.append("- Auto-remediation: active for data quality issues")
+
+                    # Version 상태
+                    version_mgr = v17_services.get("version_manager")
+                    if version_mgr:
+                        try:
+                            history = version_mgr.log(limit=1)
+                            if history:
+                                v17_parts.append(f"- Versioning: {len(history)} commits tracked")
+                        except Exception:
+                            pass
+
+                    if v17_parts:
+                        v17_context = "\n\n[v17 Platform Services]\n" + "\n".join(v17_parts)
+                except Exception:
+                    pass
+
+            final_prompt = enriched_prompt + bus_context + v17_context
+
+            # v18.0: asyncio.to_thread로 블로킹 LLM 호출을 스레드 풀에서 실행
+            # 이렇게 하면 이벤트 루프가 블로킹되지 않아 WebSocket ping에 응답 가능
+            import asyncio
+            response = await asyncio.to_thread(
+                chat_completion,
                 model=model,
                 messages=[
                     {"role": "system", "content": self.get_full_system_prompt()},  # v9.1: 프로젝트 컨텍스트 포함
-                    {"role": "user", "content": user_prompt},
+                    {"role": "user", "content": final_prompt},
                 ],
                 max_tokens=max_tokens,
                 temperature=temperature,
@@ -710,6 +1467,7 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
         purpose: str = None,
         thinking_before: str = None,
         request_completion_signal: bool = True,  # v14.0: 완료 시그널 요청 여부
+        model_override: str = None,  # v22.1: 모델 오버라이드
     ) -> str:
         """
         컨텍스트와 함께 LLM 호출
@@ -722,6 +1480,7 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
             purpose: LLM 호출 목적
             thinking_before: 호출 전 에이전트의 사고 과정
             request_completion_signal: v14.0 - 완료 시그널 요청 여부 (기본값: True)
+            model_override: v22.1 - 모델 타입 직접 지정 ("high_context" 등)
 
         Returns:
             LLM 응답
@@ -767,7 +1526,7 @@ Your detailed analysis here...
 ```
 {completion_signal_suffix}
 """
-        return await self.call_llm(user_prompt, temperature, max_tokens, purpose=purpose, thinking_before=thinking_before)
+        return await self.call_llm(user_prompt, temperature, max_tokens, purpose=purpose, thinking_before=thinking_before, model_override=model_override)
 
     async def call_llm_structured(
         self,
@@ -821,7 +1580,10 @@ Your detailed analysis here...
                     phase=self.phase,
                 )
 
-            result = instructor_call(
+            # v18.0: asyncio.to_thread로 블로킹 LLM 호출을 스레드 풀에서 실행
+            import asyncio
+            result = await asyncio.to_thread(
+                instructor_call,
                 response_model=response_model,
                 messages=messages,
                 model=model,
@@ -1227,6 +1989,33 @@ Choose the most appropriate signal based on your analysis confidence."""
             self._evidence_recorded_for_current_task = True
 
             logger.debug(f"Evidence recorded: {block.block_id} ({self.agent_name})")
+
+            # === v22.0: Agent Bus로 Evidence 브로드캐스트 ===
+            # 다른 에이전트들이 새로운 근거를 실시간으로 인지할 수 있도록 함
+            try:
+                if hasattr(self, '_agent_bus') and self._agent_bus is not None:
+                    import asyncio
+                    message = {
+                        "block_id": block.block_id,
+                        "agent_id": self.agent_id,
+                        "agent_name": self.agent_name,
+                        "phase": phase,
+                        "evidence_type": str(evidence_type),
+                        "finding_summary": finding[:100] if finding else "",
+                        "confidence": confidence,
+                        "topics": topics or [],
+                    }
+                    # Non-blocking fire-and-forget: schedule if event loop running
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(self._agent_bus.publish("evidence.recorded", message))
+                    except RuntimeError:
+                        # No event loop - use sync queue if available
+                        if hasattr(self._agent_bus, 'queue_message'):
+                            self._agent_bus.queue_message("evidence.recorded", message)
+            except Exception as bus_err:
+                logger.debug(f"[v22.0] Evidence broadcast skipped: {bus_err}")
+
             return block.block_id
 
         except Exception as e:

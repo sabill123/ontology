@@ -1,9 +1,9 @@
 # 지식 그래프 다이어그램
 
-> **버전**: v14.0
-> **최종 업데이트**: 2026-01-19
+> **버전**: v1.0
+> **최종 업데이트**: 2026-01-27
 
-## 1. 지식 그래프 엔진 구조
+## 1. 지식 그래프 엔진 구조 (v1.0)
 
 ```mermaid
 graph TB
@@ -33,24 +33,40 @@ graph TB
         end
     end
 
+    subgraph SEMANTIC["Semantic Reasoning v1.0"]
+        OWL[OWL2 Axioms]
+        SHACL[SHACL Shapes]
+    end
+
+    subgraph LINEAGE["Column Lineage v1.0"]
+        LIN[LineageTracker]
+        IMP[Impact Analysis]
+    end
+
     subgraph OPERATIONS["Operations"]
         O1[Path Finding]
         O2[Subgraph Extraction]
         O3[Community Detection]
         O4[Graph Reasoning]
+        O5[OWL2 Inference v1.0]
+        O6[SHACL Validation v1.0]
     end
 
     ENTITIES --> GRAPH
     RELATIONS --> GRAPH
     GRAPH --> COMMUNITIES
     GRAPH --> OPERATIONS
+    GRAPH --> SEMANTIC
+    GRAPH --> LINEAGE
 
     style ENTITIES fill:#e8f5e9
     style RELATIONS fill:#e3f2fd
     style COMMUNITIES fill:#fff3e0
+    style SEMANTIC fill:#f3e5f5
+    style LINEAGE fill:#b2dfdb
 ```
 
-## 2. 엔티티 타입
+## 2. 엔티티 타입 (v1.0)
 
 ```mermaid
 graph TB
@@ -85,13 +101,28 @@ graph TB
         I3[PREDICTIVE_INSIGHT]
     end
 
+    subgraph SEMANTIC["Semantic Entities v1.0"]
+        SE1[OWL_CLASS]
+        SE2[OWL_PROPERTY]
+        SE3[SHACL_SHAPE]
+        SE4[AXIOM]
+    end
+
+    subgraph LINEAGE["Lineage Entities v1.0"]
+        LE1[COLUMN_NODE]
+        LE2[TRANSFORMATION]
+        LE3[IMPACT_SCOPE]
+    end
+
     style SCHEMA fill:#e3f2fd
     style BUSINESS fill:#e8f5e9
     style DIMENSIONAL fill:#fff3e0
     style INSIGHT fill:#c8e6c9
+    style SEMANTIC fill:#f3e5f5
+    style LINEAGE fill:#b2dfdb
 ```
 
-## 3. 관계 타입
+## 3. 관계 타입 (v1.0)
 
 ```mermaid
 graph LR
@@ -101,6 +132,12 @@ graph LR
         SR3[HOMEOMORPHIC_TO]
         SR4[FK_REFERENCE]
         SR5[DEPENDS_ON]
+    end
+
+    subgraph ADVANCED_FK["Advanced FK Relations v1.0"]
+        AF1[COMPOSITE_FK<br/>Multi-column]
+        AF2[HIERARCHICAL_FK<br/>Self-referencing]
+        AF3[TEMPORAL_FK<br/>Time-based]
     end
 
     subgraph TRANSACTIONAL["Transactional Relations"]
@@ -118,19 +155,198 @@ graph LR
         CR4[COMPLEMENTS]
     end
 
-    subgraph LINEAGE["Data Lineage Relations"]
+    subgraph SEMANTIC_REL["Semantic Relations v1.0"]
+        SER1[SUBCLASS_OF]
+        SER2[EQUIVALENT_TO]
+        SER3[DISJOINT_WITH]
+        SER4[HAS_DOMAIN]
+        SER5[HAS_RANGE]
+        SER6[INVERSE_OF]
+    end
+
+    subgraph LINEAGE_REL["Lineage Relations v1.0"]
         LR1[DERIVED_FROM]
-        LR2[MAPS_TO]
-        LR3[EQUIVALENT_TO]
+        LR2[AGGREGATED_FROM]
+        LR3[FILTERED_FROM]
+        LR4[TRANSFORMED_BY]
+        LR5[AFFECTS]
     end
 
     style SCHEMA_REL fill:#e3f2fd
+    style ADVANCED_FK fill:#c8e6c9
     style TRANSACTIONAL fill:#e8f5e9
     style CORRELATION fill:#c8e6c9
-    style LINEAGE fill:#fce4ec
+    style SEMANTIC_REL fill:#f3e5f5
+    style LINEAGE_REL fill:#b2dfdb
 ```
 
-## 4. Supply Chain 예시 그래프
+## 4. OWL2 Ontology Structure (v1.0)
+
+```mermaid
+graph TB
+    subgraph OWL2["OWL2 Ontology"]
+        subgraph CLASSES["Class Hierarchy"]
+            CLS1[Thing]
+            CLS2[Entity]
+            CLS3[Relationship]
+            CLS4[Concept]
+
+            CLS1 --> CLS2 & CLS3 & CLS4
+        end
+
+        subgraph AXIOMS["Axiom Types"]
+            AX1[SubClassOf]
+            AX2[EquivalentClass]
+            AX3[DisjointClasses]
+            AX4[ClassAssertion]
+        end
+
+        subgraph PROPERTIES["Property Types"]
+            PR1[ObjectProperty]
+            PR2[DataProperty]
+            PR3[AnnotationProperty]
+        end
+
+        subgraph RESTRICTIONS["Property Restrictions"]
+            RS1[Domain]
+            RS2[Range]
+            RS3[Cardinality]
+            RS4[Transitivity]
+            RS5[Inverse]
+        end
+    end
+
+    CLASSES --> AXIOMS
+    AXIOMS --> PROPERTIES
+    PROPERTIES --> RESTRICTIONS
+
+    style OWL2 fill:#f3e5f5
+    style AXIOMS fill:#e1bee7
+    style RESTRICTIONS fill:#fce4ec
+```
+
+## 5. SHACL Shapes Structure (v1.0)
+
+```mermaid
+graph TB
+    subgraph SHACL["SHACL Shapes Graph"]
+        subgraph NODE_SHAPES["NodeShape"]
+            NS1[CustomerShape]
+            NS2[OrderShape]
+            NS3[ProductShape]
+        end
+
+        subgraph PROP_SHAPES["PropertyShape"]
+            PS1[sh:datatype]
+            PS2[sh:minCount]
+            PS3[sh:maxCount]
+            PS4[sh:pattern]
+            PS5[sh:minValue]
+            PS6[sh:maxValue]
+            PS7[sh:in]
+        end
+
+        subgraph TARGETS["Target Types"]
+            TG1[sh:targetClass]
+            TG2[sh:targetNode]
+            TG3[sh:targetSubjectsOf]
+        end
+
+        subgraph SEVERITY["Severity Levels"]
+            SV1[sh:Violation]
+            SV2[sh:Warning]
+            SV3[sh:Info]
+        end
+    end
+
+    NODE_SHAPES --> PROP_SHAPES
+    NODE_SHAPES --> TARGETS
+    PROP_SHAPES --> SEVERITY
+
+    style SHACL fill:#f3e5f5
+    style NODE_SHAPES fill:#e1bee7
+    style PROP_SHAPES fill:#fce4ec
+```
+
+## 6. Column Lineage Graph (v1.0)
+
+```mermaid
+graph TB
+    subgraph SOURCE["Source Columns"]
+        S1((orders.customer_id<br/>SOURCE))
+        S2((orders.amount<br/>SOURCE))
+        S3((customers.name<br/>SOURCE))
+    end
+
+    subgraph DERIVED["Derived Columns"]
+        D1((sales.customer_id<br/>DERIVED))
+        D2((summary.total_amount<br/>AGGREGATE))
+        D3((report.customer_name<br/>DIRECT))
+    end
+
+    subgraph EDGE_TYPES["Edge Types"]
+        E1[DIRECT - Identity]
+        E2[AGGREGATED - SUM/AVG/COUNT]
+        E3[FILTERED - WHERE clause]
+        E4[DERIVED - Calculation]
+    end
+
+    S1 -->|DIRECT| D1
+    S2 -->|AGGREGATED| D2
+    S3 -->|DIRECT| D3
+
+    style SOURCE fill:#bbdefb
+    style DERIVED fill:#c8e6c9
+    style EDGE_TYPES fill:#fff9c4
+```
+
+## 7. Impact Analysis Flow (v1.0)
+
+```mermaid
+flowchart TB
+    subgraph INPUT["Changed Column"]
+        I1[customers.email<br/>Schema Change]
+    end
+
+    subgraph UPSTREAM["Upstream Impact"]
+        U1["What affects this column?"]
+        U2[Source Tables]
+        U3[ETL Processes]
+    end
+
+    subgraph DOWNSTREAM["Downstream Impact"]
+        D1["What does this column affect?"]
+        D2[Derived Columns<br/>3 affected]
+        D3[Reports<br/>2 affected]
+        D4[API Endpoints<br/>1 affected]
+    end
+
+    subgraph ANALYSIS["Impact Score"]
+        A1["Total Affected: 6"]
+        A2["Critical: 2"]
+        A3["High: 3"]
+        A4["Low: 1"]
+    end
+
+    subgraph OUTPUT["Impact Report"]
+        O1[affected_columns]
+        O2[affected_reports]
+        O3[recommended_actions]
+    end
+
+    INPUT --> UPSTREAM & DOWNSTREAM
+    U1 --> U2 --> U3
+    D1 --> D2 & D3 & D4
+    D2 & D3 & D4 --> ANALYSIS
+    ANALYSIS --> OUTPUT
+
+    style INPUT fill:#ffebee
+    style UPSTREAM fill:#e3f2fd
+    style DOWNSTREAM fill:#fff3e0
+    style ANALYSIS fill:#c8e6c9
+```
+
+## 8. Supply Chain 예시 그래프 (v1.0)
 
 ```mermaid
 graph TB
@@ -163,6 +379,15 @@ graph TB
         PI1((Capacity-Weight<br/>Correlation))
     end
 
+    subgraph OWL_AXIOMS["OWL2 Axioms v1.0"]
+        OA1{{SubClassOf<br/>Order → Transaction}}
+        OA2{{DisjointClasses<br/>Supplier ⊥ Customer}}
+    end
+
+    subgraph LINEAGE["Column Lineage v1.0"]
+        LN1[orders.amount → summary.total]
+    end
+
     SUP1 -->|SUPPLIES| PRD1
     SUP1 -->|SUPPLIES| PRD2
     SUP2 -->|SUPPLIES| PRD2
@@ -180,6 +405,9 @@ graph TB
     WH1 -->|CORRELATES_WITH| PI1
     PRD1 -->|IMPACTS| PI1
 
+    ORD1 -.->|INSTANCE_OF| OA1
+    SUP1 -.->|INSTANCE_OF| OA2
+
     style SUP1 fill:#bbdefb
     style SUP2 fill:#bbdefb
     style PRD1 fill:#c8e6c9
@@ -191,89 +419,11 @@ graph TB
     style WH1 fill:#ffccbc
     style WH2 fill:#ffccbc
     style PI1 fill:#b2dfdb
+    style OA1 fill:#f3e5f5
+    style OA2 fill:#f3e5f5
 ```
 
-## 5. 커뮤니티 탐지
-
-```mermaid
-graph TB
-    subgraph FULL["Full Knowledge Graph"]
-        N1((N1))
-        N2((N2))
-        N3((N3))
-        N4((N4))
-        N5((N5))
-        N6((N6))
-        N7((N7))
-        N8((N8))
-
-        N1 --- N2
-        N1 --- N3
-        N2 --- N3
-        N4 --- N5
-        N4 --- N6
-        N5 --- N6
-        N3 --- N4
-        N7 --- N8
-    end
-
-    subgraph COMMUNITIES["Detected Communities"]
-        subgraph C1["Community 0<br/>Supply Chain"]
-            C1N1((N1))
-            C1N2((N2))
-            C1N3((N3))
-        end
-
-        subgraph C2["Community 1<br/>Logistics"]
-            C2N4((N4))
-            C2N5((N5))
-            C2N6((N6))
-        end
-
-        subgraph C3["Community 2<br/>Finance"]
-            C3N7((N7))
-            C3N8((N8))
-        end
-    end
-
-    FULL -->|Louvain<br/>Algorithm| COMMUNITIES
-
-    style C1 fill:#bbdefb
-    style C2 fill:#c8e6c9
-    style C3 fill:#fff9c4
-```
-
-## 6. 경로 탐색
-
-```mermaid
-flowchart LR
-    subgraph QUERY["Query: Supplier X → Warehouse Y?"]
-        Q[Find Paths<br/>max_hops=3]
-    end
-
-    subgraph GRAPH["Graph Traversal"]
-        A((Supplier X))
-        B((Product A))
-        C((Order 1))
-        D((Warehouse Y))
-
-        A -->|SUPPLIES| B
-        B -->|IN_ORDER| C
-        C -->|SHIPS_TO| D
-    end
-
-    subgraph RESULT["Found Paths"]
-        P1["Path 1: Supplier X → Product A → Order 1 → Warehouse Y<br/>Hops: 3, Confidence: 0.85"]
-    end
-
-    Q --> GRAPH
-    GRAPH --> RESULT
-
-    style A fill:#bbdefb
-    style D fill:#c8e6c9
-```
-
-## 7. 데이터 구조
+## 9. 데이터 구조 (v1.0)
 
 ```mermaid
 classDiagram
@@ -288,6 +438,8 @@ classDiagram
         +String created_at
         +List embeddings
         +Int community_id
+        +List owl2_axioms v1.0
+        +String shacl_shape_id v1.0
         +to_dict() Dict
         +from_dict(data) KGEntity
     }
@@ -302,22 +454,48 @@ classDiagram
         +Float confidence
         +String source_evidence
         +String created_at
+        +String fk_type v1.0
         +to_dict() Dict
         +from_dict(data) KGRelation
     }
 
-    class KGCommunity {
-        +Int id
-        +String name
-        +String description
-        +List entity_ids
-        +String summary
-        +List key_entities
-        +List key_relations
-        +Int level
-        +Int parent_id
-        +size() Int
-        +to_dict() Dict
+    class OWL2Axiom {
+        +String axiom_id
+        +AxiomType axiom_type
+        +List subject_classes
+        +List object_classes
+        +String property
+        +Float confidence
+        +Dict restrictions
+        +to_owl2_syntax() String
+    }
+
+    class SHACLShape {
+        +String shape_id
+        +String target_class
+        +List property_shapes
+        +Bool is_closed
+        +List constraints
+        +validate(data) ValidationReport
+    }
+
+    class ColumnNode {
+        +String node_id
+        +String table_name
+        +String column_name
+        +ColumnType column_type
+        +List upstream_edges
+        +List downstream_edges
+        +get_impact_scope() ImpactAnalysis
+    }
+
+    class LineageEdge {
+        +String edge_id
+        +String source_node_id
+        +String target_node_id
+        +LineageEdgeType edge_type
+        +String transformation
+        +Float confidence
     }
 
     class KnowledgeGraph {
@@ -326,65 +504,72 @@ classDiagram
         +Dict entities
         +Dict relations
         +Dict communities
+        +Dict owl2_axioms v1.0
+        +Dict shacl_shapes v1.0
+        +LineageTracker lineage v1.0
         +add_entity(entity) String
         +add_relation(relation) String
+        +add_axiom(axiom) String
+        +add_shape(shape) String
         +find_paths(src, tgt) List
         +get_neighbors(id, hops) Set
         +extract_subgraph(ids) KnowledgeGraph
         +detect_communities() Dict
+        +infer_axioms() List
+        +validate_shapes() ValidationReport
         +to_json() String
     }
 
     KnowledgeGraph "1" *-- "*" KGEntity
     KnowledgeGraph "1" *-- "*" KGRelation
-    KnowledgeGraph "1" *-- "*" KGCommunity
+    KnowledgeGraph "1" *-- "*" OWL2Axiom
+    KnowledgeGraph "1" *-- "*" SHACLShape
+    KnowledgeGraph "1" *-- "1" LineageTracker
+    LineageTracker "1" *-- "*" ColumnNode
+    LineageTracker "1" *-- "*" LineageEdge
 ```
 
-## 8. Cross-Entity Correlation 통합 (v10.0)
+## 10. 그래프 통계 (v1.0)
+
+```mermaid
+pie title Entity Distribution v1.0
+    "SUPPLIER" : 15
+    "CUSTOMER" : 25
+    "PRODUCT" : 40
+    "ORDER" : 60
+    "WAREHOUSE" : 8
+    "CORRELATION" : 12
+    "OWL_CLASS" : 18
+    "SHACL_SHAPE" : 14
+    "COLUMN_NODE" : 45
+    "OTHER" : 20
+```
+
+```mermaid
+pie title Relation Distribution v1.0
+    "SUPPLIES" : 45
+    "ORDERS_FROM" : 60
+    "SHIPS_TO" : 35
+    "CONTAINS" : 80
+    "CORRELATES_WITH" : 25
+    "IMPACTS" : 15
+    "SUBCLASS_OF" : 30
+    "DERIVED_FROM" : 55
+    "OTHER" : 30
+```
+
+## 11. 그래프 직렬화 (v1.0)
 
 ```mermaid
 flowchart TB
-    subgraph INPUT["Correlation Analysis"]
-        I1["Pearson Correlation"]
-        I2["Threshold Effects"]
-        I3["Segment Analysis"]
-    end
-
-    subgraph KG_INTEGRATION["Knowledge Graph Integration"]
-        K1["Correlation Entity 생성"]
-        K2["CORRELATES_WITH 관계 추가"]
-        K3["IMPACTS 관계 추가"]
-        K4["PREDICTS 관계 추가"]
-    end
-
-    subgraph OUTPUT["Enhanced Graph"]
-        O1["Entity: Daily_Capacity"]
-        O2["Entity: Max_Weight"]
-        O3["Relation: CORRELATES_WITH<br/>r=0.527, p<0.05"]
-        O4["Entity: Threshold_Effect<br/>31.5 threshold"]
-    end
-
-    I1 --> K1
-    I2 --> K1
-    I3 --> K1
-    K1 --> K2 & K3 & K4
-    K2 --> O1 & O2 & O3
-    K3 --> O4
-
-    style INPUT fill:#e3f2fd
-    style KG_INTEGRATION fill:#fff3e0
-    style OUTPUT fill:#c8e6c9
-```
-
-## 9. 그래프 직렬화
-
-```mermaid
-flowchart TB
-    subgraph KG["Knowledge Graph Object"]
+    subgraph KG["Knowledge Graph Object v1.0"]
         KG1[entities: Dict]
         KG2[relations: Dict]
         KG3[communities: Dict]
         KG4[graph: NetworkX]
+        KG5[owl2_axioms: Dict]
+        KG6[shacl_shapes: Dict]
+        KG7[lineage: LineageTracker]
     end
 
     subgraph JSON["JSON Serialization"]
@@ -393,13 +578,17 @@ flowchart TB
         J3["entities: [...]"]
         J4["relations: [...]"]
         J5["communities: [...]"]
-        J6["statistics: {...}"]
+        J6["owl2_axioms: [...]"]
+        J7["shacl_shapes: [...]"]
+        J8["lineage: {...}"]
+        J9["statistics: {...}"]
     end
 
     subgraph STORAGE["Storage Options"]
         S1[(ontology.json)]
-        S2[(Knowledge Graph DB)]
-        S3[(Neo4j Export)]
+        S2[(lineage.json)]
+        S3[(Knowledge Graph DB)]
+        S4[(Neo4j Export)]
     end
 
     KG --> |to_json| JSON
@@ -408,28 +597,5 @@ flowchart TB
 
     style KG fill:#e8f5e9
     style JSON fill:#e3f2fd
-```
-
-## 10. 그래프 통계
-
-```mermaid
-pie title Entity Distribution
-    "SUPPLIER" : 15
-    "CUSTOMER" : 25
-    "PRODUCT" : 40
-    "ORDER" : 60
-    "WAREHOUSE" : 8
-    "CORRELATION" : 12
-    "OTHER" : 20
-```
-
-```mermaid
-pie title Relation Distribution
-    "SUPPLIES" : 45
-    "ORDERS_FROM" : 60
-    "SHIPS_TO" : 35
-    "CONTAINS" : 80
-    "CORRELATES_WITH" : 25
-    "IMPACTS" : 15
-    "OTHER" : 30
+    style STORAGE fill:#fff3e0
 ```

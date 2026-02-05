@@ -1,0 +1,11 @@
+product_id,product_name,product_category,bom_id,unit_cost,cycle_time_minutes,quality_target,weight_kg,dimensions_mm
+PROD001,V8 Engine Assembly,engine,BOM001,2500.00,45,99.5,250.0,800x600x550
+PROD002,6-Speed Transmission,transmission,BOM002,1800.00,60,99.8,85.0,450x350x300
+PROD003,Proximity Sensor Module,sensor,BOM003,45.00,5,99.9,0.2,50x30x20
+PROD004,Door Panel Assembly,body_panel,BOM004,320.00,15,99.2,12.5,1200x800x50
+PROD005,Main Wiring Harness,wiring,BOM005,180.00,8,99.7,3.5,2000x100x50
+PROD006,Precision Gear Set,precision_part,BOM006,850.00,25,99.95,5.8,200x150x100
+PROD007,Plastic Dashboard Cover,plastic_part,BOM007,65.00,3,98.5,2.2,600x400x80
+PROD008,Metallic Paint Assembly,painted_part,BOM008,420.00,20,99.0,15.0,1000x600x100
+PROD009,Connector Housing,plastic_part,BOM009,12.00,2,99.5,0.1,40x25x15
+PROD010,Standard Bracket,general_part,BOM010,8.50,1,98.0,0.3,100x50x30

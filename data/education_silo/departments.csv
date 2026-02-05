@@ -1,0 +1,7 @@
+department_id,department_name,college,building,phone,head_professor_id,budget,established_year
+DEPT001,Computer Science,Engineering,Science Building,555-4001,PROF001,2500000.00,1985
+DEPT002,Business Administration,Business,Business Building,555-4002,PROF008,3200000.00,1960
+DEPT003,Civil Engineering,Engineering,Engineering Hall,555-4003,PROF003,2800000.00,1955
+DEPT004,Biology,Sciences,Life Sciences Center,555-4004,PROF004,2200000.00,1950
+DEPT005,Physics,Sciences,Physics Building,555-4005,PROF005,1900000.00,1948
+DEPT006,English,Humanities,Humanities Hall,555-4006,PROF006,1500000.00,1945

@@ -18,6 +18,10 @@ import json
 # Import DomainContext
 from .domain import DomainContext, DEFAULT_DOMAIN_CONTEXT
 
+# v17.0: Type hints for new features
+if TYPE_CHECKING:
+    from .calibration import ConfidenceCalibrator, CalibrationConfig
+
 
 class StageType(str, Enum):
     """파이프라인 스테이지 유형"""
@@ -225,6 +229,68 @@ class SharedContext:
     evidence_chain: Any = None  # EvidenceChain 인스턴스
     evidence_registry: Any = None  # EvidenceRegistry 인스턴스
     evidence_based_debate_results: Dict[str, Any] = field(default_factory=dict)  # v11.0 토론 결과
+
+    # === v17.0: Palantir-style Features ===
+    # Dataset Versioning (Git-style)
+    dataset_versions: Dict[str, List[str]] = field(default_factory=dict)  # dataset_id -> [version_ids]
+    current_dataset_version: Optional[str] = None  # 현재 체크아웃된 버전
+    dataset_snapshots: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # version_id -> snapshot_data
+
+    # Branching & Merging
+    branches: Dict[str, List[str]] = field(default_factory=dict)  # branch_name -> [commit_ids]
+    current_branch: str = "main"
+    merge_history: List[Dict[str, Any]] = field(default_factory=list)
+
+    # OSDK (Ontology SDK)
+    osdk_object_types: Dict[str, Any] = field(default_factory=dict)  # type_id -> ObjectType definition
+    osdk_link_types: Dict[str, Any] = field(default_factory=dict)  # link_id -> LinkType definition
+    osdk_instances: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)  # type_id -> [instances]
+
+    # Writeback
+    writeback_history: List[Dict[str, Any]] = field(default_factory=list)  # 변경 이력
+    pending_writebacks: List[Dict[str, Any]] = field(default_factory=list)  # 대기 중인 변경
+
+    # NL2SQL
+    nl2sql_schema_context: Optional[Dict[str, Any]] = None  # 스키마 컨텍스트 캐시
+    nl2sql_conversation_history: List[Dict[str, Any]] = field(default_factory=list)  # 대화 이력
+
+    # Real-time Streaming
+    streaming_insights: List[Dict[str, Any]] = field(default_factory=list)  # 실시간 인사이트
+    active_event_triggers: List[Dict[str, Any]] = field(default_factory=list)  # 활성 트리거
+
+    # Confidence Calibration
+    confidence_calibrator: Any = None  # ConfidenceCalibrator 인스턴스
+    calibration_history: List[Dict[str, Any]] = field(default_factory=list)  # 보정 이력
+
+    # Semantic Search
+    vector_index_status: Dict[str, Any] = field(default_factory=dict)  # 벡터 인덱스 상태
+    entity_embeddings: Dict[str, List[float]] = field(default_factory=dict)  # 엔티티 임베딩 캐시
+
+    # What-If Analysis
+    simulation_scenarios: List[Dict[str, Any]] = field(default_factory=list)  # 시뮬레이션 시나리오
+    scenario_results: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # 시나리오 결과
+
+    # === v17.1: Unified Integration (Palantir-style 연결) ===
+    # 모든 기능의 결과가 서로 연결되어 참조할 수 있음
+
+    # Unified Insight Pipeline (Algorithm → Simulation → LLM)
+    unified_insights_pipeline: List[Dict[str, Any]] = field(default_factory=list)  # 통합 인사이트
+
+    # Cross-component references (컴포넌트 간 참조)
+    component_references: Dict[str, Dict[str, List[str]]] = field(default_factory=dict)
+    # 예: {"ontology_concept_123": {"related_insights": ["UI-abc"], "related_actions": ["ACT-xyz"]}}
+
+    # LLM Analysis Cache (LLM 분석 결과 캐시)
+    llm_analysis_cache: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    # 예: {"table_name:column_name": {"semantic_type": "...", "business_role": "..."}}
+
+    # Integration Metrics (통합 메트릭)
+    integration_metrics: Dict[str, Any] = field(default_factory=lambda: {
+        "algorithm_confidence": 0.0,
+        "simulation_coverage": 0.0,
+        "llm_enrichment_rate": 0.0,
+        "component_connectivity": 0.0,
+    })
 
     # === 현재 상태 ===
     current_stage: Optional[StageType] = None
@@ -475,7 +541,7 @@ class SharedContext:
             try:
                 evidence_stats = {
                     "evidence_blocks": len(self.evidence_chain.blocks),
-                    "evidence_chain_valid": self.evidence_chain.verify_chain_integrity().get("is_valid", False),
+                    "evidence_chain_valid": self.evidence_chain.verify_chain_integrity().get("valid", False),
                 }
             except Exception:
                 evidence_stats = {"evidence_blocks": 0, "evidence_chain_valid": False}
@@ -571,12 +637,20 @@ class SharedContext:
             # v10.0: Palantir-style Predictive Insights
             "palantir_insights": self.palantir_insights,
             "data_directory": self.data_directory,
+            # v17.1: Unified Insights Pipeline 결과
+            "unified_insights_pipeline": [safe_dict(i) for i in self.unified_insights_pipeline],
+            "component_references": safe_dict(self.component_references),
+            "integration_metrics": safe_dict(self.integration_metrics),
+            # v19.2: dynamic_data 직렬화 (column_semantics 등)
+            "dynamic_data": self.dynamic_data if hasattr(self, 'dynamic_data') else {},
             # v6.1: Phase 3 Advanced Features
             "debate_results": self.debate_results,
             "counterfactual_analysis": self.counterfactual_analysis,
             # v11.0: Evidence Chain
             "evidence_chain_summary": self.get_evidence_summary(),
             "evidence_based_debate_results": self.evidence_based_debate_results,
+            # v22.0: TDA Signatures (이전에 누락됨)
+            "tda_signatures": self.tda_signatures,
         }
 
     def calculate_hash(self) -> str:
@@ -699,6 +773,62 @@ class SharedContext:
         """
         return self.data_directory
 
+    def get_full_data(self, table_name: str) -> List[Dict[str, Any]]:
+        """
+        v22.1: 테이블의 전체 데이터를 반환 (샘플링 금지).
+
+        우선순위:
+        1) source CSV 파일에서 전체 로드
+        2) sample_data 반환 (전체 데이터가 이미 들어있을 수 있음)
+
+        Returns:
+            전체 행 목록 (List[Dict])
+        """
+        import os
+
+        table_info = self.tables.get(table_name)
+        if not table_info:
+            return []
+
+        # 1차: source 경로에서 CSV 직접 로드
+        source_path = getattr(table_info, "source", None) or ""
+        if source_path and os.path.exists(source_path) and source_path.endswith(".csv"):
+            try:
+                import pandas as pd
+                df = pd.read_csv(source_path)
+                return df.where(pd.notnull(df), None).to_dict("records")
+            except Exception:
+                pass
+
+        # 2차: data_directory + 테이블명.csv
+        if self.data_directory:
+            for suffix in [".csv", "_utf8.csv"]:
+                path = os.path.join(self.data_directory, f"{table_name}{suffix}")
+                if os.path.exists(path):
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(path)
+                        return df.where(pd.notnull(df), None).to_dict("records")
+                    except Exception:
+                        pass
+
+        # 3차: sample_data 그대로 반환
+        return table_info.sample_data or []
+
+    def get_all_full_data(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        v22.1: 모든 테이블의 전체 데이터를 반환.
+
+        Returns:
+            {table_name: [rows]} 딕셔너리
+        """
+        result = {}
+        for table_name in self.tables:
+            data = self.get_full_data(table_name)
+            if data:
+                result[table_name] = data
+        return result
+
     # === v14.0: Phase 간 검증 게이트 ===
 
     def validate_phase1_output(self) -> Dict[str, Any]:
@@ -743,19 +873,105 @@ class SharedContext:
         column_semantics = self.get_dynamic("column_semantics", {})
         if not column_semantics:
             warnings.append("column_semantics not found in dynamic_data")
-            # 폴백: 기본 컬럼 의미론 생성
+            # v19.1: 규칙 기반 컬럼 시맨틱 추론 (패턴 매칭)
+            # v19.2: 우선순위 기반 시맨틱 패턴 매칭
+            # 순서: 구체적 패턴(longer) → 일반 패턴(shorter)
+            # 각 패턴은 (pattern, role, specificity) — specificity가 높을수록 우선
+            _ROLE_PATTERNS_ORDERED = [
+                # === 고우선순위: 구체적 복합 패턴 ===
+                ("years_exp", "metric"),
+                ("experience", "metric"),
+                ("_exp", "metric"),
+                ("overtime", "metric"),
+                ("satisfaction", "metric"),
+                ("performance", "dimension"),
+                ("remote_ratio", "metric"),
+                ("turnover_risk", "flag"),
+                ("parent_income", "dimension"),
+                ("study_hours", "metric"),
+                ("private_tutoring", "flag"),
+                ("club_activity", "flag"),
+                ("attendance", "metric"),
+                # === identifier ===
+                ("_id", "identifier"), ("_key", "identifier"),
+                ("_code", "identifier"), ("_no", "identifier"),
+                ("_num", "identifier"), ("_pk", "identifier"),
+                # === metric ===
+                ("salary", "metric"), ("score", "metric"),
+                ("amount", "metric"), ("count", "metric"),
+                ("rate", "metric"), ("ratio", "metric"),
+                ("price", "metric"), ("cost", "metric"),
+                ("revenue", "metric"), ("profit", "metric"),
+                ("total", "metric"), ("sum", "metric"),
+                ("avg", "metric"), ("mean", "metric"),
+                ("hours", "metric"), ("quantity", "metric"),
+                ("percent", "metric"), ("budget", "metric"),
+                ("age", "metric"),
+                # === flag ===
+                ("is_", "flag"), ("has_", "flag"),
+                ("flag", "flag"), ("active", "flag"),
+                ("enabled", "flag"), ("risk", "flag"),
+                ("turnover", "flag"), ("churn", "flag"),
+                ("attrition", "flag"),
+                # === dimension ===
+                ("department", "dimension"), ("role", "dimension"),
+                ("type", "dimension"), ("category", "dimension"),
+                ("status", "dimension"), ("level", "dimension"),
+                ("class", "dimension"), ("group", "dimension"),
+                ("region", "dimension"), ("country", "dimension"),
+                ("city", "dimension"), ("state", "dimension"),
+                ("gender", "dimension"), ("grade", "dimension"),
+                ("tier", "dimension"), ("segment", "dimension"),
+                # === timestamp ===
+                ("date", "timestamp"), ("created", "timestamp"),
+                ("updated", "timestamp"), ("timestamp", "timestamp"),
+                ("_at", "timestamp"), ("_on", "timestamp"),
+                ("month", "timestamp"), ("day", "timestamp"),
+                ("quarter", "timestamp"),
+                ("year", "timestamp"),  # 일반 "year" — 낮은 우선순위
+                # === descriptive ===
+                ("name", "descriptive"), ("title", "descriptive"),
+                ("label", "descriptive"), ("description", "descriptive"),
+                ("comment", "descriptive"), ("note", "descriptive"),
+                ("text", "descriptive"), ("address", "descriptive"),
+                ("email", "descriptive"), ("phone", "descriptive"),
+            ]
             fallback_semantics = {}
             for table_name, table_info in self.tables.items():
                 for col_info in table_info.columns:
                     col_name = col_info.get("name", "")
+                    col_lower = col_name.lower()
+                    dtype = col_info.get("dtype", "")
+
+                    # v19.2: 우선순위 순서대로 첫 번째 매칭 사용
+                    inferred_role = "unknown"
+                    for pattern, role in _ROLE_PATTERNS_ORDERED:
+                        if pattern in col_lower:
+                            inferred_role = role
+                            break
+
+                    # dtype 기반 보조 추론
+                    if inferred_role == "unknown":
+                        if dtype in ("int64", "float64", "int32", "float32"):
+                            inferred_role = "metric"
+                        elif dtype == "object":
+                            inferred_role = "dimension"
+                        elif "date" in dtype or "time" in dtype:
+                            inferred_role = "timestamp"
+
+                    # nullable 추론: identifier/key는 not null, 나머지는 nullable
+                    nullable = inferred_role not in ("identifier",)
+
                     fallback_semantics[col_name] = {
-                        "business_role": "unknown",
-                        "nullable_by_design": True,  # 안전한 기본값
+                        "business_role": inferred_role,
+                        "nullable_by_design": nullable,
+                        "inference_method": "rule_based_v19.1",
                     }
             if fallback_semantics:
                 self.set_dynamic("column_semantics", fallback_semantics)
                 fallbacks_applied.append("created_fallback_column_semantics")
-                logger.warning(f"[v14.0 Gate] Created fallback column_semantics for {len(fallback_semantics)} columns")
+                inferred_count = sum(1 for v in fallback_semantics.values() if v["business_role"] != "unknown")
+                logger.warning(f"[v19.1 Gate] Rule-based column_semantics: {inferred_count}/{len(fallback_semantics)} columns inferred")
 
         is_valid = len(fallbacks_applied) == 0  # 폴백 없이 통과하면 valid
 
@@ -1000,4 +1216,675 @@ class SharedContext:
             "valid": is_valid,
             "warnings": warnings,
             "fallbacks_applied": fallbacks_applied,
+        }
+
+    def validate_phase3_output(self) -> Dict[str, Any]:
+        """
+        v17.1: Phase 3 (Governance) 출력 검증 게이트
+
+        파이프라인 완료 전에 필수 출력이 생성되었는지 확인합니다.
+
+        Returns:
+            {"valid": bool, "warnings": List[str], "fallbacks_applied": List[str]}
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        warnings = []
+        fallbacks_applied = []
+
+        # 1. governance_decisions 검증
+        if not self.governance_decisions:
+            warnings.append("governance_decisions is empty")
+            # 폴백: ontology_concepts에서 기본 결정 생성
+            if self.ontology_concepts:
+                from .shared_context import GovernanceDecision
+                for concept in self.ontology_concepts:
+                    # approved 상태면 approve, 아니면 schedule_review
+                    decision_type = "approve" if concept.status == "approved" else "schedule_review"
+                    fallback_decision = GovernanceDecision(
+                        decision_id=f"fallback_decision_{concept.concept_id}",
+                        concept_id=concept.concept_id,
+                        decision_type=decision_type,
+                        confidence=concept.confidence * 0.7,
+                        reasoning=f"[v17.1 Fallback] Auto-generated from concept status: {concept.status}",
+                    )
+                    self.governance_decisions.append(fallback_decision)
+                fallbacks_applied.append("created_fallback_decisions_from_concepts")
+                logger.warning(f"[v17.1 Gate] Created {len(self.ontology_concepts)} fallback governance decisions")
+
+        # 2. action_backlog 검증 (선택, 빈 리스트도 OK)
+        if not self.action_backlog:
+            warnings.append("action_backlog is empty (no recommended actions)")
+            # 폴백: 기본 액션 생성 (승인된 개념에 대해)
+            approved_decisions = [d for d in self.governance_decisions if d.decision_type == "approve"]
+            for decision in approved_decisions[:5]:
+                self.action_backlog.append({
+                    "action_id": f"fallback_action_{decision.decision_id}",
+                    "action_type": "implement_concept",
+                    "target_concept": decision.concept_id,
+                    "priority": "medium",
+                    "status": "pending",
+                    "description": f"Implement approved concept: {decision.concept_id}",
+                    "source": "v17.1_fallback",
+                })
+            if self.action_backlog:
+                fallbacks_applied.append("created_fallback_actions")
+                logger.warning(f"[v17.1 Gate] Created {len(self.action_backlog)} fallback actions")
+
+        # 3. policy_rules 검증 (선택)
+        if not self.policy_rules:
+            warnings.append("policy_rules is empty (no governance policies)")
+
+        # 4. unified_insights_pipeline 검증 (v17.1)
+        if not self.unified_insights_pipeline:
+            warnings.append("unified_insights_pipeline is empty (Algorithm→Simulation→LLM pipeline not run)")
+
+        # 5. component_references 연결성 검증
+        if not self.component_references:
+            warnings.append("component_references is empty (no cross-component linking)")
+
+        is_valid = len(fallbacks_applied) == 0
+
+        if warnings:
+            logger.info(f"[v17.1 Gate] Phase 3 validation warnings: {warnings}")
+
+        return {
+            "valid": is_valid,
+            "warnings": warnings,
+            "fallbacks_applied": fallbacks_applied,
+            "governance_decisions_count": len(self.governance_decisions),
+            "action_backlog_count": len(self.action_backlog),
+            "unified_insights_count": len(self.unified_insights_pipeline),
+        }
+
+    # === v17.0: Confidence Calibration Methods ===
+
+    def initialize_confidence_calibrator(
+        self,
+        config: Optional["CalibrationConfig"] = None
+    ) -> None:
+        """
+        v17.0: Confidence Calibrator 초기화
+
+        LLM 신뢰도 보정 시스템을 초기화합니다.
+        """
+        try:
+            from .calibration import ConfidenceCalibrator, CalibrationConfig
+            self.confidence_calibrator = ConfidenceCalibrator(
+                context=self,
+                config=config or CalibrationConfig(),
+            )
+            import logging
+            logging.getLogger(__name__).info("v17.0: Confidence Calibrator initialized")
+        except ImportError as e:
+            import logging
+            logging.getLogger(__name__).warning(f"v17.0: Failed to initialize Confidence Calibrator: {e}")
+            self.confidence_calibrator = None
+
+    def calibrate_confidence(
+        self,
+        agent: str,
+        raw_confidence: float,
+        samples: Optional[List[Dict[str, Any]]] = None,
+    ) -> float:
+        """
+        v17.0: 신뢰도 보정
+
+        Args:
+            agent: 에이전트 이름
+            raw_confidence: 원본 신뢰도 (0-1)
+            samples: 다중 샘플링 결과 (옵션)
+
+        Returns:
+            보정된 신뢰도
+        """
+        if self.confidence_calibrator is None:
+            self.initialize_confidence_calibrator()
+
+        if self.confidence_calibrator is None:
+            return raw_confidence  # 초기화 실패 시 원본 반환
+
+        result = self.confidence_calibrator.calibrate(
+            agent=agent,
+            raw_confidence=raw_confidence,
+            samples=samples,
+        )
+
+        # 히스토리 기록
+        self.calibration_history.append(result.to_dict())
+
+        return result.final_confidence
+
+    def record_prediction_outcome(
+        self,
+        agent: str,
+        confidence: float,
+        was_correct: bool
+    ) -> None:
+        """
+        v17.0: 예측 결과 기록 (온라인 학습용)
+
+        실제 결과가 밝혀지면 호출하여 보정 매개변수를 업데이트합니다.
+        """
+        if self.confidence_calibrator is not None:
+            self.confidence_calibrator.record_outcome(agent, confidence, was_correct)
+
+    def get_calibration_summary(self) -> Dict[str, Any]:
+        """v17.0: 보정 요약 정보 반환"""
+        if self.confidence_calibrator is None:
+            return {"initialized": False, "calibration_count": 0}
+
+        return self.confidence_calibrator.get_calibration_summary()
+
+    # === v17.0: Dataset Versioning Methods ===
+
+    def create_dataset_snapshot(
+        self,
+        dataset_id: str,
+        message: str = "",
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        v17.0: 데이터셋 스냅샷 생성 (Git commit과 유사)
+
+        Args:
+            dataset_id: 데이터셋 식별자
+            message: 커밋 메시지
+            metadata: 추가 메타데이터
+
+        Returns:
+            생성된 버전 ID
+        """
+        import hashlib
+        from datetime import datetime
+
+        # 버전 ID 생성
+        timestamp = datetime.now().isoformat()
+        content_hash = hashlib.sha256(
+            f"{dataset_id}:{timestamp}:{message}".encode()
+        ).hexdigest()[:12]
+        version_id = f"v_{content_hash}"
+
+        # 스냅샷 데이터
+        snapshot = {
+            "version_id": version_id,
+            "dataset_id": dataset_id,
+            "message": message,
+            "timestamp": timestamp,
+            "metadata": metadata or {},
+            "parent_version": self.current_dataset_version,
+            # 현재 상태 저장
+            "tables": {k: v.__dict__ if hasattr(v, '__dict__') else v for k, v in self.tables.items()},
+            "ontology_concepts_count": len(self.ontology_concepts),
+            "unified_entities_count": len(self.unified_entities),
+        }
+
+        self.dataset_snapshots[version_id] = snapshot
+
+        # 버전 목록 업데이트
+        if dataset_id not in self.dataset_versions:
+            self.dataset_versions[dataset_id] = []
+        self.dataset_versions[dataset_id].append(version_id)
+
+        # 현재 버전 업데이트
+        self.current_dataset_version = version_id
+
+        return version_id
+
+    def get_version_history(self, dataset_id: str) -> List[Dict[str, Any]]:
+        """v17.0: 데이터셋 버전 히스토리 조회"""
+        version_ids = self.dataset_versions.get(dataset_id, [])
+        return [
+            self.dataset_snapshots.get(vid, {"version_id": vid, "error": "not_found"})
+            for vid in version_ids
+        ]
+
+    # === v17.0: NL2SQL Methods ===
+
+    def add_nl2sql_query(
+        self,
+        natural_query: str,
+        sql_query: str,
+        result_preview: Optional[Dict[str, Any]] = None,
+        confidence: float = 0.0
+    ) -> None:
+        """
+        v17.0: NL2SQL 대화 기록 추가
+
+        Args:
+            natural_query: 자연어 쿼리
+            sql_query: 생성된 SQL
+            result_preview: 결과 미리보기
+            confidence: 신뢰도
+        """
+        self.nl2sql_conversation_history.append({
+            "timestamp": datetime.now().isoformat(),
+            "natural_query": natural_query,
+            "sql_query": sql_query,
+            "result_preview": result_preview,
+            "confidence": confidence,
+        })
+
+    def get_recent_nl2sql_context(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """v17.0: 최근 NL2SQL 대화 컨텍스트 반환"""
+        return self.nl2sql_conversation_history[-limit:]
+
+    # === v17.0: Streaming Insights Methods ===
+
+    def add_streaming_insight(
+        self,
+        insight_type: str,
+        title: str,
+        description: str,
+        severity: str = "info",
+        source_event: Optional[Dict[str, Any]] = None,
+        confidence: float = 0.0
+    ) -> str:
+        """
+        v17.0: 실시간 스트리밍 인사이트 추가
+
+        Returns:
+            생성된 인사이트 ID
+        """
+        insight_id = f"stream_insight_{len(self.streaming_insights) + 1}"
+
+        self.streaming_insights.append({
+            "id": insight_id,
+            "type": insight_type,
+            "title": title,
+            "description": description,
+            "severity": severity,
+            "source_event": source_event,
+            "confidence": confidence,
+            "timestamp": datetime.now().isoformat(),
+            "acknowledged": False,
+        })
+
+        return insight_id
+
+    def get_unacknowledged_insights(self) -> List[Dict[str, Any]]:
+        """v17.0: 확인되지 않은 스트리밍 인사이트 반환"""
+        return [i for i in self.streaming_insights if not i.get("acknowledged", False)]
+
+    # === v17.0: What-If Analysis Methods ===
+
+    def add_simulation_scenario(
+        self,
+        name: str,
+        description: str,
+        parameters: Dict[str, Any],
+        baseline: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        v17.0: What-If 시뮬레이션 시나리오 추가
+
+        Returns:
+            생성된 시나리오 ID
+        """
+        scenario_id = f"scenario_{len(self.simulation_scenarios) + 1}"
+
+        self.simulation_scenarios.append({
+            "id": scenario_id,
+            "name": name,
+            "description": description,
+            "parameters": parameters,
+            "baseline": baseline,
+            "created_at": datetime.now().isoformat(),
+            "status": "pending",
+        })
+
+        return scenario_id
+
+    def record_scenario_result(
+        self,
+        scenario_id: str,
+        result: Dict[str, Any],
+        impact_summary: Optional[str] = None
+    ) -> None:
+        """v17.0: 시나리오 실행 결과 기록"""
+        self.scenario_results[scenario_id] = {
+            "result": result,
+            "impact_summary": impact_summary,
+            "completed_at": datetime.now().isoformat(),
+        }
+
+        # 시나리오 상태 업데이트
+        for scenario in self.simulation_scenarios:
+            if scenario["id"] == scenario_id:
+                scenario["status"] = "completed"
+                break
+
+    # === v17.0: OSDK Methods ===
+
+    def register_object_type(
+        self,
+        type_id: str,
+        name: str,
+        properties: Dict[str, Any],
+        source_tables: Optional[List[str]] = None
+    ) -> None:
+        """
+        v17.0: OSDK Object Type 등록
+
+        Args:
+            type_id: 타입 식별자
+            name: 타입 이름
+            properties: 속성 정의
+            source_tables: 소스 테이블 목록
+        """
+        self.osdk_object_types[type_id] = {
+            "type_id": type_id,
+            "name": name,
+            "properties": properties,
+            "source_tables": source_tables or [],
+            "created_at": datetime.now().isoformat(),
+        }
+
+    def register_link_type(
+        self,
+        link_id: str,
+        name: str,
+        from_type: str,
+        to_type: str,
+        cardinality: str = "many-to-one"
+    ) -> None:
+        """v17.0: OSDK Link Type 등록"""
+        self.osdk_link_types[link_id] = {
+            "link_id": link_id,
+            "name": name,
+            "from_type": from_type,
+            "to_type": to_type,
+            "cardinality": cardinality,
+            "created_at": datetime.now().isoformat(),
+        }
+
+    def get_osdk_schema(self) -> Dict[str, Any]:
+        """v17.0: OSDK 스키마 전체 반환"""
+        return {
+            "object_types": self.osdk_object_types,
+            "link_types": self.osdk_link_types,
+            "instance_counts": {
+                type_id: len(instances)
+                for type_id, instances in self.osdk_instances.items()
+            },
+        }
+
+    # === v17.0: Writeback Methods ===
+
+    def queue_writeback(
+        self,
+        action_type: str,
+        target_type: str,
+        target_id: str,
+        changes: Dict[str, Any],
+        reason: str = ""
+    ) -> str:
+        """
+        v17.0: Writeback 액션 큐에 추가
+
+        Returns:
+            생성된 writeback ID
+        """
+        writeback_id = f"wb_{len(self.pending_writebacks) + 1}"
+
+        self.pending_writebacks.append({
+            "id": writeback_id,
+            "action_type": action_type,  # create, update, delete
+            "target_type": target_type,
+            "target_id": target_id,
+            "changes": changes,
+            "reason": reason,
+            "queued_at": datetime.now().isoformat(),
+            "status": "pending",
+        })
+
+        return writeback_id
+
+    def execute_writeback(self, writeback_id: str) -> Dict[str, Any]:
+        """
+        v17.0: Writeback 액션 실행
+
+        실제 구현은 writeback 모듈에서 처리
+        """
+        for wb in self.pending_writebacks:
+            if wb["id"] == writeback_id:
+                wb["status"] = "executed"
+                wb["executed_at"] = datetime.now().isoformat()
+
+                # 히스토리에 기록
+                self.writeback_history.append(wb.copy())
+
+                return {"success": True, "writeback": wb}
+
+        return {"success": False, "error": "writeback_not_found"}
+
+    def get_pending_writebacks(self) -> List[Dict[str, Any]]:
+        """v17.0: 대기 중인 writeback 목록 반환"""
+        return [wb for wb in self.pending_writebacks if wb["status"] == "pending"]
+
+    # === v17.0: 서비스 접근 헬퍼 ===
+
+    def get_v17_service(self, service_name: str) -> Any:
+        """
+        v17.0 서비스 접근 (에이전트용)
+
+        Args:
+            service_name: 서비스 이름
+                - calibrator: ConfidenceCalibrator
+                - version_manager: VersionManager
+                - branch_manager: BranchManager
+                - osdk_client: OSDKClient
+                - writeback_engine: WritebackEngine
+                - semantic_searcher: SemanticSearcher
+                - remediation_engine: RemediationEngine
+                - decision_explainer: DecisionExplainer
+                - whatif_analyzer: WhatIfAnalyzer
+                - report_generator: ReportGenerator
+                - nl2sql_engine: NL2SQLEngine
+                - tool_registry: ToolRegistry
+                - streaming_reasoner: StreamingReasoner
+
+        Returns:
+            서비스 인스턴스 또는 None
+        """
+        services = self.get_dynamic("_v17_services", {})
+        return services.get(service_name)
+
+    def get_all_v17_services(self) -> Dict[str, Any]:
+        """
+        모든 v17.0 서비스 반환
+
+        Returns:
+            {service_name: service_instance} 딕셔너리
+        """
+        return self.get_dynamic("_v17_services", {})
+
+    def has_v17_services(self) -> bool:
+        """v17.0 서비스 활성화 여부"""
+        services = self.get_dynamic("_v17_services", {})
+        return bool(services)
+
+    def calibrate_confidence_simple(self, raw_confidence: float, agent_id: str = "unknown") -> float:
+        """
+        v17.0: 신뢰도 보정 (에이전트용 간편 메서드)
+
+        Note: 이것은 간편 버전입니다. 전체 기능은 calibrate_confidence()를 사용하세요.
+
+        Args:
+            raw_confidence: 원본 신뢰도
+            agent_id: 에이전트 ID
+
+        Returns:
+            보정된 신뢰도
+        """
+        calibrator = self.get_v17_service("calibrator")
+        if calibrator:
+            try:
+                result = calibrator.calibrate(raw_confidence, agent_id=agent_id)
+                return result.calibrated_confidence
+            except Exception:
+                pass
+        return raw_confidence
+
+    # === v17.1: Unified Integration Methods (Palantir-style 연결) ===
+
+    def add_unified_insight(self, insight: Dict[str, Any]) -> str:
+        """
+        v17.1: 통합 인사이트 추가
+
+        Algorithm → Simulation → LLM 파이프라인에서 생성된 인사이트를 저장합니다.
+
+        Args:
+            insight: UnifiedInsight.to_dict() 결과
+
+        Returns:
+            인사이트 ID
+        """
+        if not insight.get("insight_id"):
+            import uuid
+            insight["insight_id"] = f"UI-{uuid.uuid4().hex[:8]}"
+
+        self.unified_insights_pipeline.append(insight)
+        return insight["insight_id"]
+
+    def link_components(
+        self,
+        source_id: str,
+        target_id: str,
+        relation_type: str = "related_to"
+    ) -> None:
+        """
+        v17.1: 컴포넌트 간 참조 연결
+
+        온톨로지 개념, 인사이트, 액션 등을 서로 연결합니다.
+
+        Args:
+            source_id: 소스 컴포넌트 ID (예: concept_123)
+            target_id: 타겟 컴포넌트 ID (예: UI-abc123)
+            relation_type: 관계 유형 (related_insights, related_actions, etc.)
+        """
+        if source_id not in self.component_references:
+            self.component_references[source_id] = {}
+
+        if relation_type not in self.component_references[source_id]:
+            self.component_references[source_id][relation_type] = []
+
+        if target_id not in self.component_references[source_id][relation_type]:
+            self.component_references[source_id][relation_type].append(target_id)
+
+    def get_linked_components(
+        self,
+        component_id: str,
+        relation_type: Optional[str] = None
+    ) -> Dict[str, List[str]]:
+        """
+        v17.1: 특정 컴포넌트와 연결된 컴포넌트들 조회
+
+        Args:
+            component_id: 컴포넌트 ID
+            relation_type: 특정 관계 유형만 조회 (옵션)
+
+        Returns:
+            관계 유형별 연결된 컴포넌트 ID 목록
+        """
+        refs = self.component_references.get(component_id, {})
+
+        if relation_type:
+            return {relation_type: refs.get(relation_type, [])}
+
+        return refs
+
+    def cache_llm_analysis(
+        self,
+        key: str,
+        analysis_result: Dict[str, Any]
+    ) -> None:
+        """
+        v17.1: LLM 분석 결과 캐시
+
+        동일한 데이터에 대한 중복 LLM 호출을 방지합니다.
+
+        Args:
+            key: 캐시 키 (예: "table_name:column_name")
+            analysis_result: LLM 분석 결과
+        """
+        analysis_result["cached_at"] = datetime.now().isoformat()
+        self.llm_analysis_cache[key] = analysis_result
+
+    def get_cached_llm_analysis(self, key: str) -> Optional[Dict[str, Any]]:
+        """
+        v17.1: 캐시된 LLM 분석 결과 조회
+
+        Args:
+            key: 캐시 키
+
+        Returns:
+            캐시된 분석 결과 또는 None
+        """
+        return self.llm_analysis_cache.get(key)
+
+    def update_integration_metrics(
+        self,
+        metric_name: str,
+        value: float
+    ) -> None:
+        """
+        v17.1: 통합 메트릭 업데이트
+
+        Args:
+            metric_name: 메트릭 이름
+            value: 메트릭 값 (0.0 - 1.0)
+        """
+        self.integration_metrics[metric_name] = value
+        self.integration_metrics["last_updated"] = datetime.now().isoformat()
+
+    def calculate_component_connectivity(self) -> float:
+        """
+        v17.1: 컴포넌트 연결성 계산
+
+        전체 컴포넌트 중 다른 컴포넌트와 연결된 비율을 계산합니다.
+
+        Returns:
+            연결성 비율 (0.0 - 1.0)
+        """
+        total_components = (
+            len(self.ontology_concepts) +
+            len(self.unified_insights_pipeline) +
+            len(self.action_backlog) +
+            len(self.governance_decisions)
+        )
+
+        if total_components == 0:
+            return 0.0
+
+        connected_components = len(self.component_references)
+
+        connectivity = connected_components / total_components
+        self.update_integration_metrics("component_connectivity", connectivity)
+
+        return connectivity
+
+    def get_integration_summary(self) -> Dict[str, Any]:
+        """
+        v17.1: 통합 상태 요약
+
+        Palantir 스타일의 전체 연결 상태를 요약합니다.
+
+        Returns:
+            통합 요약 정보
+        """
+        return {
+            "unified_insights_count": len(self.unified_insights_pipeline),
+            "component_references_count": len(self.component_references),
+            "llm_cache_size": len(self.llm_analysis_cache),
+            "integration_metrics": self.integration_metrics,
+            "connectivity": self.calculate_component_connectivity(),
+            "phases_connected": {
+                "discovery_to_refinement": len(self.unified_entities) > 0 and len(self.ontology_concepts) > 0,
+                "refinement_to_governance": len(self.ontology_concepts) > 0 and len(self.governance_decisions) > 0,
+                "insights_to_actions": any(
+                    "related_actions" in refs for refs in self.component_references.values()
+                ),
+            },
         }

@@ -18,6 +18,8 @@ from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
+from ...model_config import get_service_model
+
 logger = logging.getLogger(__name__)
 
 # Try to import Instructor
@@ -289,7 +291,7 @@ The Primary Key is the unique identifier column that:
 
         try:
             result = self._instructor_client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=get_service_model("fk_verification"),
                 response_model=PKIdentification,
                 messages=[
                     {"role": "system", "content": "You are a database schema expert."},
@@ -442,7 +444,7 @@ Is the proposed direction correct? If not, what is the correct direction?
 
         try:
             result = self._instructor_client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=get_service_model("fk_verification"),
                 response_model=FKDirectionVerification,
                 messages=[
                     {"role": "system", "content": "You are a database schema expert specializing in FK relationships."},

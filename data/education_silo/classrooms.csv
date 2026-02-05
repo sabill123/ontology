@@ -1,0 +1,13 @@
+classroom_id,building,room_number,capacity,room_type,has_projector,has_computers,accessibility
+CLR001,Science Building,101,60,lecture,true,false,true
+CLR002,Science Building,205,30,lab,true,true,true
+CLR003,Science Building,301,80,lecture,true,false,true
+CLR004,Business Building,102,100,lecture,true,false,true
+CLR005,Business Building,210,40,seminar,true,true,true
+CLR006,Engineering Hall,150,120,lecture,true,false,true
+CLR007,Engineering Hall,220,25,lab,true,true,true
+CLR008,Life Sciences,105,80,lecture,true,false,true
+CLR009,Life Sciences,215,20,lab,true,true,true
+CLR010,Physics Building,110,90,lecture,true,false,true
+CLR011,Physics Building,225,15,lab,true,true,true
+CLR012,Humanities Hall,115,50,seminar,true,false,true

@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from enum import Enum
 
+from ...model_config import get_service_model
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -460,8 +462,12 @@ class CrossEntityCorrelationAnalyzer:
 
                 min_rows = min(len(df_a), len(df_b))
 
-                for col_a in cols_a[:5]:
-                    for col_b in cols_b[:5]:
+                # v8.1: skip if row counts too different (spurious correlation risk)
+                if min_rows < 10 or min_rows / max(len(df_a), len(df_b), 1) < 0.8:
+                    continue
+
+                for col_a in cols_a[:10]:
+                    for col_b in cols_b[:10]:
                         if col_a == col_b:
                             continue
 
@@ -963,7 +969,7 @@ JSON만 출력하세요. 다른 텍스트는 포함하지 마세요."""
 
         try:
             response = await self.llm_client.chat.completions.create(
-                model="gpt-4o",  # 또는 claude-sonnet-4-20250514
+                model=get_service_model("cross_entity_scenario"),
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=4000,
@@ -1242,7 +1248,7 @@ JSON만 출력하세요."""
 
         try:
             response = await self.llm_client.chat.completions.create(
-                model="gpt-4o",
+                model=get_service_model("cross_entity_interpret"),
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=4000,
@@ -1497,8 +1503,8 @@ JSON만 출력하세요."""
         correlations = self.compute_cross_table_correlations(table_names)
 
         if not correlations:
-            logger.info("No significant correlations found")
-            return []
+            logger.info("No significant correlations found - returning data quality insights")
+            return self._create_data_quality_insights_only()
 
         logger.info(f"Found {len(correlations)} significant correlations (before filtering)")
 
@@ -1618,7 +1624,7 @@ JSON만 출력하세요."""
 
         try:
             response = self.llm_client.chat.completions.create(
-                model="gpt-4o",
+                model=get_service_model("cross_entity_scenario"),
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=4000,
@@ -1779,7 +1785,7 @@ JSON만 출력하세요."""
 
         try:
             response = self.llm_client.chat.completions.create(
-                model="gpt-4o",
+                model=get_service_model("cross_entity_interpret"),
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=4000,

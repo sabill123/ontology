@@ -1,0 +1,16 @@
+inspection_id,work_order_id,product_id,inspection_date,inspector_id,sample_size,defects_found,defect_rate,inspection_type,result,notes
+QI001,WO001,PROD001,2024-01-19,INSP001,50,1,0.02,final,passed,Minor cosmetic issue - accepted
+QI002,WO002,PROD002,2024-01-21,INSP002,30,0,0.00,final,passed,All units within spec
+QI003,WO003,PROD003,2024-01-22,INSP003,100,2,0.02,in_process,passed,Two sensors recalibrated
+QI004,WO004,PROD004,2024-01-18,INSP001,40,0,0.00,final,passed,Excellent quality
+QI005,WO005,PROD005,2024-01-23,INSP004,200,5,0.025,in_process,passed,Minor wire routing issues corrected
+QI006,WO006,PROD006,2024-01-20,INSP002,15,0,0.00,final,passed,Precision within tolerance
+QI007,WO007,PROD007,2024-01-24,INSP005,300,8,0.027,in_process,passed,Surface finish variations noted
+QI008,WO010,PROD008,2024-01-25,INSP001,25,1,0.04,in_process,passed,Paint thickness slightly high
+QI009,WO011,PROD009,2024-01-17,INSP003,150,0,0.00,final,passed,Perfect batch
+QI010,WO012,PROD010,2024-01-26,INSP005,250,3,0.012,in_process,passed,Dimensional check passed
+QI011,WO001,PROD001,2024-01-16,INSP001,25,0,0.00,incoming,passed,Raw materials verified
+QI012,WO003,PROD003,2024-01-18,INSP003,50,1,0.02,incoming,passed,Component quality confirmed
+QI013,WO005,PROD005,2024-01-19,INSP004,100,0,0.00,incoming,passed,Wire quality excellent
+QI014,WO007,PROD007,2024-01-20,INSP005,150,2,0.013,incoming,passed,Resin batch approved
+QI015,WO010,PROD008,2024-01-21,INSP001,20,0,0.00,incoming,passed,Paint materials verified

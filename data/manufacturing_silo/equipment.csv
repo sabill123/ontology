@@ -1,0 +1,13 @@
+equipment_id,equipment_name,equipment_type,line_id,plant_id,manufacturer,model,purchase_date,purchase_cost,status,last_maintenance,next_maintenance,operating_hours
+EQP001,CNC Milling Center,machining,LINE003,PLT001,Haas,VF-4SS,2020-03-15,185000.00,running,2024-01-12,2024-02-12,12500
+EQP002,Engine Assembly Robot,assembly,LINE001,PLT001,FANUC,M-20iB/25,2021-06-20,125000.00,running,2024-01-10,2024-02-10,8200
+EQP003,Transmission Test Bench,testing,LINE002,PLT001,AVL,TS3200,2019-09-10,320000.00,running,2024-01-15,2024-02-15,15800
+EQP004,SMT Pick and Place,electronics,LINE004,PLT002,Juki,RS-1R,2022-01-15,95000.00,running,2024-01-08,2024-02-08,5600
+EQP005,Reflow Oven,electronics,LINE005,PLT002,Heller,1913 MK5,2021-11-20,78000.00,maintenance,2024-01-20,2024-01-22,7200
+EQP006,Hydraulic Press,stamping,LINE006,PLT003,Schuler,PSC-2000,2018-05-10,450000.00,running,2024-01-14,2024-02-14,22000
+EQP007,Paint Robot,painting,LINE007,PLT003,ABB,IRB 5500,2020-08-25,165000.00,running,2024-01-16,2024-02-16,11500
+EQP008,Wire Cutting Machine,wiring,LINE008,PLT004,Komax,Alpha 530,2021-04-12,85000.00,running,2024-01-11,2024-02-11,9800
+EQP009,Injection Molding Machine,plastic,LINE009,PLT004,Engel,Victory 500,2019-12-08,280000.00,running,2024-01-18,2024-02-18,18500
+EQP010,5-Axis CNC,precision,LINE010,PLT005,DMG Mori,DMU 50,2022-07-15,420000.00,running,2024-01-13,2024-02-13,4200
+EQP011,Assembly Conveyor A,assembly,LINE011,PLT006,Bosch Rexroth,VarioFlow,2020-02-28,45000.00,running,2024-01-09,2024-02-09,14200
+EQP012,Assembly Conveyor B,assembly,LINE012,PLT006,Bosch Rexroth,VarioFlow,2020-02-28,45000.00,running,2024-01-17,2024-02-17,13800

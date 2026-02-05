@@ -1,0 +1,11 @@
+merchant_id,merchant_name,category,mcc_code,address,city,state,zip_code,registered_date,status
+MERCH001,SuperMart Grocery,groceries,5411,100 Market St,New York,NY,10001,2020-01-15,active
+MERCH002,QuickFuel Gas,gas_station,5541,200 Highway Rd,Los Angeles,CA,90001,2019-06-20,active
+MERCH003,The Bistro,restaurant,5812,300 Food Ave,Chicago,IL,60601,2021-03-10,active
+MERCH004,StreamFlix,streaming,5815,400 Digital Blvd,San Francisco,CA,94101,2018-09-01,active
+MERCH005,ShopOnline,ecommerce,5999,500 Web St,Seattle,WA,98101,2017-11-15,active
+MERCH006,TechWorld Electronics,electronics,5732,600 Gadget Ln,Austin,TX,78701,2020-04-20,active
+MERCH007,CityMed Clinic,healthcare,8011,700 Health Way,Boston,MA,02101,2019-08-05,active
+MERCH008,FitZone Gym,fitness,7941,800 Workout Dr,Denver,CO,80201,2021-01-10,active
+MERCH009,JavaHouse Coffee,coffee_shop,5814,900 Bean St,Portland,OR,97201,2022-02-28,active
+MERCH010,PetPals Store,pet_supplies,5995,1000 Animal Ave,Miami,FL,33101,2020-07-15,active

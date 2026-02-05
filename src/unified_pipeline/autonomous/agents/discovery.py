@@ -67,6 +67,9 @@ from ..analysis import (
     DataQualityAnalyzer,
     # === v7.1: Semantic FK Detection (Comprehensive FK Detection) ===
     SemanticFKDetector,
+    # === v16.0: Integrated FK Detection (Composite, Hierarchy, Temporal) ===
+    detect_all_fks_and_update_context,
+    IntegratedFKResult,
 )
 
 # === v4.2: 유틸리티 클래스들을 discovery_utils.py에서 가져옴 ===
@@ -225,6 +228,148 @@ Your task is to DIRECTLY ANALYZE the raw data and understand its BUSINESS MEANIN
 
 Respond with ONLY valid JSON matching this schema."""
 
+    def _compute_pandas_stats(self, df: "pd.DataFrame", table_name: str) -> Dict[str, Any]:
+        """
+        v22.1: pandas로 전체 데이터셋의 정확한 집계 통계를 사전 계산.
+        LLM은 이 값을 그대로 사용해야 하며, 샘플에서 재계산하지 않아야 함.
+        """
+        import pandas as pd
+        import numpy as np
+
+        stats: Dict[str, Any] = {
+            "table_name": table_name,
+            "total_rows": len(df),
+            "total_columns": len(df.columns),
+            "numeric_aggregates": {},
+            "categorical_distributions": {},
+            "date_ranges": {},
+            "boolean_ratios": {},
+            "null_counts": {},
+        }
+
+        for col in df.columns:
+            series = df[col]
+            null_count = int(series.isnull().sum())
+            if null_count > 0:
+                stats["null_counts"][col] = {
+                    "count": null_count,
+                    "ratio": round(null_count / len(df), 4),
+                }
+
+            # 수치형 컬럼: SUM, MEAN, MIN, MAX, MEDIAN, STD
+            if pd.api.types.is_numeric_dtype(series):
+                non_null = series.dropna()
+                if len(non_null) > 0:
+                    stats["numeric_aggregates"][col] = {
+                        "sum": round(float(non_null.sum()), 4),
+                        "mean": round(float(non_null.mean()), 4),
+                        "median": round(float(non_null.median()), 4),
+                        "min": round(float(non_null.min()), 4),
+                        "max": round(float(non_null.max()), 4),
+                        "std": round(float(non_null.std()), 4) if len(non_null) > 1 else 0.0,
+                        "unique_count": int(non_null.nunique()),
+                    }
+
+            # 카테고리형 컬럼 (unique 비율 < 50% 이면 카테고리로 간주)
+            elif series.dtype == "object":
+                non_null = series.dropna()
+                nunique = non_null.nunique()
+                if nunique <= 50 and len(non_null) > 0:
+                    vc = non_null.value_counts()
+                    stats["categorical_distributions"][col] = {
+                        "unique_count": int(nunique),
+                        "value_counts": {str(k): int(v) for k, v in vc.items()},
+                        "value_ratios": {str(k): round(v / len(df), 4) for k, v in vc.items()},
+                    }
+
+                    # Yes/No, True/False 패턴 → boolean ratio로 변환
+                    lower_vals = set(non_null.str.lower().unique())
+                    if lower_vals <= {"yes", "no"}:
+                        yes_count = int(non_null.str.lower().eq("yes").sum())
+                        stats["boolean_ratios"][col] = {
+                            "true_count": yes_count,
+                            "false_count": len(non_null) - yes_count,
+                            "true_ratio": round(yes_count / len(df), 4),
+                        }
+
+            # 날짜형 컬럼 시도
+            if series.dtype == "object" and any(kw in col.lower() for kw in ["date", "time", "dt", "_at"]):
+                try:
+                    parsed = pd.to_datetime(non_null, errors="coerce").dropna()
+                    if len(parsed) > 0:
+                        stats["date_ranges"][col] = {
+                            "min": str(parsed.min()),
+                            "max": str(parsed.max()),
+                            "span_days": int((parsed.max() - parsed.min()).days),
+                        }
+                except Exception:
+                    pass
+
+        return stats
+
+    def _format_stats_for_prompt(self, stats: Dict[str, Any]) -> str:
+        """사전 계산된 통계를 LLM 프롬프트용 텍스트로 변환"""
+        lines = [
+            f"## PRE-COMPUTED AGGREGATE STATISTICS (pandas, AUTHORITATIVE - v22.1)",
+            f"These are computed from the FULL dataset ({stats['total_rows']} rows). "
+            f"Use these EXACT values for any SUM, AVG, COUNT, or RATIO metrics.",
+            f"Do NOT recompute aggregates from the sample data above.",
+            "",
+        ]
+
+        # Numeric aggregates
+        num_agg = stats.get("numeric_aggregates", {})
+        if num_agg:
+            lines.append("### Numeric Column Aggregates (full dataset)")
+            for col, agg in num_agg.items():
+                lines.append(
+                    f"- **{col}**: sum={agg['sum']}, mean={agg['mean']}, "
+                    f"median={agg['median']}, min={agg['min']}, max={agg['max']}, "
+                    f"std={agg['std']}, unique={agg['unique_count']}"
+                )
+            lines.append("")
+
+        # Boolean ratios
+        bool_ratios = stats.get("boolean_ratios", {})
+        if bool_ratios:
+            lines.append("### Boolean/Flag Ratios (full dataset)")
+            for col, br in bool_ratios.items():
+                lines.append(
+                    f"- **{col}**: true_count={br['true_count']}/{stats['total_rows']} "
+                    f"({br['true_ratio']:.1%})"
+                )
+            lines.append("")
+
+        # Categorical distributions
+        cat_dist = stats.get("categorical_distributions", {})
+        if cat_dist:
+            lines.append("### Categorical Value Distributions (full dataset)")
+            for col, dist in cat_dist.items():
+                if col in bool_ratios:
+                    continue  # 이미 boolean으로 보고됨
+                top_values = list(dist["value_counts"].items())[:10]
+                vals_str = ", ".join(f"{k}={v}" for k, v in top_values)
+                lines.append(f"- **{col}** ({dist['unique_count']} unique): {vals_str}")
+            lines.append("")
+
+        # Date ranges
+        date_ranges = stats.get("date_ranges", {})
+        if date_ranges:
+            lines.append("### Date Ranges (full dataset)")
+            for col, dr in date_ranges.items():
+                lines.append(f"- **{col}**: {dr['min']} ~ {dr['max']} ({dr['span_days']} days)")
+            lines.append("")
+
+        # Null counts
+        null_counts = stats.get("null_counts", {})
+        if null_counts:
+            lines.append("### Null Counts (full dataset)")
+            for col, nc in null_counts.items():
+                lines.append(f"- **{col}**: {nc['count']}/{stats['total_rows']} ({nc['ratio']:.1%})")
+            lines.append("")
+
+        return "\n".join(lines)
+
     async def execute_task(
         self,
         todo: "PipelineTodo",
@@ -237,39 +382,92 @@ Respond with ONLY valid JSON matching this schema."""
 
         self._report_progress(0.1, "Loading full dataset for LLM analysis")
 
-        # 1. 데이터 디렉토리에서 CSV 파일들 읽기
-        data_dir = context.get_data_directory()
-        if not data_dir:
-            logger.warning("Data directory not set, falling back to sample_data")
-            return await self._fallback_analysis(todo, context)
-
-        # 2. CSV 파일들 로드
+        # v22.1: 전체 CSV 데이터 로드 (샘플링 절대 금지)
+        # 우선순위: 1) data_directory + 테이블명.csv → 2) table_info.source 경로 → 3) sample_data에서 DataFrame 복원
         all_data = {}
-        for table_name, table_info in context.tables.items():
-            # CSV 파일 경로 찾기
-            possible_paths = [
-                os.path.join(data_dir, f"{table_name}.csv"),
-                os.path.join(data_dir, f"{table_name}_utf8.csv"),
-            ]
+        data_dir = context.get_data_directory()
 
-            for path in possible_paths:
-                if os.path.exists(path):
+        for table_name, table_info in context.tables.items():
+            # 1차: data_directory에서 CSV 찾기
+            if data_dir:
+                possible_paths = [
+                    os.path.join(data_dir, f"{table_name}.csv"),
+                    os.path.join(data_dir, f"{table_name}_utf8.csv"),
+                ]
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        try:
+                            df = pd.read_csv(path)
+                            all_data[table_name] = {
+                                "path": path,
+                                "row_count": len(df),
+                                "columns": list(df.columns),
+                                "data": df.to_csv(index=False),
+                            }
+                            logger.info(f"[v22.1] Loaded full data from data_dir: {table_name} ({len(df)} rows)")
+                            break
+                        except Exception as e:
+                            logger.warning(f"Failed to load {path}: {e}")
+
+            # 2차: table_info.source 경로에서 직접 로드
+            if table_name not in all_data:
+                source_path = getattr(table_info, "source", None) or ""
+                if source_path and os.path.exists(source_path) and source_path.endswith(".csv"):
                     try:
-                        df = pd.read_csv(path)
+                        df = pd.read_csv(source_path)
                         all_data[table_name] = {
-                            "path": path,
+                            "path": source_path,
                             "row_count": len(df),
                             "columns": list(df.columns),
-                            "data": df.to_csv(index=False)  # 전체 데이터를 문자열로
+                            "data": df.to_csv(index=False),
                         }
-                        logger.info(f"[v13.0] Loaded full data for {table_name}: {len(df)} rows")
-                        break
+                        logger.info(f"[v22.1] Loaded full data from source: {source_path} ({len(df)} rows)")
                     except Exception as e:
-                        logger.warning(f"Failed to load {path}: {e}")
+                        logger.warning(f"[v22.1] Failed to load source {source_path}: {e}")
+
+            # 3차: sample_data에서 전체 DataFrame 복원 (마지막 수단)
+            if table_name not in all_data and table_info.sample_data:
+                df = pd.DataFrame(table_info.sample_data)
+                all_data[table_name] = {
+                    "path": None,
+                    "row_count": len(df),
+                    "columns": list(df.columns),
+                    "data": df.to_csv(index=False),
+                }
+                actual_total = getattr(table_info, "row_count", len(df))
+                if actual_total > len(df):
+                    logger.warning(
+                        f"[v22.1] Using sample_data for {table_name}: {len(df)} rows "
+                        f"(total={actual_total}). Full CSV not accessible."
+                    )
+                else:
+                    logger.info(f"[v22.1] Loaded from sample_data: {table_name} ({len(df)} rows)")
 
         if not all_data:
-            logger.warning("No CSV files found, falling back to sample_data")
-            return await self._fallback_analysis(todo, context)
+            logger.error("No data available for analysis from any source")
+            from ...todo.models import TodoResult
+            return TodoResult(
+                success=False,
+                output={"error": "No data available for analysis"},
+                context_updates={},
+            )
+
+        # v22.1: pandas로 전체 데이터셋의 정확한 집계 통계 사전 계산
+        precomputed_stats = {}
+        precomputed_stats_section = ""
+        try:
+            for table_name in all_data:
+                df_full = pd.read_csv(all_data[table_name]["path"])
+                precomputed_stats[table_name] = self._compute_pandas_stats(df_full, table_name)
+                logger.info(f"[v22.1] Pre-computed stats for {table_name}: "
+                           f"{len(precomputed_stats[table_name].get('numeric_aggregates', {}))} numeric cols, "
+                           f"{len(precomputed_stats[table_name].get('categorical_distributions', {}))} categorical cols")
+            # 주 테이블의 통계를 프롬프트 섹션으로 변환
+            primary_table_name = max(all_data.keys(), key=lambda k: all_data[k]["row_count"])
+            if primary_table_name in precomputed_stats:
+                precomputed_stats_section = "\n" + self._format_stats_for_prompt(precomputed_stats[primary_table_name])
+        except Exception as e:
+            logger.warning(f"[v22.1] Pre-computed stats failed: {e}")
 
         self._report_progress(0.25, "Running Data Quality Analysis (v7.0)")
 
@@ -326,6 +524,23 @@ The following issues were detected algorithmically. Please verify and add busine
 {data_quality_context}
 """
 
+        # v22.0: Agent Learning - 유사 경험 조회 (few-shot learning)
+        few_shot_section = ""
+        similar_experiences = self.get_similar_experiences(
+            {"task": "data_understanding", "tables": list(all_data.keys())}, limit=3
+        )
+        if similar_experiences:
+            few_shot_examples = []
+            for exp in similar_experiences[:2]:  # 최대 2개만 사용
+                if hasattr(exp, 'output_data') and exp.output_data:
+                    few_shot_examples.append(f"- Domain: {exp.output_data.get('domain_detected', 'unknown')}")
+            if few_shot_examples:
+                few_shot_section = f"""
+
+## PREVIOUS SIMILAR ANALYSES (v22.0 Learning)
+{chr(10).join(few_shot_examples)}
+"""
+
         instruction = f"""Analyze this dataset directly and understand its BUSINESS CONTEXT.
 
 ## DATASET: {primary_table}
@@ -336,7 +551,7 @@ The following issues were detected algorithmically. Please verify and add busine
 ```csv
 {data_csv}
 ```
-{quality_section}
+{quality_section}{precomputed_stats_section}{few_shot_section}
 ## YOUR ANALYSIS TASKS:
 
 1. **DOMAIN IDENTIFICATION** (v7.9 확장): What business domain is this data from?
@@ -381,6 +596,9 @@ The following issues were detected algorithmically. Please verify and add busine
    - **Error/Failure rates**: How often do errors occur?
    - **Damage/Issue rates**: How often are problems reported?
    - **Maintenance status**: What's the maintenance backlog?
+   ⚠️ CRITICAL (v22.1): For ALL aggregate metrics (SUM, MEAN, COUNT, RATIO), you MUST use the
+   values from the PRE-COMPUTED AGGREGATE STATISTICS section above. Do NOT recompute from the data.
+   The pre-computed stats are calculated from the FULL dataset using pandas and are authoritative.
 
 7. **SEMANTIC DATA QUALITY** (IMPORTANT - only report MEANINGFUL issues):
    - ❌ DO NOT report nulls in optional fields (비고, memo, notes, remarks, comments, description)
@@ -488,10 +706,30 @@ Respond with JSON:
         response = await self.call_llm(instruction, max_tokens=8000)
         analysis = parse_llm_json(response, default={})
 
+        # parse_llm_json이 문자열을 반환할 수 있으므로 방어
+        if not isinstance(analysis, dict):
+            logger.warning(f"[v13.0] LLM returned non-dict analysis: {type(analysis)}, using empty dict")
+            analysis = {}
+
+        # LLM이 expected dict/list 필드를 string으로 반환할 수 있으므로 타입 강제
+        def _safe_dict(val, fallback=None):
+            """dict가 아니면 빈 dict 또는 fallback 반환"""
+            if isinstance(val, dict):
+                return val
+            return fallback if fallback is not None else {}
+
+        def _safe_list(val):
+            """list가 아니면 빈 list 반환"""
+            return val if isinstance(val, list) else []
+
         self._report_progress(0.8, "Processing LLM analysis results")
 
         # 4. 분석 결과를 context에 저장
-        domain_info = analysis.get("domain", {})
+        domain_raw = analysis.get("domain", {})
+        if isinstance(domain_raw, str):
+            domain_info = {"detected": domain_raw, "confidence": 0.5, "reasoning": "LLM returned string"}
+        else:
+            domain_info = _safe_dict(domain_raw)
         detected_domain = domain_info.get("detected", "general")
 
         # Evidence 기록
@@ -506,8 +744,10 @@ Respond with JSON:
         )
 
         # 데이터 패턴 기록
-        patterns = analysis.get("data_patterns", [])
+        patterns = _safe_list(analysis.get("data_patterns", []))
         for pattern in patterns:
+            if not isinstance(pattern, dict):
+                continue
             self.record_evidence(
                 finding=f"데이터 패턴 발견: {pattern.get('pattern_type')}",
                 reasoning=pattern.get("description", ""),
@@ -519,18 +759,24 @@ Respond with JSON:
             )
 
         # 컬럼 분석 저장
-        column_analysis = {col["name"]: col for col in analysis.get("columns", [])}
+        raw_columns = _safe_list(analysis.get("columns", []))
+        column_analysis = {}
+        for col in raw_columns:
+            if isinstance(col, dict) and "name" in col:
+                column_analysis[col["name"]] = col
 
         # v14.0: table_structure 추출
-        table_structure = analysis.get("table_structure", {})
+        table_structure = _safe_dict(analysis.get("table_structure", {}))
 
         # v7.0: Status/Flag 분석 추출
-        status_analysis = analysis.get("status_analysis", [])
-        flag_analysis = analysis.get("flag_analysis", [])
-        operational_insights = analysis.get("operational_insights", {})
+        status_analysis = _safe_list(analysis.get("status_analysis", []))
+        flag_analysis = _safe_list(analysis.get("flag_analysis", []))
+        operational_insights = _safe_dict(analysis.get("operational_insights", {}))
 
         # v7.0: Status 분석 결과를 Evidence로 기록
         for status in status_analysis:
+            if not isinstance(status, dict):
+                continue
             if status.get("problem_ratio", 0) > 0.05:  # 5% 이상 문제 비율
                 self.record_evidence(
                     finding=f"운영 이슈 발견: {status.get('table')}.{status.get('column')} - 문제 비율 {status.get('problem_ratio', 0):.1%}",
@@ -544,6 +790,8 @@ Respond with JSON:
 
         # v7.0: Flag 분석 결과를 Evidence로 기록
         for flag in flag_analysis:
+            if not isinstance(flag, dict):
+                continue
             if flag.get("is_concerning", False):
                 self.record_evidence(
                     finding=f"우려되는 플래그: {flag.get('table')}.{flag.get('column')} - TRUE 비율 {flag.get('true_ratio', 0):.1%}",
@@ -555,10 +803,33 @@ Respond with JSON:
                     topics=["flag_analysis", "data_quality", flag.get("table", "")],
                 )
 
+        quality_issues = _safe_list(analysis.get("data_quality_issues", []))
+        recommended_analysis = _safe_dict(analysis.get("recommended_analysis", {}))
+
         logger.info(f"[v7.0] Data analysis complete: domain={detected_domain}, "
                    f"patterns={len(patterns)}, columns={len(column_analysis)}, "
-                   f"quality_issues={len(analysis.get('data_quality_issues', []))}, "
+                   f"quality_issues={len(quality_issues)}, "
                    f"status_analyses={len(status_analysis)}, flag_analyses={len(flag_analysis)}")
+
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="entity_mapping",
+            input_data={"tables": list(all_data.keys()), "task": todo.description},
+            output_data={"domain_detected": detected_domain, "patterns_found": len(patterns)},
+            outcome="success",
+            confidence=domain_info.get("confidence", 0.7),
+        )
+
+        # v22.0: Agent Bus - 도메인 감지 결과 브로드캐스트
+        await self.broadcast_discovery(
+            discovery_type="domain_detected",
+            data={
+                "domain": detected_domain,
+                "confidence": domain_info.get("confidence", 0),
+                "patterns": patterns[:10],  # 상위 10개 패턴만 전달
+                "tables": list(all_data.keys()),
+            },
+        )
 
         return TodoResult(
             success=True,
@@ -567,23 +838,25 @@ Respond with JSON:
                 "domain_confidence": domain_info.get("confidence", 0),
                 "patterns_found": len(patterns),
                 "columns_analyzed": len(column_analysis),
-                "quality_issues_found": len(analysis.get("data_quality_issues", [])),
+                "quality_issues_found": len(quality_issues),
                 "status_issues_found": len(status_analysis),
                 "flag_issues_found": len(flag_analysis),
-                "recommended_dimensions": analysis.get("recommended_analysis", {}).get("key_dimensions", []),
+                "recommended_dimensions": recommended_analysis.get("key_dimensions", []),
             },
             context_updates={
                 "data_understanding": analysis,
                 "detected_domain": detected_domain,
                 "column_semantics": column_analysis,
                 "data_patterns": patterns,
-                "data_quality_issues": analysis.get("data_quality_issues", []),
-                "recommended_analysis": analysis.get("recommended_analysis", {}),
+                "data_quality_issues": quality_issues,
+                "recommended_analysis": recommended_analysis,
                 "table_structure": table_structure,
                 # v7.0: 새 분석 결과 추가
                 "status_analysis": status_analysis,
                 "flag_analysis": flag_analysis,
                 "operational_insights": operational_insights,
+                # v22.1: pandas 사전 계산 통계 (정확한 집계값)
+                "precomputed_statistics": precomputed_stats if precomputed_stats else {},
             },
             metadata={
                 "full_analysis": analysis,
@@ -598,51 +871,6 @@ Respond with JSON:
             },
         )
 
-    async def _fallback_analysis(
-        self,
-        todo: "PipelineTodo",
-        context: "SharedContext",
-    ) -> "TodoResult":
-        """sample_data가 있을 때 폴백 분석"""
-        from ...todo.models import TodoResult
-
-        # sample_data를 사용한 간단한 분석
-        all_samples = {}
-        for table_name, table_info in context.tables.items():
-            if table_info.sample_data:
-                all_samples[table_name] = table_info.sample_data[:50]  # 최대 50행
-
-        if not all_samples:
-            return TodoResult(
-                success=False,
-                output={"error": "No data available for analysis"},
-                context_updates={},
-            )
-
-        # LLM에게 sample_data 전달
-        instruction = f"""Analyze this sample data:
-
-{json.dumps(all_samples, indent=2, ensure_ascii=False, default=str)}
-
-Identify:
-1. Domain (web analytics, logistics, etc.)
-2. Column meanings
-3. Data patterns
-4. Quality issues
-
-Respond with JSON containing your analysis."""
-
-        response = await self.call_llm(instruction, max_tokens=4000)
-        analysis = parse_llm_json(response, default={})
-
-        return TodoResult(
-            success=True,
-            output={"analysis": "fallback_sample_based"},
-            context_updates={
-                "data_understanding": analysis,
-                "detected_domain": analysis.get("domain", {}).get("detected", "general"),
-            },
-        )
 
 
 class TDAExpertAutonomousAgent(AutonomousAgent):
@@ -894,6 +1122,25 @@ Respond with JSON:
         for table_name, sig in tda_signatures.items():
             if table_name in interpretation.get("table_interpretations", {}):
                 sig["llm_interpretation"] = interpretation["table_interpretations"][table_name]
+
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="relationship_inference",
+            input_data={"task": "tda_analysis", "tables": list(tda_signatures.keys())},
+            output_data={"tables_analyzed": len(tda_signatures)},
+            outcome="success",
+            confidence=0.8,
+        )
+
+        # v22.0: Agent Bus - TDA 분석 결과 브로드캐스트
+        await self.broadcast_discovery(
+            discovery_type="tda_analysis_complete",
+            data={
+                "tables_analyzed": len(tda_signatures),
+                "betti_numbers": {k: v.get("betti_numbers", []) for k, v in tda_signatures.items()},
+                "structural_complexity": {k: v.get("structural_complexity", "unknown") for k, v in tda_signatures.items()},
+            },
+        )
 
         return TodoResult(
             success=True,
@@ -1176,10 +1423,33 @@ Respond with JSON:
 
         self._report_progress(0.95, "Updating context")
 
+        # v22.0: Agent Learning - 경험 기록
+        homeomorphic_count = len([h for h in homeomorphism_pairs if h.is_homeomorphic])
+        self.record_experience(
+            experience_type="relationship_inference",
+            input_data={"task": "homeomorphism_detection", "pairs": len(homeomorphism_pairs)},
+            output_data={"homeomorphisms_found": homeomorphic_count},
+            outcome="success" if homeomorphic_count > 0 else "partial",
+            confidence=0.75,
+        )
+
+        # v22.0: Agent Bus - 위상동형 관계 브로드캐스트
+        await self.broadcast_discovery(
+            discovery_type="homeomorphism_detected",
+            data={
+                "homeomorphisms_found": homeomorphic_count,
+                "total_pairs": len(homeomorphism_pairs),
+                "pairs_summary": [
+                    {"table_a": h.table_a, "table_b": h.table_b, "confidence": h.confidence}
+                    for h in homeomorphism_pairs[:10]  # 상위 10개만
+                ],
+            },
+        )
+
         return TodoResult(
             success=True,
             output={
-                "homeomorphisms_found": len([h for h in homeomorphism_pairs if h.is_homeomorphic]),
+                "homeomorphisms_found": homeomorphic_count,
                 "total_pairs": len(homeomorphism_pairs),
             },
             context_updates={
@@ -1395,6 +1665,25 @@ Respond with JSON:
 
         self._report_progress(0.9, "Updating context")
 
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="entity_mapping",
+            input_data={"task": "schema_analysis", "tables": list(analysis_results.keys())},
+            output_data={"tables_analyzed": len(analysis_results), "cross_mappings": len(cross_mappings)},
+            outcome="success",
+            confidence=0.8,
+        )
+
+        # v22.0: Agent Bus - 스키마 분석 결과 브로드캐스트
+        await self.broadcast_discovery(
+            discovery_type="schema_analysis_complete",
+            data={
+                "tables_analyzed": len(analysis_results),
+                "cross_mappings_found": len(cross_mappings),
+                "table_types": interpretation.get("table_classifications", {}),
+            },
+        )
+
         return TodoResult(
             success=True,
             output={
@@ -1536,15 +1825,16 @@ IMPORTANT: You are the DECISION MAKER. The algorithm provides metrics, but YOU d
             tables_columns[table_name] = [col.get("name", "") for col in table_info.columns]
             tables_data[table_name] = {}
 
+            # v22.1: 전체 데이터 로드 (샘플링 금지 — FK 값 매칭 정확도)
+            full_rows = context.get_full_data(table_name)
             for col in table_info.columns:
                 col_name = col.get("name", "")
-                values = col.get("sample_values", [])
+                values = []
 
-                # sample_data에서 추가 값 추출
-                if table_info.sample_data:
-                    for row in table_info.sample_data:
-                        if col_name in row and row[col_name] is not None:
-                            values.append(row[col_name])
+                # 전체 데이터에서 값 추출
+                for row in full_rows:
+                    if col_name in row and row[col_name] is not None:
+                        values.append(row[col_name])
 
                 if values:
                     tables_data[table_name][col_name] = values
@@ -1577,15 +1867,15 @@ IMPORTANT: You are the DECISION MAKER. The algorithm provides metrics, but YOU d
 
         # v7.1: SemanticFKDetector 초기화 및 분석
         try:
-            # SemanticFKDetector용 데이터 포맷 변환
+            # v22.1: SemanticFKDetector용 전체 데이터 포맷 변환 (샘플링 금지)
             semantic_tables_data = {}
             for table_name, table_info in context.tables.items():
                 columns = [col.get("name", "") for col in table_info.columns]
+                full_rows = context.get_full_data(table_name)
                 data = []
-                if table_info.sample_data:
-                    for row in table_info.sample_data:
-                        row_data = [row.get(col, None) for col in columns]
-                        data.append(row_data)
+                for row in full_rows:
+                    row_data = [row.get(col, None) for col in columns]
+                    data.append(row_data)
                 semantic_tables_data[table_name] = {
                     "columns": columns,
                     "data": data
@@ -1989,6 +2279,28 @@ Respond with JSON:
                 "confidence": m.confidence,
             })
 
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="fk_detection",
+            input_data={"task": "value_matching", "candidates": len(fk_candidates)},
+            output_data={"validated_fks": len(validated_fks), "indirect_fks": len(indirect_fks)},
+            outcome="success" if validated_fks else "partial",
+            confidence=0.85 if validated_fks else 0.5,
+        )
+
+        # v22.0: Agent Bus - FK 탐지 결과 브로드캐스트
+        await self.broadcast_discovery(
+            discovery_type="fk_detected",
+            data={
+                "validated_fks": len(validated_fks),
+                "indirect_fks": len(indirect_fks),
+                "fk_candidates": [
+                    {"from": f"{fk['table_a']}.{fk['column_a']}", "to": f"{fk['table_b']}.{fk['column_b']}", "confidence": fk.get('confidence', 0)}
+                    for fk in validated_fks[:10]  # 상위 10개만
+                ],
+            },
+        )
+
         return TodoResult(
             success=True,
             output={
@@ -2264,11 +2576,8 @@ Respond with structured JSON matching this schema."""
             name: {"columns": info.columns, "row_count": info.row_count}
             for name, info in context.tables.items()
         }
-        sample_data = {
-            name: info.sample_data
-            for name, info in context.tables.items()
-            if info.sample_data
-        }
+        # v22.1: 전체 데이터 로드 (샘플링 금지)
+        sample_data = context.get_all_full_data()
 
         extracted_entities = []
         try:
@@ -2318,6 +2627,26 @@ Respond with structured JSON matching this schema."""
             }
             for e in extracted_entities[:20]
         ]
+
+        # v17.0: SemanticSearcher를 사용한 Cross-table 엔티티 발견
+        semantic_entity_matches = []
+        try:
+            for entity in extracted_entities[:10]:  # 상위 10개 엔티티만
+                search_results = await self.semantic_search(
+                    query=f"{entity.name} {' '.join(entity.source_tables)}",
+                    limit=5,
+                    expand_query=False,
+                )
+                if search_results:
+                    semantic_entity_matches.append({
+                        "entity": entity.name,
+                        "matches": [r.get("entity_id", r.get("matched_text", "")) for r in search_results[:3]],
+                        "top_score": search_results[0].get("score", 0) if search_results else 0,
+                    })
+            if semantic_entity_matches:
+                logger.info(f"[v17.0] SemanticSearcher found {len(semantic_entity_matches)} potential entity matches")
+        except Exception as e:
+            logger.debug(f"[v17.0] Semantic entity search skipped: {e}")
 
         self._report_progress(0.5, "Requesting LLM validation")
 
@@ -2472,6 +2801,33 @@ Respond with JSON:
             for e in extracted_entities
         ]
 
+        # === v22.0: semantic_searcher로 유사 엔티티 검색 ===
+        semantic_suggestions = []
+        try:
+            semantic_searcher = self.get_v17_service("semantic_searcher")
+            if semantic_searcher and unified_entities:
+                for entity in unified_entities[:5]:  # 상위 5개 엔티티만
+                    query = f"{entity.canonical_name} {entity.entity_type}"
+                    similar = await semantic_searcher.search(query=query, limit=3)
+                    if similar:
+                        semantic_suggestions.append({
+                            "entity": entity.canonical_name,
+                            "similar_concepts": [s.get("name", s.get("id", "")) for s in similar[:3]],
+                        })
+                if semantic_suggestions:
+                    logger.info(f"[v22.0] SemanticSearcher found {len(semantic_suggestions)} entity suggestions")
+        except Exception as e:
+            logger.debug(f"[v22.0] SemanticSearcher skipped: {e}")
+
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="entity_mapping",
+            input_data={"task": "entity_classification", "tables": list(context.tables.keys())},
+            output_data={"entities_classified": len(unified_entities), "entity_types": list(set(e.entity_type for e in unified_entities))},
+            outcome="success",
+            confidence=0.8,
+        )
+
         return TodoResult(
             success=True,
             output={
@@ -2522,13 +2878,21 @@ Respond with JSON:
         for prefix in prefixes_to_remove:
             entity_name = re.sub(prefix, '', entity_name)
 
-        # 복수형 → 단수형 변환
+        # v19.1: 복수형 → 단수형 변환 (패턴 우선순위 개선)
         if entity_name.endswith('ies'):
-            entity_name = entity_name[:-3] + 'y'
-        elif entity_name.endswith('es') and not entity_name.endswith('ses'):
-            entity_name = entity_name[:-2]
-        elif entity_name.endswith('s') and not entity_name.endswith('ss'):
-            entity_name = entity_name[:-1]
+            entity_name = entity_name[:-3] + 'y'       # companies → company
+        elif entity_name.endswith('ves'):
+            entity_name = entity_name[:-3] + 'f'       # wolves → wolf
+        elif entity_name.endswith('ices'):
+            entity_name = entity_name[:-4] + 'ex'      # indices → index
+        elif entity_name.endswith('ees'):
+            entity_name = entity_name[:-1]              # employees → employee
+        elif entity_name.endswith('ses') or entity_name.endswith('xes') or entity_name.endswith('zes') or entity_name.endswith('ches') or entity_name.endswith('shes'):
+            entity_name = entity_name[:-2]              # databases → database, boxes → box
+        elif entity_name.endswith('es'):
+            entity_name = entity_name[:-1]              # types → type (단, 위 패턴에 안 걸리는 -es)
+        elif entity_name.endswith('s') and not entity_name.endswith('ss') and not entity_name.endswith('us') and not entity_name.endswith('is'):
+            entity_name = entity_name[:-1]              # users → user (단, class/status/analysis 보호)
 
         # snake_case → PascalCase
         entity_type = ''.join(word.capitalize() for word in entity_name.split('_'))
@@ -2774,11 +3138,8 @@ Respond with structured JSON matching this schema."""
             for name, info in context.tables.items()
         }
 
-        # Sample data 수집 (Enhanced FK Detection용)
-        sample_data = {}
-        for name, info in context.tables.items():
-            if info.sample_data:
-                sample_data[name] = info.sample_data
+        # v22.1: 전체 데이터 로드 (Enhanced FK Detection용, 샘플링 금지)
+        sample_data = context.get_all_full_data()
 
         # FK 정보 수집
         foreign_keys = []
@@ -2830,6 +3191,57 @@ Respond with structured JSON matching this schema."""
         enhanced_fk_candidates = self._filter_transitive_enhanced_fks(enhanced_fk_candidates)
 
         logger.info(f"[v7.10] Enhanced FK post-filter: {len(enhanced_fk_candidates)} candidates remain")
+
+        # === v16.0: Integrated FK Detection (Composite, Hierarchy, Temporal) ===
+        # 1. 기존 enhanced_fk_candidates를 context에 저장
+        self._report_progress(0.25, "Running Integrated FK Detection (v16.0)")
+        for fk in enhanced_fk_candidates:
+            fk_dict = {
+                "from_table": fk.from_table,
+                "from_column": fk.from_column,
+                "to_table": fk.to_table,
+                "to_column": fk.to_column,
+                "fk_score": fk.fk_score,
+                "confidence": fk.confidence,
+                "value_inclusion": getattr(fk, 'value_inclusion', 0.0),
+                "name_similarity": getattr(fk, 'name_similarity', 0.0),
+                "detection_method": "single_fk",
+            }
+            if fk_dict not in context.enhanced_fk_candidates:
+                context.enhanced_fk_candidates.append(fk_dict)
+
+        # 2. 통합 FK 탐지기 실행 (Composite, Hierarchy, Temporal FK 추가)
+        try:
+            integrated_result = detect_all_fks_and_update_context(
+                shared_context=context,
+                enable_single_fk=False,  # 이미 위에서 실행됨
+                enable_composite_fk=True,
+                enable_hierarchy=True,
+                enable_temporal=True,
+                min_score=0.3,
+            )
+            logger.info(
+                f"[v16.0] Integrated FK Detection: {integrated_result.total_unique_fks} total FKs "
+                f"(composite={integrated_result.composite_fk_count}, "
+                f"hierarchy={integrated_result.hierarchy_fk_count}, "
+                f"temporal={integrated_result.temporal_fk_count})"
+            )
+
+            # 3. 통합 결과를 metadata에 저장 (나중에 TodoResult에 포함)
+            context.set_dynamic("integrated_fk_summary", {
+                "total_unique_fks": integrated_result.total_unique_fks,
+                "single_fk_count": integrated_result.single_fk_count,
+                "composite_fk_count": integrated_result.composite_fk_count,
+                "hierarchy_fk_count": integrated_result.hierarchy_fk_count,
+                "temporal_fk_count": integrated_result.temporal_fk_count,
+                "by_confidence": integrated_result.by_confidence,
+                "by_type": integrated_result.by_type,
+            })
+
+        except Exception as e:
+            logger.warning(f"[v16.0] Integrated FK Detection failed: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
 
         self._report_progress(0.3, "Analyzing graph structure")
 
@@ -2904,9 +3316,22 @@ Respond with structured JSON matching this schema."""
 
         self._report_progress(0.5, "Requesting LLM interpretation")
 
+        # v17.0: FK 신뢰도 보정
+        calibrated_fk_summary = []
+        for fk in enhanced_fk_candidates[:20]:
+            raw_confidence = fk.confidence
+            calibrated = self.calibrate_confidence(raw_confidence)
+            calibrated_fk_summary.append({
+                "from": f"{fk.from_table}.{fk.from_column}",
+                "to": f"{fk.to_table}.{fk.to_column}",
+                "score": round(fk.fk_score, 2),
+                "raw_confidence": raw_confidence,
+                "calibrated_confidence": calibrated["calibrated"],
+            })
+
         # 4. LLM에게 해석 요청
-        # Enhanced FK 결과 요약
-        enhanced_fk_summary = [
+        # Enhanced FK 결과 요약 (v17.0: calibrated confidence 포함)
+        enhanced_fk_summary = calibrated_fk_summary if calibrated_fk_summary else [
             {
                 "from": f"{fk.from_table}.{fk.from_column}",
                 "to": f"{fk.to_table}.{fk.to_column}",
@@ -3092,11 +3517,8 @@ Respond with JSON:
                 name: {"columns": info.columns, "row_count": info.row_count}
                 for name, info in context.tables.items()
             }
-            sample_data = {
-                name: info.sample_data
-                for name, info in context.tables.items()
-                if info.sample_data
-            }
+            # v22.1: 전체 데이터 로드 (샘플링 금지)
+            sample_data = context.get_all_full_data()
 
             # v14.0: DataAnalyst가 분석한 column_semantics 가져오기
             column_semantics = context.get_dynamic("column_semantics", {})
@@ -3129,6 +3551,37 @@ Respond with JSON:
         except Exception as e:
             logger.warning(f"Business Insights Analysis failed in Discovery: {e}")
 
+        # v16.0: 통합 FK 결과를 context_updates에 병합
+        integrated_fk_summary = context.get_dynamic("integrated_fk_summary", {})
+        all_enhanced_fk_results = list(context.enhanced_fk_candidates)  # v16.0: context에서 직접 가져옴
+
+        # === v22.0: semantic_searcher로 의미적 관계 보강 ===
+        semantic_relationships = []
+        try:
+            semantic_searcher = self.get_v17_service("semantic_searcher")
+            if semantic_searcher and concept_relationships:
+                for rel in concept_relationships[:5]:  # 상위 5개 관계만
+                    query = f"{rel.get('from_entity', '')} {rel.get('to_entity', '')} relationship"
+                    similar = await semantic_searcher.search(query=query, limit=2)
+                    if similar:
+                        semantic_relationships.append({
+                            "relationship": f"{rel.get('from_entity')} -> {rel.get('to_entity')}",
+                            "semantic_context": [s.get("name", "") for s in similar[:2]],
+                        })
+                if semantic_relationships:
+                    logger.info(f"[v22.0] SemanticSearcher enriched {len(semantic_relationships)} relationships")
+        except Exception as e:
+            logger.debug(f"[v22.0] SemanticSearcher skipped in RelationshipDetector: {e}")
+
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="relationship_inference",
+            input_data={"task": "relationship_detection", "tables": list(context.tables.keys())},
+            output_data={"relationships_detected": len(table_relationships), "components": len(components)},
+            outcome="success",
+            confidence=0.8,
+        )
+
         return TodoResult(
             success=True,
             output={
@@ -3136,11 +3589,13 @@ Respond with JSON:
                 "bridges_found": len(bridges),
                 "relationships_detected": len(table_relationships),
                 "enhanced_fk_candidates": len(enhanced_fk_candidates),  # v2.1
+                "integrated_fk_total": integrated_fk_summary.get("total_unique_fks", 0),  # v16.0
                 "business_insights_generated": len(business_insights_list),  # v3.0
+                "semantic_enrichments": len(semantic_relationships),  # v22.0
             },
             context_updates={
                 "concept_relationships": concept_relationships,
-                "enhanced_fk_candidates": enhanced_fk_results,  # v2.1
+                "enhanced_fk_candidates": all_enhanced_fk_results,  # v16.0: 통합 결과
                 "value_overlaps": enhanced_overlaps,  # v2.1: Enhanced 결과로 업데이트
                 "business_insights": business_insights_list,  # v3.0
             },
@@ -3150,6 +3605,7 @@ Respond with JSON:
                 "entity_clusters": entity_clusters,
                 "llm_interpretation": interpretation,
                 "enhanced_fk_summary": enhanced_fk_summary,  # v2.1
+                "integrated_fk_summary": integrated_fk_summary,  # v16.0
             },
         )
 

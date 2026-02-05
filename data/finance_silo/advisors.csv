@@ -1,0 +1,6 @@
+advisor_id,first_name,last_name,email,phone,license_number,certification,branch_id,hire_date,aum,client_count,specialization
+ADV001,Robert,Chen,robert.chen@bank.com,555-2001,CFP-12345,CFP,BR001,2018-03-15,45000000.00,85,retirement_planning
+ADV002,Amanda,Foster,amanda.foster@bank.com,555-2002,CFA-23456,CFA,BR002,2019-06-20,38000000.00,72,wealth_management
+ADV003,Marcus,Lee,marcus.lee@bank.com,555-2003,CFP-34567,CFP,BR003,2020-01-10,28000000.00,55,tax_planning
+ADV004,Diana,Park,diana.park@bank.com,555-2004,CFA-45678,CFA,BR004,2017-09-05,52000000.00,92,portfolio_management
+ADV005,Steven,Wright,steven.wright@bank.com,555-2005,CFP-56789,CFP,BR005,2021-04-15,22000000.00,48,estate_planning

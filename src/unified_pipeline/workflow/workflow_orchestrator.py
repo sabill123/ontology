@@ -92,8 +92,8 @@ class WorkflowTask:
     retry_count: int = 0
     max_retries: int = 3
 
-    # 타임아웃 (초)
-    timeout_seconds: int = 300
+    # 타임아웃 (초) - v18.0: 비활성화 (0 = 무제한)
+    timeout_seconds: int = 0
 
     # 메타데이터
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -359,13 +359,13 @@ class WorkflowOrchestrator:
         self,
         domain_context=None,
         max_concurrent_tasks: int = 5,
-        default_timeout: int = 300,
+        default_timeout: int = 0,  # v18.0: 타임아웃 비활성화 (0 = 무제한)
     ):
         """
         Args:
             domain_context: DomainContext 객체
             max_concurrent_tasks: 최대 동시 실행 태스크 수
-            default_timeout: 기본 타임아웃 (초)
+            default_timeout: 기본 타임아웃 (초) - v18.0: 0 = 무제한
         """
         self.domain_context = domain_context
         self.max_concurrent_tasks = max_concurrent_tasks
@@ -604,11 +604,14 @@ class WorkflowOrchestrator:
         logger.info(f"Executing task {task.task_id}: {task.name}")
 
         try:
-            # 타임아웃 적용
-            result = await asyncio.wait_for(
-                self.executor.execute(task),
-                timeout=task.timeout_seconds,
-            )
+            # v18.0: timeout_seconds가 0이면 무제한 대기
+            if task.timeout_seconds and task.timeout_seconds > 0:
+                result = await asyncio.wait_for(
+                    self.executor.execute(task),
+                    timeout=task.timeout_seconds,
+                )
+            else:
+                result = await self.executor.execute(task)  # 무제한 대기
 
             task.result = result
             task.status = TaskStatus.COMPLETED

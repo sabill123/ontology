@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+from ...model_config import get_service_model
+
 
 # ============================================================================
 # Embedded Phase 3 Agent Council (v4.5 - Legacy 완전 임베딩)
@@ -634,7 +636,7 @@ JSON 형식으로 응답:
                     {"role": "system", "content": "You are a domain-expert governance judge. Evaluate decisions based on industry-specific requirements."},
                     {"role": "user", "content": prompt}
                 ],
-                model="gpt-4o-mini",
+                model=get_service_model("governance_judge"),
                 temperature=0.3,
                 max_tokens=800
             )

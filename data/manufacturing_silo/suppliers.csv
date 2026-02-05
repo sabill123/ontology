@@ -1,0 +1,14 @@
+supplier_id,supplier_name,contact_name,contact_email,contact_phone,address,city,country,category,rating,certified,payment_terms
+SUP001,EngineCore Industries,John Miller,jmiller@enginecore.com,555-7001,100 Foundry Rd,Cleveland,USA,castings,4.5,ISO9001|IATF16949,Net 45
+SUP002,PrecisionParts Co,Sarah Chen,schen@precisionparts.com,555-7002,250 Machine Way,Detroit,USA,machined_parts,4.7,ISO9001,Net 30
+SUP003,TransmissionTech,Mike Johnson,mjohnson@transtech.com,555-7003,400 Gear Ave,Indianapolis,USA,transmission,4.3,ISO9001|IATF16949,Net 45
+SUP004,BearingWorld,Lisa Wang,lwang@bearingworld.com,555-7004,600 Rolling Blvd,Akron,USA,bearings,4.6,ISO9001,Net 30
+SUP005,ChipMaster Electronics,David Kim,dkim@chipmaster.com,555-7005,800 Silicon Way,San Jose,USA,electronics,4.8,ISO9001|ISO14001,Net 30
+SUP006,PlastiForm Inc,Emily Brown,ebrown@plastiform.com,555-7006,150 Polymer St,Houston,USA,plastic,4.2,ISO9001,Net 30
+SUP007,SteelSource Global,Robert Taylor,rtaylor@steelsource.com,555-7007,300 Metal Dr,Pittsburgh,USA,steel,4.4,ISO9001|ISO14001,Net 45
+SUP008,FastenerPro,Amanda Garcia,agarcia@fastenerpro.com,555-7008,500 Bolt Ln,Chicago,USA,fasteners,4.1,ISO9001,Net 15
+SUP009,CopperWire Solutions,Tom Wilson,twilson@copperwire.com,555-7009,700 Conductor Rd,Phoenix,USA,wire,4.5,ISO9001,Net 30
+SUP010,ConnectorKing,Jennifer Lee,jlee@connectorking.com,555-7010,900 Terminal Ave,San Diego,USA,connectors,4.3,ISO9001,Net 30
+SUP011,PrecisionSteel Ltd,Hans Mueller,hmueller@precisionsteel.de,555-7011,100 Stahl Str,Stuttgart,Germany,precision_steel,4.9,ISO9001|IATF16949,Net 60
+SUP012,PolymerPlus,Wei Zhang,wzhang@polymerplus.cn,555-7012,200 Plastic Rd,Shenzhen,China,resins,4.0,ISO9001,Net 45
+SUP013,CoatingsExpert,Maria Rodriguez,mrodriguez@coatingsexp.com,555-7013,350 Paint Way,Detroit,USA,coatings,4.4,ISO9001|ISO14001,Net 30

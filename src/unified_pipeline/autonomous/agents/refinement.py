@@ -44,6 +44,11 @@ from ..analysis import (
     # === v6.1: Virtual Entity Generator ===
     VirtualEntityGenerator,
     generate_virtual_entities_for_context,
+    # === v16.0: OWL2 Reasoner & SHACL Validator ===
+    OWL2Reasoner,
+    run_owl2_reasoning_and_update_context,
+    SHACLValidator,
+    run_shacl_validation_and_update_context,
 )
 
 # === v4.5: Embedded Phase 2 Agent Council from utils ===
@@ -171,10 +176,29 @@ Respond ONLY with valid JSON."""
         # 1단계: Discovery 결과에서 구조화된 온톨로지 개념 추출 (알고리즘)
         extracted_concepts = self._extract_concepts_from_discovery(context)
 
-        self._report_progress(0.25, f"Extracted {len(extracted_concepts)} raw concepts")
+        self._report_progress(0.20, f"Extracted {len(extracted_concepts)} raw concepts")
+
+        # === v17.1: LLM 심층 개념 분석 (새로 추가) ===
+        self._report_progress(0.22, "Running LLM Deep Concept Analysis (v17.1)")
+        try:
+            extracted_concepts = await self._llm_deep_concept_analysis(extracted_concepts, context)
+            logger.info(f"[v17.1] LLM deep analysis enriched {len(extracted_concepts)} concepts")
+        except Exception as e:
+            logger.warning(f"LLM deep concept analysis failed: {e}")
 
         # 2단계: 계층 관계 추론 (알고리즘)
         hierarchy = self._infer_hierarchy(extracted_concepts, context)
+
+        # === v17.1: LLM 의미론적 관계 추론 (새로 추가) ===
+        self._report_progress(0.26, "Running LLM Semantic Relationship Inference (v17.1)")
+        llm_relationships = []
+        try:
+            llm_relationships = await self._llm_infer_semantic_relationships(extracted_concepts, context)
+            # LLM이 발견한 관계를 concepts에 추가
+            extracted_concepts.extend(llm_relationships)
+            logger.info(f"[v17.1] LLM inferred {len(llm_relationships)} additional relationships")
+        except Exception as e:
+            logger.warning(f"LLM relationship inference failed: {e}")
 
         self._report_progress(0.30, "Running Ontology Alignment (v3.0)")
 
@@ -292,9 +316,13 @@ Respond ONLY with valid JSON."""
         self._report_progress(0.55, "Enhancing concepts with LLM")
 
         # 3단계: LLM을 통한 개념 보강
-        enhanced_concepts = await self._enhance_concepts_with_llm(
-            extracted_concepts, hierarchy, context
-        )
+        try:
+            enhanced_concepts = await self._enhance_concepts_with_llm(
+                extracted_concepts, hierarchy, context
+            )
+        except Exception as e:
+            logger.warning(f"LLM concept enhancement failed, using raw concepts: {e}")
+            enhanced_concepts = extracted_concepts
 
         self._report_progress(0.8, "Creating ontology concept objects")
 
@@ -369,10 +397,89 @@ Respond ONLY with valid JSON."""
         kg_triples = self._generate_ontology_triples(ontology_concepts, hierarchy, context)
         logger.info(f"Generated {len(kg_triples)} knowledge graph triples from ontology concepts")
 
+        # === v17.1: OSDK 연동 - 온톨로지 개념을 OSDK Object Types로 동기화 ===
+        osdk_sync_results = {"synced_types": 0, "synced_links": 0}
+        try:
+            osdk_client = self.get_v17_service("osdk_client")
+            if osdk_client:
+                # Object Types 동기화
+                for concept in ontology_concepts:
+                    if concept.concept_type == "object_type":
+                        # 속성 추출
+                        properties = []
+                        if concept.definition and isinstance(concept.definition, dict):
+                            for attr in concept.definition.get("attributes", [])[:20]:
+                                prop_name = attr.get("name", "") if isinstance(attr, dict) else str(attr)
+                                prop_type = attr.get("type", "string") if isinstance(attr, dict) else "string"
+                                properties.append({"name": prop_name, "type": prop_type})
+
+                        osdk_client.create_object_type(
+                            type_id=concept.concept_id,
+                            name=concept.name,
+                            description=concept.description,
+                            properties=properties,
+                        )
+                        osdk_sync_results["synced_types"] += 1
+
+                    elif concept.concept_type == "link_type":
+                        osdk_client.create_link_type(
+                            link_id=concept.concept_id,
+                            name=concept.name,
+                            source_type=concept.definition.get("from_concept", ""),
+                            target_type=concept.definition.get("to_concept", ""),
+                            cardinality=concept.definition.get("cardinality", "many_to_one"),
+                        )
+                        osdk_sync_results["synced_links"] += 1
+
+                logger.info(
+                    f"[v17.1] OSDK sync complete: {osdk_sync_results['synced_types']} object types, "
+                    f"{osdk_sync_results['synced_links']} link types"
+                )
+        except Exception as e:
+            logger.debug(f"[v17.1] OSDK sync skipped: {e}")
+
+        # === v22.0: decision_explainer로 온톨로지 설계 결정 설명 생성 ===
+        design_explanations = []
+        try:
+            decision_explainer = self.get_v17_service("decision_explainer")
+            if decision_explainer and ontology_concepts:
+                for concept in ontology_concepts[:5]:  # 상위 5개 개념만
+                    explanation = await decision_explainer.explain(
+                        decision_type="ontology_design",
+                        decision_data={
+                            "concept_id": concept.concept_id,
+                            "concept_type": concept.concept_type,
+                            "name": concept.name,
+                            "source_tables": concept.source_tables,
+                            "confidence": concept.confidence,
+                        },
+                        context={"phase": "refinement", "agent": self.agent_name},
+                    )
+                    if explanation:
+                        design_explanations.append({
+                            "concept_id": concept.concept_id,
+                            "explanation": explanation.get("summary", ""),
+                            "design_rationale": explanation.get("rationale", ""),
+                        })
+                if design_explanations:
+                    logger.info(f"[v22.0] DecisionExplainer generated {len(design_explanations)} design explanations")
+        except Exception as e:
+            logger.debug(f"[v22.0] DecisionExplainer skipped: {e}")
+
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="entity_mapping",
+            input_data={"task": "ontology_design", "concepts_input": len(extracted_concepts)},
+            output_data={"concepts_proposed": len(ontology_concepts), "hierarchy_levels": len(hierarchy)},
+            outcome="success",
+            confidence=0.85,
+        )
+
         return TodoResult(
             success=True,
             output={
                 "concepts_proposed": len(ontology_concepts),
+                "design_explanations": len(design_explanations),  # v22.0
                 "by_type": by_type,
                 "hierarchy_levels": len(hierarchy),
                 "embedded_insights_generated": len(embedded_insights),  # v4.5
@@ -404,9 +511,28 @@ Respond ONLY with valid JSON."""
         self,
         context: "SharedContext",
     ) -> List[Dict[str, Any]]:
-        """Discovery 결과에서 개념 추출 (알고리즘) - v5.1 Enhanced"""
+        """Discovery 결과에서 개념 추출 (알고리즘) - v5.1 Enhanced, v17.1 Semantic Integration"""
         concepts = []
         seen_names = set()
+
+        # === v17.1: Phase 1 의미 분석 데이터 통합 ===
+        # DataAnalyst가 생성한 풍부한 의미 정보 로드
+        column_semantics = context.get_dynamic("column_semantics", {})
+        data_patterns = context.get_dynamic("data_patterns", [])
+        operational_insights = context.get_dynamic("operational_insights", {})
+        extracted_entities_p1 = context.extracted_entities or []
+
+        # v22.0: Phase 1 누수 데이터 통합 — TDA/Schema/CrossTable
+        tda_signatures = context.tda_signatures or {}
+        schema_analysis_data = context.schema_analysis or {}
+        cross_table_mappings = context.cross_table_mappings or []
+
+        logger.info(
+            f"[v17.1] Phase 1 semantic data: {len(column_semantics)} column semantics, "
+            f"{len(data_patterns)} patterns, {len(extracted_entities_p1)} extracted entities, "
+            f"{len(tda_signatures)} TDA signatures, {len(schema_analysis_data)} schema analyses, "
+            f"{len(cross_table_mappings)} cross-table mappings"
+        )
 
         # 1. Unified Entities에서 Object Types 추출
         for entity in context.unified_entities:
@@ -439,6 +565,18 @@ Respond ONLY with valid JSON."""
                             "data_type": col_type,
                             "nullable": col.get("nullable", True) if isinstance(col, dict) else True,
                         }
+
+                        # === v17.1: column_semantics에서 비즈니스 역할 추가 ===
+                        col_key = f"{table_name}.{col_name}"
+                        if col_key in column_semantics:
+                            sem = column_semantics[col_key]
+                            attr_info["business_role"] = sem.get("business_role", "unknown")
+                            attr_info["nullable_by_design"] = sem.get("nullable_by_design", True)
+                            attr_info["semantic_category"] = sem.get("category", "data")
+                            attr_info["importance"] = sem.get("importance", "medium")
+                            # 필수 입력 필드인 경우 nullable=False로 보정
+                            if sem.get("business_role") == "required_input":
+                                attr_info["nullable"] = False
 
                         # 중복 방지
                         if not any(a["name"].lower() == col_name.lower() for a in extracted_attributes):
@@ -672,6 +810,215 @@ Respond ONLY with valid JSON."""
                 },
             })
 
+        # === v17.1: extracted_entities에서 추가 Object Types 추출 ===
+        # Phase 1에서 LLM이 추출한 엔티티 (unified_entities와 다를 수 있음)
+        for ext_entity in (context.extracted_entities or []):
+            if hasattr(ext_entity, 'name'):
+                name = self._to_pascal_case(ext_entity.name)
+                entity_type = getattr(ext_entity, 'entity_type', 'Entity')
+                source_tables = getattr(ext_entity, 'source_tables', [])
+                confidence = getattr(ext_entity, 'confidence', 0.6)
+            elif isinstance(ext_entity, dict):
+                name = self._to_pascal_case(ext_entity.get("name", ""))
+                entity_type = ext_entity.get("entity_type", "Entity")
+                source_tables = ext_entity.get("source_tables", [])
+                confidence = ext_entity.get("confidence", 0.6)
+            else:
+                continue
+
+            if not name or name.lower() in seen_names:
+                continue
+            seen_names.add(name.lower())
+
+            concepts.append({
+                "concept_id": f"obj_ext_{name.lower()}",
+                "concept_type": "object_type",
+                "name": name,
+                "description": f"LLM-extracted entity: {entity_type}",
+                "source_tables": source_tables if source_tables else [],
+                "source_evidence": {
+                    "extraction_method": "llm_entity_extraction",
+                    "confidence": confidence,
+                },
+                "confidence": confidence,
+                "definition": {
+                    "entity_type": entity_type,
+                    "attributes": [],
+                },
+            })
+
+        # === v17.1: indirect_fks에서 Bridge Table 경유 관계 추출 ===
+        # Phase 1에서 탐지된 간접 FK 관계 (A→Bridge→B)
+        for indirect in (context.indirect_fks or []):
+            if isinstance(indirect, dict):
+                from_table = indirect.get("from_table", indirect.get("source_table", ""))
+                to_table = indirect.get("to_table", indirect.get("target_table", ""))
+                bridge_table = indirect.get("bridge_table", indirect.get("via_table", ""))
+                confidence = indirect.get("confidence", 0.6)
+            else:
+                continue
+
+            if not all([from_table, to_table]):
+                continue
+
+            # 중복 체크
+            link_key = f"{from_table}_{to_table}".lower()
+            if link_key in seen_names:
+                continue
+
+            # 간접 관계 이름 생성
+            if bridge_table:
+                link_name = f"relates_via_{bridge_table.split('_')[-1]}"
+            else:
+                link_name = self._generate_business_link_name(from_table, to_table, [])
+
+            if link_name.lower() in seen_names:
+                link_name = f"{link_name}_{from_table.split('_')[-1]}"
+            seen_names.add(link_name.lower())
+            seen_names.add(link_key)
+
+            concepts.append({
+                "concept_id": f"link_indirect_{from_table}_{to_table}",
+                "concept_type": "link_type",
+                "name": link_name,
+                "description": f"Indirect relationship from {from_table} to {to_table}" +
+                              (f" via bridge table {bridge_table}" if bridge_table else ""),
+                "source_tables": [from_table, to_table] + ([bridge_table] if bridge_table else []),
+                "source_evidence": {
+                    "fk_type": "indirect_via_bridge",
+                    "bridge_table": bridge_table,
+                    "confidence": confidence,
+                },
+                "confidence": confidence,
+                "definition": {
+                    "source": from_table,
+                    "target": to_table,
+                    "bridge": bridge_table,
+                    "relationship_type": "many-to-many" if bridge_table else "indirect",
+                },
+            })
+
+        # === v17.1: cross_table_mappings에서 추가 관계 추출 ===
+        for mapping in (context.cross_table_mappings or []):
+            if isinstance(mapping, dict):
+                table_a = mapping.get("table_a", mapping.get("source_table", ""))
+                table_b = mapping.get("table_b", mapping.get("target_table", ""))
+                mapping_type = mapping.get("mapping_type", mapping.get("type", "cross_reference"))
+                confidence = mapping.get("confidence", 0.5)
+            else:
+                continue
+
+            if not all([table_a, table_b]) or confidence < 0.4:
+                continue
+
+            link_key = f"{table_a}_{table_b}".lower()
+            if link_key in seen_names:
+                continue
+
+            link_name = f"cross_maps_{table_b.split('_')[-1]}"
+            if link_name.lower() in seen_names:
+                link_name = f"{link_name}_{table_a.split('_')[-1]}"
+            seen_names.add(link_name.lower())
+            seen_names.add(link_key)
+
+            concepts.append({
+                "concept_id": f"link_cross_{table_a}_{table_b}",
+                "concept_type": "link_type",
+                "name": link_name,
+                "description": f"Cross-table mapping: {table_a} → {table_b} ({mapping_type})",
+                "source_tables": [table_a, table_b],
+                "source_evidence": {
+                    "mapping_type": mapping_type,
+                    "confidence": confidence,
+                },
+                "confidence": confidence,
+                "definition": {
+                    "source": table_a,
+                    "target": table_b,
+                    "mapping_type": mapping_type,
+                },
+            })
+
+        # === v22.0: 단일 테이블 폴백 — 테이블 스키마에서 직접 개념 생성 ===
+        # unified_entities, homeomorphisms, FKs, value_overlaps 모두 비어있을 때
+        if not concepts and context.tables:
+            logger.info(f"[v22.0] No concepts from multi-table sources. "
+                        f"Generating from {len(context.tables)} table schema(s) directly.")
+            for table_name, table_info in context.tables.items():
+                # Object Type: 테이블 자체를 엔티티로
+                obj_name = self._to_pascal_case(table_name)
+                if obj_name.lower() in seen_names:
+                    continue
+                seen_names.add(obj_name.lower())
+
+                columns = []
+                if hasattr(table_info, 'columns'):
+                    columns = table_info.columns or []
+
+                col_names = []
+                pk_cols = []
+                for col in columns[:20]:
+                    col_name = col.get("name", str(col)) if isinstance(col, dict) else str(col)
+                    col_type = col.get("type", "string") if isinstance(col, dict) else "string"
+                    col_names.append(col_name)
+                    # PK 추정 (id, *_id 패턴)
+                    if col_name.lower() in ("id",) or col_name.lower().endswith("_id"):
+                        pk_cols.append(col_name)
+
+                concepts.append({
+                    "concept_id": f"obj_table_{table_name}",
+                    "concept_type": "object_type",
+                    "name": obj_name,
+                    "description": f"Entity derived from table: {table_name}",
+                    "source_tables": [table_name],
+                    "source_evidence": {
+                        "extraction_method": "single_table_schema",
+                        "confidence": 0.75,
+                        "column_count": len(col_names),
+                    },
+                    "confidence": 0.75,
+                    "definition": {
+                        "attributes": col_names,
+                        "primary_keys": pk_cols[:3],
+                    },
+                })
+
+                # Property: 각 컬럼을 프로퍼티로
+                for col in columns[:20]:
+                    col_name = col.get("name", str(col)) if isinstance(col, dict) else str(col)
+                    col_type = col.get("type", "string") if isinstance(col, dict) else "string"
+                    prop_name = self._to_camel_case(col_name)
+                    if prop_name.lower() in seen_names:
+                        continue
+                    seen_names.add(prop_name.lower())
+
+                    # 의미론적 분류 from column_semantics
+                    col_key = f"{table_name}.{col_name}"
+                    sem_info = column_semantics.get(col_key, {})
+
+                    concepts.append({
+                        "concept_id": f"prop_table_{table_name}_{col_name}",
+                        "concept_type": "property",
+                        "name": prop_name,
+                        "description": f"Property of {obj_name}: {col_name}"
+                                       + (f" ({sem_info.get('business_role', '')})" if sem_info.get('business_role') else ""),
+                        "source_tables": [table_name],
+                        "source_evidence": {
+                            "confidence": 0.7,
+                            "extraction_method": "single_table_schema",
+                        },
+                        "confidence": 0.7,
+                        "definition": {
+                            "belongs_to": obj_name,
+                            "data_type": col_type,
+                            "semantic_category": sem_info.get("category", ""),
+                        },
+                    })
+
+            logger.info(f"[v22.0] Single-table fallback generated {len(concepts)} concepts")
+
+        logger.info(f"[v17.1] Extracted {len(concepts)} concepts from all Phase 1 sources")
+
         return concepts
 
     def _infer_hierarchy(
@@ -728,6 +1075,35 @@ Respond ONLY with valid JSON."""
                         for c in table_info.columns[:8]]
                 table_context[table_name] = cols
 
+        # v22.0: TDA 시그니처 요약 (Betti numbers, topological features)
+        tda_summary = {}
+        for tname, sig in list((context.tda_signatures or {}).items())[:10]:
+            if isinstance(sig, dict):
+                tda_summary[tname] = {
+                    "betti_numbers": sig.get("betti_numbers", sig.get("betti", [])),
+                    "homology_features": sig.get("num_features", sig.get("features_count", 0)),
+                }
+
+        # v22.0: Schema analysis 요약 (FK 패턴, 정규화 수준)
+        schema_summary = {}
+        for tname, analysis in list((context.schema_analysis or {}).items())[:10]:
+            if isinstance(analysis, dict):
+                schema_summary[tname] = {
+                    "pk_columns": analysis.get("pk_columns", []),
+                    "fk_hints": analysis.get("fk_hints", []),
+                    "normalization": analysis.get("normalization_level", "unknown"),
+                }
+
+        # v22.0: Cross-table mappings 요약
+        cross_mappings_summary = []
+        for m in (context.cross_table_mappings or [])[:20]:
+            if isinstance(m, dict):
+                cross_mappings_summary.append({
+                    "source": m.get("table_a", m.get("source_table", "")),
+                    "target": m.get("table_b", m.get("target_table", "")),
+                    "type": m.get("mapping_type", m.get("type", "unknown")),
+                })
+
         for i in range(0, len(concepts), batch_size):
             batch = concepts[i:i + batch_size]
 
@@ -736,8 +1112,11 @@ Enhance these ontology concepts with professional, domain-specific descriptions.
 
 ## Domain Context
 - Industry: {domain}
-- Available tables and sample columns: {json.dumps(table_context, indent=2)}
-- Concept hierarchy: {json.dumps(hierarchy, indent=2)}
+- Available tables and sample columns: {json.dumps(table_context, indent=2, default=str)}
+- Concept hierarchy: {json.dumps(hierarchy, indent=2, default=str)}
+- TDA topological signatures: {json.dumps(tda_summary, indent=2, default=str)}
+- Schema analysis: {json.dumps(schema_summary, indent=2, default=str)}
+- Cross-table mappings: {json.dumps(cross_mappings_summary, indent=2, default=str)}
 
 ## Concepts to Enhance
 {json.dumps(batch, indent=2, ensure_ascii=False, default=str)}
@@ -780,27 +1159,33 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
 ]
 ```"""
 
-            response = await self.call_llm(instruction, max_tokens=4000)
-            batch_enhanced = parse_llm_json(response, default=[])
+            try:
+                response = await self.call_llm(instruction, max_tokens=4000)
+                batch_enhanced = parse_llm_json(response, default=[])
 
-            if batch_enhanced and isinstance(batch_enhanced, list):
-                # v5.1: 각 개념에 원본 정보가 누락되면 보완
-                for j, enhanced_concept in enumerate(batch_enhanced):
-                    if j < len(batch):
-                        original = batch[j]
-                        # 필수 필드 보존
-                        for key in ["concept_id", "concept_type", "source_tables", "source_evidence", "confidence"]:
-                            if key not in enhanced_concept and key in original:
-                                enhanced_concept[key] = original[key]
-                        # 설명이 여전히 템플릿 형태면 원본 개선
-                        desc = enhanced_concept.get("description", "")
-                        if desc.startswith("Entity representing") or len(desc) < 30:
-                            enhanced_concept["description"] = self._generate_fallback_description(
-                                enhanced_concept, domain
-                            )
-                enhanced.extend(batch_enhanced)
-            else:
-                # LLM 실패 시 알고리즘 기반 개선
+                if batch_enhanced and isinstance(batch_enhanced, list):
+                    # v5.1: 각 개념에 원본 정보가 누락되면 보완
+                    for j, enhanced_concept in enumerate(batch_enhanced):
+                        if j < len(batch):
+                            original = batch[j]
+                            # 필수 필드 보존
+                            for key in ["concept_id", "concept_type", "source_tables", "source_evidence", "confidence"]:
+                                if key not in enhanced_concept and key in original:
+                                    enhanced_concept[key] = original[key]
+                            # 설명이 여전히 템플릿 형태면 원본 개선
+                            desc = enhanced_concept.get("description", "")
+                            if desc.startswith("Entity representing") or len(desc) < 30:
+                                enhanced_concept["description"] = self._generate_fallback_description(
+                                    enhanced_concept, domain
+                                )
+                    enhanced.extend(batch_enhanced)
+                else:
+                    # LLM 실패 시 알고리즘 기반 개선
+                    for concept in batch:
+                        concept["description"] = self._generate_fallback_description(concept, domain)
+                    enhanced.extend(batch)
+            except Exception as e:
+                logger.warning(f"LLM enhancement batch {i} failed: {e}")
                 for concept in batch:
                     concept["description"] = self._generate_fallback_description(concept, domain)
                 enhanced.extend(batch)
@@ -1234,7 +1619,10 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
                     "confidence": e.confidence,
                 })
 
-        # 2. CausalImpactAnalyzer로 통합 영향 분석
+        # v22.1: 전체 데이터 로드 (샘플링 금지)
+        real_data = context.get_all_full_data()
+
+        # 2. CausalImpactAnalyzer로 실제 데이터 기반 인과 분석
         if tables_dict:
             try:
                 impact_result = self.causal_analyzer.analyze(
@@ -1242,12 +1630,14 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
                     fk_relations=fk_relations,
                     entity_matches=entity_matches,
                     target_kpis=["data_quality", "operational_efficiency"],
+                    real_data=real_data,  # v18.4: 전체 원본 데이터 전달
                 )
 
                 insights["impact_analysis"] = {
                     "summary": impact_result.get("summary", {}),
                     "treatment_effects": impact_result.get("treatment_effects", []),
                     "recommendations": impact_result.get("recommendations", []),
+                    "group_comparisons": impact_result.get("group_comparisons", []),  # v18.5
                 }
 
                 # 인과 그래프 정보 저장
@@ -1478,6 +1868,282 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
 
         return virtual_entities
 
+    # === v17.1: LLM-Powered Concept Analysis ===
+
+    async def _llm_deep_concept_analysis(
+        self,
+        concepts: List[Dict[str, Any]],
+        context: "SharedContext",
+    ) -> List[Dict[str, Any]]:
+        """
+        v17.1: LLM 심층 개념 분석 - 개념 정의 및 비즈니스 의미 강화
+
+        알고리즘 추출 후 LLM으로 각 개념의:
+        1. 비즈니스 정의 (business_definition) 추가
+        2. 관련 도메인 개념 (related_concepts) 식별
+        3. 데이터 품질 지표 (quality_indicators) 평가
+        4. 잠재적 사용 사례 (use_cases) 도출
+
+        Args:
+            concepts: 알고리즘으로 추출된 개념들
+            context: SharedContext
+
+        Returns:
+            LLM으로 강화된 개념 리스트
+        """
+        if not concepts:
+            return concepts
+
+        domain = context.get_industry() or "general"
+
+        # 테이블 컨텍스트 구성
+        table_summary = {}
+        for table_name, table_info in list(context.tables.items())[:15]:
+            if hasattr(table_info, 'columns'):
+                cols = [c.get("name", str(c)) if isinstance(c, dict) else str(c)
+                        for c in table_info.columns[:10]]
+                table_summary[table_name] = {
+                    "columns": cols,
+                    "row_count": getattr(table_info, 'row_count', 0),
+                }
+
+        # 배치 처리 (20개씩)
+        batch_size = 20
+        enriched_concepts = []
+
+        for i in range(0, len(concepts), batch_size):
+            batch = concepts[i:i + batch_size]
+
+            # Object Types만 심층 분석 (Properties는 간략히)
+            object_types = [c for c in batch if c.get("concept_type") == "object_type"]
+            other_concepts = [c for c in batch if c.get("concept_type") != "object_type"]
+
+            if object_types:
+                prompt = f"""You are an expert ontologist specializing in the {domain} domain.
+
+## Task
+Perform DEEP ANALYSIS of these ontology concepts extracted from enterprise data.
+Add business context, identify related concepts, and assess data quality indicators.
+
+## Domain Context
+- Industry: {domain}
+- Available Tables: {json.dumps(list(table_summary.keys()), indent=2)}
+
+## Concepts to Analyze
+{json.dumps(object_types, indent=2, ensure_ascii=False, default=str)}
+
+## Analysis Requirements
+For EACH concept, add:
+
+1. **business_definition**: A precise 2-3 sentence business definition explaining:
+   - What this entity represents in the {domain} domain
+   - Its role in business processes
+   - Why it matters for analytics/operations
+
+2. **related_concepts**: List of 2-4 concepts this entity likely relates to
+   Format: ["ConceptA", "ConceptB", ...]
+
+3. **quality_indicators**: Key data quality metrics to monitor
+   Format: {{"completeness": "description", "uniqueness": "description", "timeliness": "description"}}
+
+4. **use_cases**: 2-3 specific business use cases
+   Format: ["Use case 1", "Use case 2", ...]
+
+5. **semantic_tags**: Domain-specific tags for classification
+   Format: ["tag1", "tag2", ...]
+
+## Output Format
+Return ONLY a JSON array. Preserve ALL original fields and ADD the new analysis fields.
+
+```json
+[
+  {{
+    "concept_id": "<original>",
+    "concept_type": "<original>",
+    "name": "<original>",
+    "description": "<original or enhanced>",
+    "source_tables": [<original>],
+    "source_evidence": {{<original>}},
+    "confidence": <original>,
+    "definition": {{<original>}},
+    "business_definition": "<new: detailed business definition>",
+    "related_concepts": ["<new: related concept names>"],
+    "quality_indicators": {{"<new: quality metrics>"}},
+    "use_cases": ["<new: business use cases>"],
+    "semantic_tags": ["<new: domain tags>"]
+  }}
+]
+```"""
+
+                try:
+                    response = await self.call_llm(prompt, max_tokens=4000)
+                    enriched_batch = parse_llm_json(response, default=[])
+
+                    if enriched_batch and isinstance(enriched_batch, list):
+                        # 원본 필드 보존
+                        for j, enriched in enumerate(enriched_batch):
+                            if j < len(object_types):
+                                original = object_types[j]
+                                for key in ["concept_id", "concept_type", "name", "source_tables",
+                                          "source_evidence", "confidence", "definition"]:
+                                    if key not in enriched and key in original:
+                                        enriched[key] = original[key]
+                        enriched_concepts.extend(enriched_batch)
+                    else:
+                        enriched_concepts.extend(object_types)
+                except Exception as e:
+                    logger.warning(f"LLM deep analysis batch failed: {e}")
+                    enriched_concepts.extend(object_types)
+
+            # Properties 등은 원본 유지
+            enriched_concepts.extend(other_concepts)
+
+        return enriched_concepts
+
+    async def _llm_infer_semantic_relationships(
+        self,
+        concepts: List[Dict[str, Any]],
+        context: "SharedContext",
+    ) -> List[Dict[str, Any]]:
+        """
+        v17.1: LLM 의미론적 관계 추론 - 알고리즘이 놓친 관계 발견
+
+        알고리즘 기반 관계 외에 LLM이 추론하는:
+        1. 비즈니스 규칙 기반 관계 (is-a, part-of, has-a)
+        2. 시간적/인과적 관계 (precedes, causes, affects)
+        3. 프로세스 관계 (leads-to, enables, triggers)
+
+        Args:
+            concepts: 추출된 개념들
+            context: SharedContext
+
+        Returns:
+            새로 발견된 관계 개념들
+        """
+        if not concepts:
+            return []
+
+        domain = context.get_industry() or "general"
+
+        # Object Types만 추출
+        object_types = [c for c in concepts if c.get("concept_type") == "object_type"]
+        existing_links = [c for c in concepts if c.get("concept_type") == "link_type"]
+
+        if len(object_types) < 2:
+            return []
+
+        # FK 관계 컨텍스트
+        existing_fk_pairs = set()
+        for link in existing_links:
+            source = link.get("definition", {}).get("source", "")
+            target = link.get("definition", {}).get("target", "")
+            if source and target:
+                existing_fk_pairs.add((source.lower(), target.lower()))
+
+        # Homeomorphism 정보
+        homeo_summary = []
+        for h in (context.homeomorphisms or [])[:20]:
+            homeo_summary.append({
+                "table_a": h.table_a,
+                "table_b": h.table_b,
+                "confidence": h.confidence,
+            })
+
+        prompt = f"""You are an expert ontologist specializing in semantic relationship inference.
+
+## Task
+Analyze these ontology concepts and DISCOVER IMPLICIT RELATIONSHIPS that algorithms may have missed.
+Focus on business-level semantic relationships, not just FK relationships.
+
+## Domain Context
+- Industry: {domain}
+
+## Existing Object Types (Entities)
+{json.dumps([{{"name": c.get("name"), "source_tables": c.get("source_tables", [])}} for c in object_types], indent=2)}
+
+## Already Discovered Relationships (FK-based)
+{json.dumps([{{"name": c.get("name"), "source": c.get("definition", {{}}).get("source"), "target": c.get("definition", {{}}).get("target")}} for c in existing_links[:15]], indent=2)}
+
+## Homeomorphism Evidence
+{json.dumps(homeo_summary, indent=2)}
+
+## Relationship Types to Discover
+1. **Hierarchical**: is-a (Patient is-a Person), part-of (LineItem part-of Order)
+2. **Association**: has-a (Patient has-a Diagnosis), belongs-to (Claim belongs-to Patient)
+3. **Temporal**: precedes (Admission precedes Discharge), follows (Payment follows Claim)
+4. **Causal**: causes (Treatment causes Outcome), affects (Procedure affects Cost)
+5. **Process**: enables (Authorization enables Treatment), triggers (Event triggers Alert)
+
+## Rules
+- ONLY propose relationships between entities in the list above
+- DO NOT duplicate existing FK relationships
+- Each relationship should have clear business justification
+- Confidence: 0.7+ for strong evidence, 0.5-0.7 for inferred
+
+## Output Format
+Return ONLY a JSON array of NEW relationship concepts:
+
+```json
+[
+  {{
+    "concept_id": "link_llm_<source>_<target>",
+    "concept_type": "link_type",
+    "name": "<verb_phrase_name>",
+    "description": "<business justification for this relationship>",
+    "source_tables": ["<source_entity_table>", "<target_entity_table>"],
+    "source_evidence": {{
+      "inference_type": "semantic|hierarchical|temporal|causal|process",
+      "reasoning": "<why this relationship exists>"
+    }},
+    "confidence": 0.XX,
+    "definition": {{
+      "source": "<source_entity_name>",
+      "target": "<target_entity_name>",
+      "relationship_type": "<is-a|part-of|has-a|belongs-to|precedes|causes|enables|etc>",
+      "cardinality": "one-to-one|one-to-many|many-to-many"
+    }}
+  }}
+]
+```
+
+If no additional relationships can be confidently inferred, return an empty array: []"""
+
+        try:
+            response = await self.call_llm(prompt, max_tokens=3000)
+            new_relationships = parse_llm_json(response, default=[])
+
+            if new_relationships and isinstance(new_relationships, list):
+                # 중복 및 유효성 검사
+                valid_relationships = []
+                for rel in new_relationships:
+                    source = rel.get("definition", {}).get("source", "")
+                    target = rel.get("definition", {}).get("target", "")
+
+                    # 중복 체크
+                    if (source.lower(), target.lower()) in existing_fk_pairs:
+                        continue
+                    if (target.lower(), source.lower()) in existing_fk_pairs:
+                        continue
+
+                    # 최소 confidence 체크
+                    if rel.get("confidence", 0) < 0.4:
+                        continue
+
+                    # concept_id가 없으면 생성
+                    if not rel.get("concept_id"):
+                        rel["concept_id"] = f"link_llm_{source}_{target}".replace(" ", "_").lower()
+
+                    valid_relationships.append(rel)
+                    existing_fk_pairs.add((source.lower(), target.lower()))
+
+                logger.info(f"[v17.1] LLM inferred {len(valid_relationships)} semantic relationships")
+                return valid_relationships
+
+        except Exception as e:
+            logger.warning(f"LLM relationship inference failed: {e}")
+
+        return []
+
 
 class ConflictResolverAutonomousAgent(AutonomousAgent):
     """
@@ -1551,10 +2217,14 @@ Respond ONLY with valid JSON."""
         todo: "PipelineTodo",
         context: "SharedContext",
     ) -> "TodoResult":
-        """충돌 탐지 (알고리즘 기반)"""
+        """충돌 탐지 (알고리즘 기반) - v17.1: data_patterns 통합"""
         from ...todo.models import TodoResult
 
         self._report_progress(0.1, "Preparing concepts for conflict detection")
+
+        # === v17.1: Phase 1 data_patterns 로드 ===
+        data_patterns = context.get_dynamic("data_patterns", [])
+        logger.info(f"[v17.1] Loaded {len(data_patterns)} data patterns for conflict detection")
 
         # 개념을 딕셔너리로 변환
         concepts = [
@@ -1569,6 +2239,29 @@ Respond ONLY with valid JSON."""
             }
             for c in context.ontology_concepts
         ]
+
+        # === v17.1: data_patterns 기반 추가 충돌 탐지 ===
+        # 수학적 패턴(A+B=1, derived columns)으로 인한 중복/파생 컬럼 탐지
+        pattern_based_conflicts = []
+        for pattern in data_patterns:
+            if isinstance(pattern, dict):
+                pattern_type = pattern.get("type", pattern.get("pattern_type", ""))
+
+                # 파생 컬럼 패턴: 중복 개념 가능성
+                if pattern_type in ("derived_column", "calculated_field", "sum_to_one"):
+                    columns = pattern.get("columns", pattern.get("involved_columns", []))
+                    for c in concepts:
+                        if any(col in str(c.get("definition", {})) for col in columns):
+                            pattern_based_conflicts.append({
+                                "conflict_id": f"pattern_derived_{c['concept_id']}",
+                                "conflict_type": "semantic_redundancy",
+                                "severity": "low",
+                                "items_involved": [c["concept_id"]],
+                                "description": f"Concept may include derived/calculated attributes: {pattern}",
+                                "evidence": {"pattern": pattern},
+                                "suggested_resolution": "Consider separating base vs derived attributes",
+                                "confidence": 0.6,
+                            })
 
         self._report_progress(0.3, "Running algorithmic conflict detection")
 
@@ -1591,6 +2284,11 @@ Respond ONLY with valid JSON."""
             }
             for c in detected_conflicts
         ]
+
+        # === v17.1: data_patterns 기반 충돌 병합 ===
+        conflicts_data.extend(pattern_based_conflicts)
+        if pattern_based_conflicts:
+            logger.info(f"[v17.1] Added {len(pattern_based_conflicts)} pattern-based conflicts")
 
         # 충돌이 있으면 LLM에게 추가 분석 요청
         if conflicts_data:
@@ -1616,6 +2314,15 @@ Respond ONLY with valid JSON."""
             c["concept_id"] for c in concepts
             if c["concept_id"] not in involved_ids
         ]
+
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="conflict_resolution",
+            input_data={"task": "conflict_detection", "concepts": len(concepts)},
+            output_data={"conflicts_detected": len(conflicts_data), "clean_concepts": len(clean_concepts)},
+            outcome="success" if conflicts_data else "partial",
+            confidence=0.75,
+        )
 
         return TodoResult(
             success=True,
@@ -1655,10 +2362,10 @@ Respond ONLY with valid JSON."""
         instruction = f"""Review these algorithmically detected conflicts and enhance the analysis.
 
 Detected Conflicts:
-{json.dumps(conflicts[:20], indent=2, ensure_ascii=False)}
+{json.dumps(conflicts[:20], indent=2, ensure_ascii=False, default=str)}
 
 Related Concepts:
-{json.dumps(related_concepts[:30], indent=2, ensure_ascii=False)}
+{json.dumps(related_concepts[:30], indent=2, ensure_ascii=False, default=str)}
 
 For each conflict:
 1. Validate if it's a true conflict
@@ -1718,7 +2425,7 @@ Return JSON:
         instruction = f"""Resolve these detected conflicts.
 
 Conflicts to Resolve:
-{json.dumps(conflicts, indent=2, ensure_ascii=False)}
+{json.dumps(conflicts, indent=2, ensure_ascii=False, default=str)}
 
 For each conflict, provide:
 1. Resolution type (merge/rename/keep_both/remove_one/escalate)
@@ -1786,6 +2493,55 @@ Return JSON:
 
         self._report_progress(0.95, "Finalizing resolutions")
 
+        # === v22.0: remediation_engine으로 자동 수정 제안 생성 ===
+        remediation_suggestions = []
+        try:
+            remediation_engine = self.get_v17_service("remediation_engine")
+            if remediation_engine and resolved:
+                for resolution in resolved[:5]:  # 상위 5개만
+                    if resolution.get("resolution_type") not in ["escalate"]:
+                        suggestion = await remediation_engine.suggest_fix(
+                            issue_type="conflict",
+                            issue_data={
+                                "conflict_id": resolution.get("conflict_id"),
+                                "resolution_type": resolution.get("resolution_type"),
+                                "changes_made": resolution.get("changes_made", []),
+                            },
+                            context={"phase": "refinement", "agent": self.agent_name},
+                        )
+                        if suggestion:
+                            remediation_suggestions.append({
+                                "conflict_id": resolution.get("conflict_id"),
+                                "auto_fix": suggestion.get("fix_script", ""),
+                                "confidence": suggestion.get("confidence", 0.0),
+                            })
+                if remediation_suggestions:
+                    logger.info(f"[v22.0] RemediationEngine generated {len(remediation_suggestions)} auto-fix suggestions")
+        except Exception as e:
+            logger.debug(f"[v22.0] RemediationEngine skipped: {e}")
+
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="conflict_resolution",
+            input_data={"task": "conflict_resolution", "conflicts": len(conflicts)},
+            output_data={"conflicts_resolved": len(resolved)},
+            outcome="success" if resolved else "partial",
+            confidence=0.8,
+        )
+
+        # v22.0: Agent Bus - 충돌 해결 결과 브로드캐스트
+        await self.broadcast_discovery(
+            discovery_type="conflicts_resolved",
+            data={
+                "conflicts_resolved": len(resolved),
+                "needs_human_review": len([r for r in resolved if r.get("needs_human_review")]),
+                "resolution_types": {
+                    rt: len([r for r in resolved if r.get("resolution_type") == rt])
+                    for rt in ["merge", "rename", "keep_both", "remove_one", "escalate"]
+                },
+            },
+        )
+
         return TodoResult(
             success=True,
             output={
@@ -1795,9 +2551,11 @@ Return JSON:
                     rt: len([r for r in resolved if r.get("resolution_type") == rt])
                     for rt in ["merge", "rename", "keep_both", "remove_one", "escalate"]
                 },
+                "remediation_suggestions": len(remediation_suggestions),  # v22.0
             },
             context_updates={
                 "conflicts_resolved": resolved,
+                "remediation_suggestions": remediation_suggestions,  # v22.0
             },
         )
 
@@ -1819,11 +2577,11 @@ class QualityJudgeAutonomousAgent(AutonomousAgent):
         self.quality_assessor = QualityAssessor()
 
         # v5.0: Enhanced Validation 컴포넌트
+        # v17.0: Calibrator는 이제 베이스 클래스의 calibrate_confidence() 사용
         if ENHANCED_VALIDATOR_AVAILABLE:
             self.ds_fusion = DempsterShaferFusion()
-            self.calibrator = ConfidenceCalibrator()
             self.bft_consensus = BFTConsensus(n_agents=4)
-            logger.info("QualityJudge: Enhanced Validation (DS Fusion, Calibration, BFT) enabled")
+            logger.info("QualityJudge: Enhanced Validation (DS Fusion, BFT) enabled, v17 Calibrator integrated")
 
     @property
     def agent_type(self) -> str:
@@ -2015,9 +2773,9 @@ Respond ONLY with valid JSON."""
                 ]
                 bft_result = self.bft_consensus.reach_consensus(votes)
 
-                # Confidence Calibration
+                # Confidence Calibration (v17.0: 베이스 클래스 메서드 사용)
                 raw_confidence = (ds_result['confidence'] + bft_result['confidence']) / 2
-                calibrated = self.calibrator.calibrate(raw_confidence)
+                calibrated = self.calibrate_confidence(raw_confidence)
 
                 enhanced_validation_results[concept_id] = {
                     'ds_fusion': {
@@ -2098,12 +2856,25 @@ Respond ONLY with valid JSON."""
             }
             logger.info(f"Enhanced Stats: calibrated={avg_calibrated:.4f}, conflict={avg_conflict:.4f}, agreement={avg_agreement:.4f}")
 
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="quality_assessment",
+            input_data={"task": "quality_evaluation", "concepts": len(all_assessments)},
+            output_data={"avg_score": summary.get("avg_score", 0), "approved": summary.get("approved", 0)},
+            outcome="success",
+            confidence=summary.get("avg_score", 70) / 100,
+        )
+
         return TodoResult(
             success=True,
             output={
                 "evaluated": len(all_assessments),
                 "summary": summary,
                 "enhanced_validation_stats": enhanced_stats,  # v5.0
+            },
+            context_updates={
+                "quality_assessment_summary": summary,
+                "quality_enhanced_stats": enhanced_stats,
             },
             metadata={
                 "quality_assessments": all_assessments,
@@ -2399,6 +3170,66 @@ Respond ONLY with valid JSON."""
         except Exception as e:
             logger.warning(f"SemanticReasoningAnalyzer failed: {e}")
 
+        # === v16.0: OWL2 Reasoner & SHACL Validator 통합 ===
+        self._report_progress(0.45, "Running OWL2 Reasoning & SHACL Validation (v16.0)")
+
+        owl2_results = {}
+        shacl_results = {}
+
+        try:
+            # OWL2 Reasoning 실행
+            owl2_result = run_owl2_reasoning_and_update_context(context)
+            owl2_results = {
+                "axioms_discovered": owl2_result.axioms_discovered,
+                "inferred_triples": owl2_result.inferred_count,
+                "reasoning_time_ms": owl2_result.reasoning_time_ms,
+                "by_axiom_type": dict(owl2_result.by_axiom_type) if owl2_result.by_axiom_type else {},
+            }
+            logger.info(
+                f"[v16.0] OWL2 Reasoner: {owl2_result.axioms_discovered} axioms, "
+                f"{owl2_result.inferred_count} inferred triples"
+            )
+
+            # OWL2 추론 결과를 inferred_triples에 추가
+            for triple in owl2_result.inferred_triples:
+                inferred_triples.append({
+                    "subject": triple.subject,
+                    "predicate": triple.predicate,
+                    "object": triple.object,
+                    "confidence": triple.confidence,
+                    "source": "owl2_reasoner",
+                    "inference_rule": triple.axiom_type.value if hasattr(triple.axiom_type, 'value') else str(triple.axiom_type),
+                })
+
+        except Exception as e:
+            logger.warning(f"[v16.0] OWL2 Reasoner failed: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
+
+        try:
+            # SHACL Validation 실행
+            shacl_result = run_shacl_validation_and_update_context(context)
+            shacl_results = {
+                "is_conformant": shacl_result.is_conformant,
+                "violations_count": shacl_result.violations_count,
+                "warnings_count": shacl_result.warnings_count,
+                "by_severity": dict(shacl_result.by_severity) if shacl_result.by_severity else {},
+                "by_constraint_type": dict(shacl_result.by_constraint_type) if shacl_result.by_constraint_type else {},
+            }
+            logger.info(
+                f"[v16.0] SHACL Validator: conformant={shacl_result.is_conformant}, "
+                f"violations={shacl_result.violations_count}, warnings={shacl_result.warnings_count}"
+            )
+
+        except Exception as e:
+            logger.warning(f"[v16.0] SHACL Validator failed: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
+
+        # v16.0 결과를 reasoning_results에 병합
+        reasoning_results["owl2_reasoning"] = owl2_results
+        reasoning_results["shacl_validation"] = shacl_results
+
         # 2단계: LLM 기반 도메인 검증
         self._report_progress(0.5, "Requesting LLM semantic validation")
 
@@ -2446,29 +3277,62 @@ Respond ONLY with valid JSON."""
         # v4.3: 추론 결과 로깅
         logger.info(f"SemanticValidator v4.3: {len(base_triples)} base triples, {len(inferred_triples)} inferred triples")
 
+        # v22.0: Agent Learning - 경험 기록
+        validity_rate = valid_count / max(len(all_validations), 1)
+        self.record_experience(
+            experience_type="quality_assessment",
+            input_data={"task": "semantic_validation", "concepts": len(all_validations)},
+            output_data={"valid_count": valid_count, "validity_rate": validity_rate},
+            outcome="success" if validity_rate > 0.7 else "partial",
+            confidence=validity_rate,
+        )
+
+        # v22.0: Agent Bus - OWL2/SHACL 검증 결과 브로드캐스트 (Governance 에이전트에 전달)
+        await self.broadcast_discovery(
+            discovery_type="semantic_validation_complete",
+            data={
+                "validity_rate": validity_rate,
+                "owl2_axioms": owl2_results.get("axioms_discovered", 0),
+                "owl2_inferred": owl2_results.get("inferred_count", 0),
+                "shacl_conformant": shacl_results.get("is_conformant", True),
+                "shacl_violations": shacl_results.get("violations_count", 0),
+                "kg_triples": len(base_triples) + len(inferred_triples),
+            },
+        )
+
         return TodoResult(
             success=True,
             output={
                 "validated": len(all_validations),
                 "valid_count": valid_count,
                 "invalid_count": invalid_count,
-                "validity_rate": valid_count / max(len(all_validations), 1),
+                "validity_rate": validity_rate,
                 # v4.3: Knowledge Graph 통계
                 "kg_stats": {
                     "base_triples": len(base_triples),
                     "inferred_triples": len(inferred_triples),
                 },
+                # v16.0: OWL2 & SHACL 통계
+                "owl2_axioms": owl2_results.get("axioms_discovered", 0),
+                "shacl_conformant": shacl_results.get("is_conformant", True),
+                "shacl_violations": shacl_results.get("violations_count", 0),
             },
             metadata={
                 "semantic_validations": all_validations,
                 "algorithmic_validations": algorithmic_validations,
                 # v4.3: 추론 결과
                 "reasoning_results": reasoning_results,
+                # v16.0: OWL2 & SHACL 상세 결과
+                "owl2_reasoning": owl2_results,
+                "shacl_validation": shacl_results,
             },
             # v4.3: Knowledge Graph 트리플을 context에 저장
+            # v22.0: OWL2/SHACL 결과도 context로 전파 → Governance 에이전트가 활용
             context_updates={
                 "semantic_base_triples": base_triples,
                 "inferred_triples": inferred_triples,
+                "owl2_reasoning_results": owl2_results,
+                "shacl_validation_results": shacl_results,
             },
         )
 

@@ -121,6 +121,16 @@ class AnomalyReport:
         }
 
 
+@dataclass
+class AnomalyDetectionResult:
+    """단일 컬럼/배열 이상 탐지 결과"""
+    anomaly_count: int
+    anomaly_ratio: float
+    anomaly_indices: List[int]
+    method: str
+    scores: Optional[List[float]] = None
+
+
 class StatisticalDetector:
     """통계 기반 이상 탐지"""
 
@@ -315,7 +325,7 @@ class DataQualityDetector:
         if not values:
             return None
 
-        null_count = sum(1 for v in values if v is None or v == "" or (isinstance(v, float) and np.isnan(v)))
+        null_count = sum(1 for v in values if v is None or v == "" or (NUMPY_AVAILABLE and isinstance(v, float) and np.isnan(v)))
         null_ratio = null_count / len(values)
 
         if null_ratio > expected_null_ratio * 3:  # 예상의 3배 이상
@@ -587,6 +597,136 @@ class AnomalyDetector:
             anomalies=all_anomalies,
             quality_score=quality_score,
             summary=dict(summary),
+        )
+
+    # =========================================================================
+    # 편의 메서드: business_insights.py 에서 사용하는 API
+    # =========================================================================
+
+    def detect(
+        self,
+        values: Union[List[Any], "np.ndarray"],
+        method: str = "ensemble",
+    ) -> AnomalyDetectionResult:
+        """
+        단일 컬럼/배열에 대한 이상 탐지 (business_insights.py 호출용)
+
+        Args:
+            values: 숫자 값 리스트 또는 numpy 배열
+            method: "ensemble", "iforest", "zscore", "iqr"
+
+        Returns:
+            AnomalyDetectionResult
+        """
+        # Convert numpy array to list if needed
+        if NUMPY_AVAILABLE and isinstance(values, np.ndarray):
+            values = values.tolist()
+
+        # Check for empty values
+        if values is None or len(values) == 0:
+            return AnomalyDetectionResult(
+                anomaly_count=0,
+                anomaly_ratio=0.0,
+                anomaly_indices=[],
+                method=method,
+                scores=None,
+            )
+
+        # 숫자형 값만 추출
+        numeric_values = []
+        original_indices = []
+        for i, v in enumerate(values):
+            try:
+                if v is not None:
+                    numeric_values.append(float(v))
+                    original_indices.append(i)
+            except (ValueError, TypeError):
+                continue
+
+        if len(numeric_values) < 10:
+            return AnomalyDetectionResult(
+                anomaly_count=0,
+                anomaly_ratio=0.0,
+                anomaly_indices=[],
+                method=method,
+                scores=None,
+            )
+
+        anomaly_indices = []
+        scores = None
+
+        if method == "zscore":
+            # Z-score만 사용
+            z_outliers = self.statistical.detect_z_score_outliers(values, "values")
+            anomaly_indices = z_outliers
+
+        elif method == "iqr":
+            # IQR만 사용
+            iqr_outliers = self.statistical.detect_iqr_outliers(values, "values")
+            anomaly_indices = iqr_outliers
+
+        elif method == "iforest" and self.ml and NUMPY_AVAILABLE:
+            # Isolation Forest만 사용
+            arr = np.array(numeric_values).reshape(-1, 1)
+            outlier_local_indices, scores_arr = self.ml.detect_isolation_forest(arr)
+            # 로컬 인덱스를 원본 인덱스로 매핑
+            anomaly_indices = [original_indices[i] for i in outlier_local_indices if i < len(original_indices)]
+            scores = scores_arr.tolist() if len(scores_arr) > 0 else None
+
+        else:  # ensemble
+            # v19.1: 적응형 contamination — 통계적 이상치 비율 기반
+            z_outliers_prelim = set(self.statistical.detect_z_score_outliers(values, "values"))
+            iqr_outliers_prelim = set(self.statistical.detect_iqr_outliers(values, "values"))
+            stat_ratio = len(z_outliers_prelim | iqr_outliers_prelim) / max(len(values), 1)
+            # 통계적 이상치가 없으면 contamination을 최소값으로, 있으면 비율에 맞춤
+            adaptive_contamination = max(0.01, min(0.15, stat_ratio if stat_ratio > 0 else 0.02))
+            if adaptive_contamination != self.contamination and self.ml:
+                self.ml.contamination = adaptive_contamination
+                logger.debug(f"[v19.1] Adaptive contamination: {self.contamination} → {adaptive_contamination} (stat_ratio={stat_ratio:.3f})")
+
+            # 통계적 방법 + ML 앙상블
+            z_outliers = z_outliers_prelim
+            iqr_outliers = iqr_outliers_prelim
+            statistical_outliers = z_outliers | iqr_outliers
+
+            ml_outliers = set()
+            if self.ml and NUMPY_AVAILABLE:
+                arr = np.array(numeric_values).reshape(-1, 1)
+                outlier_local_indices, scores_arr = self.ml.detect_isolation_forest(arr)
+                ml_outliers = {original_indices[i] for i in outlier_local_indices if i < len(original_indices)}
+                scores = scores_arr.tolist() if len(scores_arr) > 0 else None
+
+            # v19.1: 앙상블 — majority vote (2/3 이상 동의) 로직
+            if ml_outliers:
+                # 각 인덱스별 탐지 방법 수 카운트 (z, iqr, ml 중 몇 개가 탐지했는지)
+                all_candidates = z_outliers | iqr_outliers | ml_outliers
+                consensus_indices = []
+                for idx in all_candidates:
+                    vote_count = sum([
+                        idx in z_outliers,
+                        idx in iqr_outliers,
+                        idx in ml_outliers,
+                    ])
+                    if vote_count >= 2:  # 3개 방법 중 2개 이상 동의
+                        consensus_indices.append(idx)
+                # consensus가 비어있으면, 통계적 방법 합집합만 사용 (ML 단독은 제외)
+                if consensus_indices:
+                    anomaly_indices = consensus_indices
+                else:
+                    anomaly_indices = list(statistical_outliers)
+            else:
+                # ML 없으면 통계적 방법 두 개 모두에서 탐지된 것만
+                anomaly_indices = list(z_outliers & iqr_outliers)
+
+        anomaly_count = len(anomaly_indices)
+        anomaly_ratio = anomaly_count / len(values) if values else 0.0
+
+        return AnomalyDetectionResult(
+            anomaly_count=anomaly_count,
+            anomaly_ratio=anomaly_ratio,
+            anomaly_indices=anomaly_indices,
+            method=method,
+            scores=scores,
         )
 
     # =========================================================================

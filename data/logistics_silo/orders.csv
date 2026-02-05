@@ -1,0 +1,16 @@
+order_id,customer_id,order_date,required_date,priority,status,total_value,shipping_method,warehouse_id
+ORD001,CUST001,2024-01-14,2024-01-18,standard,delivered,1250.00,ground,WH001
+ORD002,CUST002,2024-01-15,2024-01-18,express,delivered,890.50,ground,WH002
+ORD003,CUST003,2024-01-16,2024-01-20,standard,delivered,2150.75,ground,WH003
+ORD004,CUST001,2024-01-17,2024-01-21,standard,in_transit,1875.00,ground,WH001
+ORD005,CUST004,2024-01-17,2024-01-20,express,delivered,3200.00,ground,WH004
+ORD006,CUST005,2024-01-18,2024-01-22,standard,in_transit,1450.25,ground,WH002
+ORD007,CUST006,2024-01-18,2024-01-21,express,delivered,975.50,ground,WH005
+ORD008,CUST007,2024-01-19,2024-01-23,standard,in_transit,2680.00,ground,WH006
+ORD009,CUST003,2024-01-19,2024-01-22,express,delivered,1120.75,ground,WH003
+ORD010,CUST008,2024-01-20,2024-01-24,standard,processing,4500.00,ground,WH007
+ORD011,CUST009,2024-01-20,2024-01-23,express,delivered,785.25,ground,WH008
+ORD012,CUST002,2024-01-21,2024-01-24,standard,in_transit,1950.50,ground,WH001
+ORD013,CUST010,2024-01-21,2024-01-25,standard,processing,2350.00,ground,WH002
+ORD014,CUST004,2024-01-22,2024-01-25,express,delivered,1680.75,ground,WH004
+ORD015,CUST011,2024-01-22,2024-01-26,standard,in_transit,3100.00,ground,WH006

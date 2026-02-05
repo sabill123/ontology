@@ -288,6 +288,44 @@ from .enhanced_fk_pipeline import (
     detect_fks,
 )
 
+# v16.0: Palantir-Level Upgrade (Composite, Hierarchy, Temporal, OWL2, SHACL)
+from .composite_fk_detector import (
+    CompositeFKDetector,
+    CompositeFKCandidate,
+    detect_composite_fks_and_update_context,
+)
+from .hierarchy_detector import (
+    HierarchyDetector,
+    HierarchyCandidate,
+    detect_hierarchies_and_update_context,
+)
+from .temporal_fk_detector import (
+    TemporalFKDetector,
+    TemporalFKCandidate,
+    TemporalType,
+    detect_temporal_fks_and_update_context,
+)
+from .owl2_reasoner import (
+    OWL2Reasoner,
+    OWLAxiom,
+    OWLAxiomType,
+    InferredTriple,
+    run_owl2_reasoning_and_update_context,
+)
+from .shacl_validator import (
+    SHACLValidator,
+    NodeShape,
+    PropertyShape,
+    SHACLConstraint,
+    ValidationResult,
+    run_shacl_validation_and_update_context,
+)
+from .integrated_fk_detector import (
+    detect_all_fks_and_update_context,
+    IntegratedFKResult,
+    get_fk_detection_summary,
+)
+
 # v5.0: Enhanced Validation System
 from .enhanced_validator import (
     EnhancedValidator,
@@ -301,6 +339,14 @@ from .enhanced_validator import (
     BFTConsensus,
     AgentVote,
     VoteType,
+)
+
+# v17.1: Unified Insight Pipeline (Algorithm → Simulation → LLM)
+from .unified_insight_pipeline import (
+    UnifiedInsightPipeline,
+    UnifiedInsight,
+    UnifiedInsightPhase,
+    PipelineResult,
 )
 
 __all__ = [
@@ -568,4 +614,36 @@ __all__ = [
     'EnhancedFKCandidate',
     'create_enhanced_detector',
     'detect_fks',
+
+    # v16.0: Palantir-Level Upgrade
+    'CompositeFKDetector',
+    'CompositeFKCandidate',
+    'detect_composite_fks_and_update_context',
+    'HierarchyDetector',
+    'HierarchyCandidate',
+    'detect_hierarchies_and_update_context',
+    'TemporalFKDetector',
+    'TemporalFKCandidate',
+    'TemporalType',
+    'detect_temporal_fks_and_update_context',
+    'OWL2Reasoner',
+    'OWLAxiom',
+    'OWLAxiomType',
+    'InferredTriple',
+    'run_owl2_reasoning_and_update_context',
+    'SHACLValidator',
+    'NodeShape',
+    'PropertyShape',
+    'SHACLConstraint',
+    'ValidationResult',
+    'run_shacl_validation_and_update_context',
+    'detect_all_fks_and_update_context',
+    'IntegratedFKResult',
+    'get_fk_detection_summary',
+
+    # v17.1: Unified Insight Pipeline
+    'UnifiedInsightPipeline',
+    'UnifiedInsight',
+    'UnifiedInsightPhase',
+    'PipelineResult',
 ]

@@ -176,6 +176,24 @@ class ColumnNormalizer:
         "attr": "attribute",
         "prop": "property",
         "param": "parameter",
+
+        # === 의료/헬스케어 (v22.0 추가) ===
+        "doc": "doctor",
+        "dr": "doctor",
+        "pt": "patient",
+        "pat": "patient",
+        "rx": "prescription",
+        "dx": "diagnosis",
+        "med": "medication",
+        "meds": "medications",
+        "appt": "appointment",
+        "diag": "diagnosis",
+        "proc": "procedure",
+        "phys": "physician",
+        "surg": "surgery",
+        "hosp": "hospital",
+        "lab": "laboratory",
+        "spec": "specialty",
     }
 
     # FK 패턴 (엔티티 참조를 나타내는 접미사)

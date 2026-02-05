@@ -1,0 +1,10 @@
+supplier_id,supplier_name,contact_name,contact_email,contact_phone,address,city,country,payment_terms,rating,active_since
+SUP001,TechParts Global,James Wong,jwong@techparts.com,555-6001,100 Tech Park,Shenzhen,China,Net 30,4.5,2018-03-15
+SUP002,Industrial Solutions Inc,Maria Rodriguez,mrodriguez@indsol.com,555-6002,250 Factory Rd,Detroit,USA,Net 45,4.2,2016-08-20
+SUP003,PackRight Materials,David Kim,dkim@packright.com,555-6003,400 Packaging Way,Toronto,Canada,Net 30,4.7,2019-01-10
+SUP004,ChemSupply Corp,Robert Taylor,rtaylor@chemsupply.com,555-6004,600 Chemical Blvd,Houston,USA,Net 60,4.0,2017-05-25
+SUP005,MetalWorks Ltd,Sarah Brown,sbrown@metalworks.com,555-6005,800 Steel Ave,Pittsburgh,USA,Net 30,4.4,2015-11-08
+SUP006,GlobalTextile Co,Li Wei,lwei@globaltex.com,555-6006,150 Fabric Lane,Shanghai,China,Net 45,4.1,2018-07-20
+SUP007,AutoParts Direct,Mike Johnson,mjohnson@autoparts.com,555-6007,300 Motor Dr,Nagoya,Japan,Net 30,4.6,2017-02-15
+SUP008,PaperMill Products,Jennifer Lee,jlee@papermill.com,555-6008,500 Forest Way,Portland,USA,Net 15,4.3,2020-04-10
+SUP009,ConstructionMats Inc,Tom Wilson,twilson@constmats.com,555-6009,700 Build Blvd,Cleveland,USA,Net 45,4.0,2016-09-25

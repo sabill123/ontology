@@ -490,8 +490,8 @@ class DebateRound:
     round_number: int
     challenge: Optional[Challenge] = None
 
-    # 라운드 타임아웃
-    timeout_seconds: float = 60.0
+    # 라운드 타임아웃 (v18.0: 10분으로 증가)
+    timeout_seconds: float = 0  # v18.0: 타임아웃 비활성화 (무제한)
     started_at: str = field(default_factory=lambda: datetime.now().isoformat())
     deadline: Optional[str] = None
     completed_at: Optional[str] = None
@@ -509,11 +509,15 @@ class DebateRound:
     revote_combined_confidence: float = 0.0
 
     def __post_init__(self):
-        """Initialize deadline based on timeout"""
+        """Initialize deadline based on timeout (v18.0: 0 = 무제한)"""
         if self.deadline is None:
             from datetime import timedelta
             start = datetime.fromisoformat(self.started_at)
-            deadline = start + timedelta(seconds=self.timeout_seconds)
+            # v18.0: timeout_seconds가 0이면 무제한 (100년 후)
+            if self.timeout_seconds and self.timeout_seconds > 0:
+                deadline = start + timedelta(seconds=self.timeout_seconds)
+            else:
+                deadline = start + timedelta(days=36500)  # 100년 = 무제한
             self.deadline = deadline.isoformat()
 
     def add_statement(self, agent_id: str, agent_name: str, content: str,

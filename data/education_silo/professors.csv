@@ -1,0 +1,9 @@
+professor_id,first_name,last_name,email,phone,department_id,title,tenure_status,hire_date,salary,office_number,research_area
+PROF001,Dr. Michael,Anderson,m.anderson@university.edu,555-3001,DEPT001,Professor,tenured,2010-08-15,145000.00,SCI-301,Machine Learning
+PROF002,Dr. Sarah,Baker,s.baker@university.edu,555-3002,DEPT002,Associate Professor,tenured,2015-01-10,125000.00,BUS-205,Marketing Analytics
+PROF003,Dr. James,Carter,j.carter@university.edu,555-3003,DEPT003,Professor,tenured,2008-08-20,155000.00,ENG-402,Structural Engineering
+PROF004,Dr. Emily,Davis,e.davis@university.edu,555-3004,DEPT004,Assistant Professor,tenure_track,2020-08-25,95000.00,BIO-112,Molecular Biology
+PROF005,Dr. Robert,Evans,r.evans@university.edu,555-3005,DEPT005,Professor,tenured,2005-01-15,165000.00,PHY-501,Quantum Physics
+PROF006,Dr. Lisa,Foster,l.foster@university.edu,555-3006,DEPT006,Associate Professor,tenured,2012-08-22,130000.00,HUM-203,American Literature
+PROF007,Dr. William,Green,w.green@university.edu,555-3007,DEPT001,Assistant Professor,tenure_track,2021-08-23,90000.00,SCI-205,Data Science
+PROF008,Dr. Jennifer,Harris,j.harris@university.edu,555-3008,DEPT002,Professor,tenured,2007-01-08,150000.00,BUS-310,Finance

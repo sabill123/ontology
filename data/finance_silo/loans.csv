@@ -1,0 +1,13 @@
+loan_id,customer_id,loan_type,principal_amount,interest_rate,term_months,monthly_payment,origination_date,maturity_date,status,collateral_type,loan_officer_id
+LOAN001,CUST001,mortgage,350000.00,6.5,360,2212.24,2023-02-01,2053-02-01,active,property,LO001
+LOAN002,CUST002,auto,28000.00,5.9,60,540.83,2023-04-15,2028-04-15,active,vehicle,LO002
+LOAN003,CUST003,personal,15000.00,9.5,36,480.32,2023-06-01,2026-06-01,active,none,LO001
+LOAN004,CUST004,mortgage,425000.00,6.25,360,2617.14,2023-07-01,2053-07-01,active,property,LO003
+LOAN005,CUST005,auto,22000.00,6.2,48,518.23,2023-08-15,2027-08-15,active,vehicle,LO002
+LOAN006,CUST006,home_equity,50000.00,7.5,120,593.51,2023-09-01,2033-09-01,active,property,LO001
+LOAN007,CUST007,personal,8000.00,11.0,24,373.28,2023-10-01,2025-10-01,active,none,LO003
+LOAN008,CUST008,mortgage,550000.00,5.75,360,3209.65,2023-11-01,2053-11-01,active,property,LO001
+LOAN009,CUST009,auto,35000.00,5.5,72,573.35,2023-12-01,2029-12-01,active,vehicle,LO002
+LOAN010,CUST010,student,45000.00,4.5,120,466.08,2024-01-01,2034-01-01,active,none,LO003
+LOAN011,CUST011,personal,12000.00,10.0,48,304.22,2024-01-15,2028-01-15,active,none,LO001
+LOAN012,CUST012,business,100000.00,7.0,84,1509.22,2024-02-01,2031-02-01,active,equipment,LO003

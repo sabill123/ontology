@@ -20,6 +20,8 @@ from typing import List, Dict, Any, Optional, Set, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
+from ...model_config import get_service_model
+
 logger = logging.getLogger(__name__)
 
 # Try to import Instructor
@@ -461,7 +463,7 @@ Return ALL discovered FK relationships with confidence scores and reasoning.
 
         try:
             result = self._instructor_client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=get_service_model("schema_analysis"),
                 response_model=SchemaFKDiscovery,
                 messages=[
                     {

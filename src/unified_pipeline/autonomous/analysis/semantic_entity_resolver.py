@@ -45,6 +45,14 @@ class SemanticEntityResolver:
         "lead": {"lead", "prospect", "potential", "opportunity"},
         "email": {"email", "mail", "message", "notification", "send"},
         "account": {"account", "acct", "profile", "registration"},
+        # Healthcare/Medical domain (v22.0 추가)
+        "doctor": {"doctor", "physician", "provider", "practitioner", "clinician",
+                   "doc", "dr", "attending", "ordering"},
+        "patient": {"patient", "pt", "pat", "member", "enrollee", "beneficiary"},
+        "appointment": {"appointment", "appt", "visit", "encounter", "consultation"},
+        "medication": {"medication", "med", "meds", "drug", "rx", "prescription"},
+        "diagnosis": {"diagnosis", "dx", "diag", "condition", "assessment"},
+        "procedure": {"procedure", "proc", "operation", "surgery", "intervention"},
     }
 
     # Common abbreviation expansions
@@ -82,6 +90,19 @@ class SemanticEntityResolver:
         "attrib": "attributed",
         "mkt": "marketing",
         "promo": "promotion",
+        # Healthcare abbreviations (v22.0 추가)
+        "doc": "doctor",
+        "dr": "doctor",
+        "pt": "patient",
+        "pat": "patient",
+        "appt": "appointment",
+        "rx": "prescription",
+        "dx": "diagnosis",
+        "diag": "diagnosis",
+        "med": "medication",
+        "meds": "medications",
+        "proc": "procedure",
+        "phys": "physician",
     }
 
     # Compound entity patterns (for FK columns like attributed_cmp_id)

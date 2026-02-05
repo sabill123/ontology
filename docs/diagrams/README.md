@@ -1,7 +1,7 @@
-# Ontoloty v1 다이어그램
+# Ontoloty v1.0 다이어그램
 
-> **최종 업데이트**: 2026-01-22
-> **버전**: v1
+> **최종 업데이트**: 2026-01-27
+> **버전**: v1.0
 
 ## 1. 시스템 개요
 
@@ -17,18 +17,45 @@ graph LR
         P3[Phase 3<br/>Governance]
     end
 
-    subgraph Output
-        ONT[(Ontology)]
-        INS[(Insights)]
-        PI[(Predictive<br/>Insights)]
-        GOV[(Governance<br/>Decisions)]
+    subgraph V16_Modules["v1.0 Modules"]
+        M1[Enhanced FK Pipeline]
+        M2[OWL2 Reasoner]
+        M3[SHACL Validator]
+        M4[Actions Engine]
+        M5[CDC Sync]
+        M6[Column Lineage]
     end
 
-    DS --> P1 --> P2 --> P3 --> ONT & INS & PI & GOV
+    subgraph Communication["Agent Communication"]
+        BUS[AgentBus v1.0]
+    end
+
+    subgraph Output
+        O_FK[(foreign_keys)]
+        O_IFK[(indirect_fks)]
+        O_ONT[(ontology)]
+        O_TDA[(tda_analysis)]
+        O_ENT[(entities)]
+        O_INS[(insights)]
+        O_COR[(correlations)]
+        O_GOV[(governance)]
+        O_EC[(evidence_chain)]
+        O_KG[(knowledge_graph)]
+        O_LLM[(llm_analysis)]
+        O_DOM[(domain)]
+    end
+
+    DS --> P1 --> P2 --> P3 --> O_FK & O_IFK & O_ONT & O_TDA & O_ENT & O_INS & O_COR & O_GOV & O_EC & O_KG & O_LLM & O_DOM
+    P1 --> M1
+    P2 --> M2 & M3
+    P3 --> M4 & M5 & M6
+    BUS -.->|pub/sub| P1 & P2 & P3
 
     style P1 fill:#bbdefb
     style P2 fill:#fff9c4
     style P3 fill:#e1bee7
+    style V16_Modules fill:#b2dfdb
+    style BUS fill:#c8e6c9
 ```
 
 ## 2. 핵심 컴포넌트
@@ -39,13 +66,26 @@ graph TB
         AO[Agent Orchestrator]
         TM[Todo Manager<br/>DAG]
         CE[Consensus Engine<br/>BFT + DS]
+        BUS[AgentBus v1.0]
     end
 
-    subgraph Analysis
+    subgraph Analysis_V16["Analysis (v1.0 Enhanced)"]
         TDA[TDA Analyzer]
-        FK[Enhanced FK v1<br/>Multi-Signal]
+        FK[Enhanced FK v1.0<br/>Composite+Hierarchy+Temporal]
         CEC[Cross-Entity<br/>Correlation]
         BI[Business Insights]
+    end
+
+    subgraph Semantic_V16["Semantic (v1.0)"]
+        OWL[OWL2 Reasoner]
+        SHACL[SHACL Validator]
+    end
+
+    subgraph Enterprise_V16["Enterprise (v1.0)"]
+        ACT[Actions Engine]
+        CDC[CDC Sync Engine]
+        LIN[Column Lineage]
+        MEM[Agent Memory]
     end
 
     subgraph Storage
@@ -56,19 +96,25 @@ graph TB
 
     AO --> TM
     AO --> CE
-    TM --> Analysis
-    Analysis --> SC
+    AO --> BUS
+    TM --> Analysis_V16
+    Analysis_V16 --> Semantic_V16
+    Semantic_V16 --> Enterprise_V16
+    Analysis_V16 --> SC
     SC --> EC
     SC --> KG
 
     style FK fill:#c8e6c9
+    style BUS fill:#b2dfdb
+    style Semantic_V16 fill:#f3e5f5
+    style Enterprise_V16 fill:#e1bee7
 ```
 
-## 3. 에이전트 구성
+## 3. 에이전트 구성 (14 Agents)
 
 ```mermaid
 graph LR
-    subgraph Phase1["Phase 1: Discovery"]
+    subgraph Phase1["Phase 1: Discovery (6 Agents)"]
         A1[Data Analyst]
         A2[TDA Expert]
         A3[Schema Analyst]
@@ -77,23 +123,32 @@ graph LR
         A6[Relationship Detector]
     end
 
-    subgraph Phase2["Phase 2: Refinement"]
+    subgraph Phase2["Phase 2: Refinement (4 Agents)"]
         B1[Ontology Architect]
         B2[Conflict Resolver]
         B3[Quality Judge]
         B4[Semantic Validator]
     end
 
-    subgraph Phase3["Phase 3: Governance"]
+    subgraph Phase3["Phase 3: Governance (4 Agents)"]
         C1[Governance Strategist]
         C2[Action Prioritizer]
         C3[Risk Assessor]
         C4[Policy Generator]
     end
 
+    subgraph Communication["AgentBus v1.0"]
+        BUS[Direct Messaging<br/>Broadcast<br/>Pub/Sub<br/>Request/Response]
+    end
+
+    Phase1 <--> BUS
+    Phase2 <--> BUS
+    Phase3 <--> BUS
+
     style Phase1 fill:#bbdefb
     style Phase2 fill:#fff9c4
     style Phase3 fill:#e1bee7
+    style Communication fill:#b2dfdb
 ```
 
 ## 4. Cross-Entity Correlation 분석
@@ -113,6 +168,11 @@ graph TD
         SA[Segment Analysis]
     end
 
+    subgraph V16_Integration["v1.0 Integration"]
+        LIN[Column Lineage]
+        SHACL[SHACL Constraints]
+    end
+
     subgraph Output
         PI[Predictive Insights]
         DQ[Data Quality Issues]
@@ -122,40 +182,48 @@ graph TD
     PC --> PI
     CP & DC --> DQ
     TE & SA --> PI
+    PI --> LIN
+    DQ --> SHACL
 
     style PI fill:#c8e6c9
     style DQ fill:#ffcdd2
+    style V16_Integration fill:#b2dfdb
 ```
 
-## 5. 다중 에이전트 합의 프로토콜
+## 5. 다중 에이전트 합의 프로토콜 (v1.0)
 
 ```mermaid
 sequenceDiagram
     participant Chair as Consensus Chair
+    participant BUS as AgentBus v1.0
     participant A1 as Ontologist
     participant A2 as Risk Assessor
     participant A3 as Business Strategist
     participant A4 as Data Steward
     participant Alg as Validator Algorithm
 
-    Chair->>A1: Request Vote
-    Chair->>A2: Request Vote
-    Chair->>A3: Request Vote
-    Chair->>A4: Request Vote
+    Chair->>BUS: broadcast("consensus.start")
+    BUS->>A1: Request Vote
+    BUS->>A2: Request Vote
+    BUS->>A3: Request Vote
+    BUS->>A4: Request Vote
 
-    A1->>Chair: APPROVE (conf: 0.85)
-    A2->>Chair: REJECT (reason: Risk)
-    A3->>Chair: APPROVE (conf: 0.90)
-    A4->>Chair: APPROVE (conf: 0.75)
+    A1->>BUS: publish("vote", APPROVE 0.85)
+    A2->>BUS: publish("vote", REJECT Risk)
+    A3->>BUS: publish("vote", APPROVE 0.90)
+    A4->>BUS: publish("vote", APPROVE 0.75)
+
+    BUS->>Chair: Collect all votes
 
     Chair->>Alg: Validate "Risk" claim
     Alg-->>Chair: Risk Score: Low
 
-    Chair->>A2: Challenge with evidence
-    A2->>Chair: APPROVE (revised)
+    Chair->>BUS: send_to(A2, challenge)
+    BUS->>A2: Challenge with evidence
+    A2->>BUS: publish("vote", APPROVE revised)
 
     Chair->>Chair: Dempster-Shafer Fusion
-    Chair->>Output: Final Decision (conf: 0.87)
+    Chair->>BUS: publish("consensus.result", conf: 0.87)
 ```
 
 ## 6. Evidence Chain
@@ -167,14 +235,16 @@ graph LR
     B3[Block 3<br/>Relationship Detection]
     B4[Block 4<br/>Ontology Design]
     B5[Block 5<br/>Governance Decision]
+    B6[Block 6<br/>v1.0 Validation]
 
-    B1 -->|hash| B2 -->|hash| B3 -->|hash| B4 -->|hash| B5
+    B1 -->|hash| B2 -->|hash| B3 -->|hash| B4 -->|hash| B5 -->|hash| B6
 
     style B1 fill:#bbdefb
     style B2 fill:#bbdefb
     style B3 fill:#bbdefb
     style B4 fill:#fff9c4
     style B5 fill:#e1bee7
+    style B6 fill:#b2dfdb
 ```
 
 ## 7. Todo 시스템 (DAG)
@@ -189,6 +259,8 @@ graph TD
     T6[Ontology Building]
     T7[Quality Assessment]
     T8[Governance Decision]
+    T9[v1.0 Validation]
+    T10[Lineage Tracking]
 
     T1 --> T4
     T2 --> T4
@@ -197,6 +269,8 @@ graph TD
     T5 --> T6
     T6 --> T7
     T7 --> T8
+    T8 --> T9
+    T9 --> T10
 
     style T1 fill:#bbdefb
     style T2 fill:#bbdefb
@@ -206,9 +280,11 @@ graph TD
     style T6 fill:#fff9c4
     style T7 fill:#fff9c4
     style T8 fill:#e1bee7
+    style T9 fill:#b2dfdb
+    style T10 fill:#b2dfdb
 ```
 
-## 8. Enhanced FK Detection v1
+## 8. Enhanced FK Detection v1.0
 
 ```mermaid
 graph TD
@@ -241,6 +317,12 @@ graph TD
         SEC[Semantic Confidence]
     end
 
+    subgraph V16_Modules["v1.0 Enhanced Detection"]
+        COMP[Composite FK Detector<br/>(plant, product) → table]
+        HIER[Hierarchy Detector<br/>plant → warehouse]
+        TEMP[Temporal FK Detector<br/>order_date range]
+    end
+
     subgraph FinalCalc["Final Confidence"]
         CALC[signal × 0.50<br/>+ direction × 0.25<br/>+ semantic × 0.25]
         THR[Threshold >= 0.6]
@@ -256,14 +338,17 @@ graph TD
     E1 & E2 & E3 & E4 & E5 --> DC
     Tables --> SYN & ABB & CMP
     SYN & ABB & CMP --> SEC
+    Tables --> V16_Modules
     SC & DC & SEC --> CALC --> THR --> FKC
+    V16_Modules --> FKC
 
     style Solution1 fill:#c8e6c9
     style Solution2 fill:#fff9c4
     style Solution3 fill:#e1bee7
+    style V16_Modules fill:#b2dfdb
 ```
 
-**Cross-dataset Validation Results**:
+**Cross-dataset Validation Results (v1.0)**:
 ```
 ┌───────────────────┬───────────┬──────────┬──────────┐
 │ Dataset           │ Precision │ Recall   │ F1 Score │
@@ -277,7 +362,39 @@ graph TD
 
 ---
 
-## 9. 데이터 흐름
+## 9. AgentBus v1.0 통신 패턴
+
+```mermaid
+sequenceDiagram
+    participant A1 as TDA Expert
+    participant BUS as AgentBus v1.0
+    participant A2 as Schema Analyst
+    participant A3 as Relationship Detector
+
+    Note over BUS: Direct Messaging
+    A1->>BUS: send_to("schema_analyst", msg)
+    BUS->>A2: deliver(msg)
+
+    Note over BUS: Broadcast
+    A2->>BUS: broadcast(discovery_result)
+    BUS->>A1: notify
+    BUS->>A3: notify
+
+    Note over BUS: Pub/Sub
+    A3->>BUS: subscribe("fk.detected")
+    A1->>BUS: publish("fk.detected", data)
+    BUS->>A3: notify(data)
+
+    Note over BUS: Request/Response
+    A1->>BUS: request(A2, "validate_schema")
+    BUS->>A2: handle_request
+    A2->>BUS: response(result)
+    BUS->>A1: deliver(result)
+```
+
+---
+
+## 10. 데이터 흐름 (v1.0)
 
 ```mermaid
 graph TD
@@ -289,12 +406,14 @@ graph TD
     subgraph Phase1[Phase 1: Discovery]
         Load[Data Loading]
         TDA[TDA Analysis]
-        FK[Enhanced FK v1]
+        FK[Enhanced FK v1.0]
         Entity[Entity Classification]
     end
 
     subgraph Phase2[Phase 2: Refinement]
         Onto[Ontology Building]
+        OWL[OWL2 Reasoning]
+        SHACL[SHACL Validation]
         CEC[Cross-Entity Correlation]
         Quality[Quality Assessment]
     end
@@ -303,6 +422,13 @@ graph TD
         Council[Agent Council]
         Consensus[BFT Consensus]
         Decision[Final Decision]
+        Actions[Actions Engine]
+    end
+
+    subgraph V16_Post["v1.0 Post-Processing"]
+        CDC[CDC Sync]
+        Lineage[Column Lineage]
+        Memory[Agent Memory]
     end
 
     subgraph Output
@@ -313,19 +439,23 @@ graph TD
     Load --> TDA & FK
     TDA & FK --> Entity
     Entity --> Onto
-    Onto --> CEC
+    Onto --> OWL --> SHACL
+    SHACL --> CEC
     CEC --> Quality
     Quality --> Council
     Council --> Consensus
     Consensus --> Decision
-    Decision --> Artifacts
+    Decision --> Actions
+    Actions --> V16_Post
+    V16_Post --> Artifacts
 
     style Phase1 fill:#bbdefb
     style Phase2 fill:#fff9c4
     style Phase3 fill:#e1bee7
+    style V16_Post fill:#b2dfdb
 ```
 
-## 10. 파일 구조
+## 11. 파일 구조 (v1.0)
 
 ```
 src/unified_pipeline/
@@ -334,18 +464,21 @@ src/unified_pipeline/
 │   ├── orchestrator.py          # Agent Orchestrator
 │   ├── autonomous_pipeline.py   # Pipeline Orchestrator
 │   ├── shared_context.py        # Shared Context
+│   ├── agent_bus.py             # v1.0: AgentCommunicationBus
 │   │
 │   ├── agents/
-│   │   ├── discovery.py         # Phase 1 Agents
-│   │   ├── refinement.py        # Phase 2 Agents
-│   │   └── governance.py        # Phase 3 Agents
+│   │   ├── discovery.py         # Phase 1 Agents (6)
+│   │   ├── refinement.py        # Phase 2 Agents (4)
+│   │   └── governance.py        # Phase 3 Agents (4)
 │   │
 │   ├── analysis/
-│   │   ├── enhanced_fk_pipeline.py    # v1 Enhanced FK Pipeline
-│   │   ├── fk_signal_scorer.py        # v1 Multi-Signal Scoring
-│   │   ├── fk_direction_analyzer.py   # v1 Direction Analysis
-│   │   ├── semantic_entity_resolver.py # v1 Semantic Resolution
-│   │   ├── enhanced_fk_detector.py    # Legacy FK Detection
+│   │   ├── enhanced_fk_pipeline.py    # Enhanced FK Pipeline
+│   │   ├── fk_signal_scorer.py        # Multi-Signal Scoring
+│   │   ├── fk_direction_analyzer.py   # Direction Analysis
+│   │   ├── semantic_entity_resolver.py # Semantic Resolution
+│   │   ├── composite_fk_detector.py   # v1.0: Composite FK
+│   │   ├── hierarchy_detector.py      # v1.0: Hierarchy
+│   │   ├── temporal_fk_detector.py    # v1.0: Temporal FK
 │   │   ├── cross_entity_correlation.py
 │   │   ├── tda.py
 │   │   ├── business_insights.py
@@ -357,17 +490,34 @@ src/unified_pipeline/
 │   └── todo/
 │       ├── models.py
 │       └── manager.py
+│
+│   ├── autonomous/analysis/      # v1.0: Semantic Layer (in analysis/)
+│   │   ├── owl2_reasoner.py     # OWL2 Reasoning
+│   │   └── shacl_validator.py   # SHACL Validation
+│
+├── actions/                      # v1.0: Actions Engine
+│   └── actions_engine.py
+│
+├── sync/                         # v1.0: CDC Sync
+│   └── cdc_sync_engine.py
+│
+├── lineage/                      # v1.0: Column Lineage
+│   └── column_lineage.py
+│
+└── learning/                     # v1.0: Agent Learning
+    └── agent_memory.py
 
 output/{scenario_name}/
 ├── *_context.json               # Full context with relationships
 ├── *_entities.json              # Discovered entities
 ├── *_summary.json               # Execution summary
+├── *_lineage.json               # v1.0: Column lineage
 └── *_stats.json                 # Statistics
 ```
 
 ---
 
-## 11. v1 검증 결과 요약
+## 12. v1.0 검증 결과 요약
 
 ### marketing_silo (12 FK Relationships)
 
@@ -409,3 +559,18 @@ Precision: 90.9% | Recall: 76.9% | F1: 83.3%
 ```
 Precision: 95.5% | Recall: 88.5% | F1: 91.7%
 ```
+
+---
+
+## 13. 다이어그램 파일 목록
+
+| 파일 | 설명 | 버전 |
+|------|------|------|
+| [01-system-architecture.md](01-system-architecture.md) | 시스템 아키텍처 | v1.0 |
+| [02-data-flow.md](02-data-flow.md) | 데이터 흐름 | v1.0 |
+| [03-pipeline-workflow.md](03-pipeline-workflow.md) | 파이프라인 워크플로우 | v1.0 |
+| [04-consensus-engine.md](04-consensus-engine.md) | 합의 엔진 | v1.0 |
+| [05-agent-orchestration.md](05-agent-orchestration.md) | 에이전트 오케스트레이션 | v1.0 |
+| [06-knowledge-graph.md](06-knowledge-graph.md) | 지식 그래프 | v1.0 |
+| [07-tda-analysis.md](07-tda-analysis.md) | TDA 분석 | v1.0 |
+| [08-domain-detection.md](08-domain-detection.md) | 도메인 탐지 | v1.0 |

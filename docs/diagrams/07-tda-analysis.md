@@ -1,7 +1,7 @@
 # TDA (위상 데이터 분석) 다이어그램
 
-> **버전**: v14.0
-> **최종 업데이트**: 2026-01-19
+> **버전**: v1.0
+> **최종 업데이트**: 2026-01-27
 
 ## 1. TDA 분석 파이프라인
 
@@ -157,17 +157,17 @@ flowchart TB
 
     subgraph COMPARE["Comparison"]
         C1["Betti Distance:<br/>√((1-1)² + (2-2)² + (0-0)²) = 0"]
-        C2["Persistence Similarity:<br/>0.92"]
-        C3["Column Ratio:<br/>7/8 = 0.875"]
-        C4["Complexity Match:<br/>1.0"]
+        C2["Structural Score:<br/>1.0"]
+        C3["Value Score:<br/>0.875"]
+        C4["Semantic Score:<br/>0.92"]
     end
 
     subgraph SCORE["Homeomorphism Score"]
-        S1["structural_score: 1.0"]
-        S2["persistence_similarity: 0.92"]
-        S3["column_ratio: 0.875"]
-        S4["complexity_match: 1.0"]
-        S5["confidence: 0.95"]
+        S1["confidence: 0.95"]
+        S2["homeomorphism_type: structural"]
+        S3["structural_score: 1.0"]
+        S4["value_score: 0.875"]
+        S5["semantic_score: 0.92"]
         S6{is_homeomorphic?}
         S7["YES - 구조적으로 유사!<br/>같은 엔티티로 간주"]
     end
@@ -175,8 +175,8 @@ flowchart TB
     TABLE_A --> COMPARE
     TABLE_B --> COMPARE
     COMPARE --> SCORE
-    S1 & S2 & S3 & S4 --> S5
-    S5 --> S6
+    S3 & S4 & S5 --> S1
+    S1 --> S6
     S6 -->|conf > 0.6| S7
 
     style TABLE_A fill:#bbdefb
@@ -305,7 +305,7 @@ classDiagram
 
 ```mermaid
 mindmap
-    root((TDA in<br/>Ontoloty))
+    root((TDA in<br/>Ontoloty v1.0))
         Schema Similarity
             Same structure different names
             Cross-system mapping
@@ -326,6 +326,10 @@ mindmap
             β₁ > 0 = Circular dependencies
             FK loop detection
             Referential integrity
+        Integration with v1.0
+            Enhanced FK Pipeline input
+            Hierarchy Detection support
+            Composite FK validation
 ```
 
 ## 8. 순환 참조 탐지 (β₁ > 0)
@@ -371,6 +375,7 @@ flowchart TB
 sequenceDiagram
     participant AO as Agent Orchestrator
     participant TDA as TDA Expert Agent
+    participant BUS as AgentBus v1.0
     participant SC as SharedContext
     participant AN as TDA Analyzer
 
@@ -392,6 +397,7 @@ sequenceDiagram
 
     TDA->>SC: write tda_signatures
     TDA->>SC: write homeomorphisms
+    TDA->>BUS: publish("discovery.tda_complete", signatures)
     TDA-->>AO: task_complete(DONE)
 ```
 
@@ -420,4 +426,44 @@ graph TB
     style B0 fill:#bbdefb
     style B1 fill:#c8e6c9
     style B2 fill:#fff9c4
+```
+
+## 11. v1.0 통합: TDA와 Enhanced FK Pipeline
+
+```mermaid
+flowchart TB
+    subgraph TDA_OUTPUT["TDA Analysis Output"]
+        TO1[betti_numbers]
+        TO2[homeomorphism_pairs]
+        TO3[structural_complexity]
+    end
+
+    subgraph FK_INPUT["Enhanced FK Pipeline v1.0"]
+        FI1[Structural Pattern Signal]
+        FI2[Entity Grouping Hints]
+        FI3[Complexity Assessment]
+    end
+
+    subgraph HIERARCHY["Hierarchy Detection v1.0"]
+        H1[Self-referencing Pattern]
+        H2[Tree Structure Detection]
+    end
+
+    subgraph COMPOSITE["Composite FK Detection v1.0"]
+        C1[Multi-column Key Patterns]
+        C2[Column Group Relationships]
+    end
+
+    TO1 --> FI1
+    TO2 --> FI2
+    TO3 --> FI3 & H1
+
+    FI1 --> HIERARCHY & COMPOSITE
+    H1 --> H2
+    FI2 --> COMPOSITE
+
+    style TDA_OUTPUT fill:#e3f2fd
+    style FK_INPUT fill:#c8e6c9
+    style HIERARCHY fill:#fff9c4
+    style COMPOSITE fill:#b2dfdb
 ```

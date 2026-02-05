@@ -1,0 +1,11 @@
+major_id,major_name,department_id,degree_type,required_credits,description
+MAJ001,Computer Science,DEPT001,BS,128,Study of computation algorithms and systems
+MAJ002,Business Administration,DEPT002,BBA,120,Business management and operations
+MAJ003,Civil Engineering,DEPT003,BSE,132,Design and construction of infrastructure
+MAJ004,Biology,DEPT004,BS,124,Study of living organisms
+MAJ005,Physics,DEPT005,BS,128,Study of matter energy and forces
+MAJ006,English Literature,DEPT006,BA,120,Analysis of literary works
+MAJ007,Data Science,DEPT001,BS,128,Analysis of large datasets
+MAJ008,Finance,DEPT002,BBA,120,Financial management and analysis
+MAJ009,Mechanical Engineering,DEPT003,BSE,132,Design of mechanical systems
+MAJ010,Chemistry,DEPT004,BS,126,Study of chemical substances

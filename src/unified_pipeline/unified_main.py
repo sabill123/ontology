@@ -81,7 +81,12 @@ class PipelineConfig:
 
     # LLM 설정
     use_llm: bool = True
-    llm_model: str = "gpt-4o-mini"
+    llm_model: str = ""  # v21.0: empty → model_config default
+
+    def __post_init__(self):
+        if not self.llm_model:
+            from .model_config import get_model, ModelType
+            self.llm_model = get_model(ModelType.BALANCED)
 
     # 데이터 설정
     encoding: str = "utf-8"

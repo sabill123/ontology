@@ -56,6 +56,67 @@ from ..analysis import (
     CounterfactualResult,
 )
 
+# === v19.0: Unified Insight Pipeline ===
+try:
+    from ..analysis.unified_insight_pipeline import UnifiedInsightPipeline, PipelineResult
+    UNIFIED_PIPELINE_AVAILABLE = True
+except ImportError:
+    UNIFIED_PIPELINE_AVAILABLE = False
+    UnifiedInsightPipeline = None
+    PipelineResult = None
+
+# === v16.0: Column-level Lineage ===
+try:
+    from ...lineage import LineageTracker, build_lineage_from_context, ImpactAnalysis
+    LINEAGE_AVAILABLE = True
+except ImportError:
+    LINEAGE_AVAILABLE = False
+    LineageTracker = None
+    build_lineage_from_context = None
+    ImpactAnalysis = None
+
+# === v16.0: Actions Engine ===
+try:
+    from ...actions import ActionsEngine, Action, Trigger, TriggerType, ActionType, ActionStatus
+    ACTIONS_ENGINE_AVAILABLE = True
+except ImportError:
+    ACTIONS_ENGINE_AVAILABLE = False
+    ActionsEngine = None
+    Action = None
+    Trigger = None
+    TriggerType = None
+    ActionType = None
+    ActionStatus = None
+
+# === v16.0: CDC Sync Engine ===
+try:
+    from ...sync import CDCEngine, create_cdc_engine_with_context, ChangeType, SyncStatus
+    CDC_ENGINE_AVAILABLE = True
+except ImportError:
+    CDC_ENGINE_AVAILABLE = False
+    CDCEngine = None
+    create_cdc_engine_with_context = None
+    ChangeType = None
+    SyncStatus = None
+
+# === v16.0: Agent Learning System ===
+try:
+    from ..learning import (
+        AgentMemory,
+        Experience,
+        ExperienceType,
+        Outcome,
+        create_agent_memory_with_context,
+    )
+    AGENT_LEARNING_AVAILABLE = True
+except ImportError:
+    AGENT_LEARNING_AVAILABLE = False
+    AgentMemory = None
+    Experience = None
+    ExperienceType = None
+    Outcome = None
+    create_agent_memory_with_context = None
+
 # === v4.5: Embedded Phase 3 Agent Council from utils ===
 from .governance_utils import (
     EmbeddedPhase3AgentRole,
@@ -139,12 +200,12 @@ class GovernanceStrategistAutonomousAgent(AutonomousAgent):
         )
 
         # v5.0: Enhanced Validation System
+        # v17.0: Calibrator는 이제 베이스 클래스의 calibrate_confidence() 사용
         if ENHANCED_VALIDATOR_AVAILABLE:
             self.ds_fusion = DempsterShaferFusion()
-            self.calibrator = ConfidenceCalibrator()
             self.kg_validator = KnowledgeGraphQualityValidator()
             self.bft_consensus = BFTConsensus(n_agents=4)
-            logger.info("GovernanceStrategist: Enhanced Validation (DS Fusion, KG Quality, BFT) enabled")
+            logger.info("GovernanceStrategist: Enhanced Validation (DS Fusion, KG Quality, BFT) enabled, v17 Calibrator integrated")
 
         # v11.0: Evidence-Based Debate Protocol
         self.debate_protocol = None
@@ -293,6 +354,176 @@ Respond ONLY with valid JSON."""
         except Exception as e:
             logger.warning(f"ProcessAnalyzer failed: {e}")
 
+        # === v17.1: Phase 2 데이터 통합 (causal_relationships, palantir_insights) ===
+        phase2_enrichment = {}
+        self._report_progress(0.40, "Integrating Phase 2 insights (v17.1)")
+
+        try:
+            # 1. Causal Relationships 통합 - 개념 간 인과 관계 정보
+            causal_map = {}  # concept_name → causal_info
+            for causal in (context.causal_relationships or []):
+                if isinstance(causal, dict):
+                    source = causal.get("source", causal.get("from_concept", ""))
+                    target = causal.get("target", causal.get("to_concept", ""))
+                    effect = causal.get("effect", causal.get("causal_effect", 0.0))
+                    if source:
+                        if source not in causal_map:
+                            causal_map[source] = {"causes": [], "caused_by": []}
+                        causal_map[source]["causes"].append({
+                            "target": target,
+                            "effect": effect,
+                            "confidence": causal.get("confidence", 0.5)
+                        })
+                    if target:
+                        if target not in causal_map:
+                            causal_map[target] = {"causes": [], "caused_by": []}
+                        causal_map[target]["caused_by"].append({
+                            "source": source,
+                            "effect": effect,
+                            "confidence": causal.get("confidence", 0.5)
+                        })
+
+            # 2. Palantir Insights 통합 - 예측 인사이트
+            insights_by_table = {}  # table_name → [insights]
+            for insight in (context.palantir_insights or []):
+                if isinstance(insight, dict):
+                    tables = insight.get("source_tables", insight.get("related_tables", []))
+                    for table in tables:
+                        if table not in insights_by_table:
+                            insights_by_table[table] = []
+                        insights_by_table[table].append({
+                            "title": insight.get("title", "Insight"),
+                            "severity": insight.get("severity", "medium"),
+                            "confidence": insight.get("confidence", 0.5),
+                            "business_impact": insight.get("business_impact", ""),
+                        })
+
+            # 3. Business Insights 통합 - Phase 2에서 이미 생성된 비즈니스 인사이트
+            existing_insights_by_table = {}
+            for bi in (context.business_insights or []):
+                if isinstance(bi, dict):
+                    table = bi.get("source_table", bi.get("table", ""))
+                    if table:
+                        if table not in existing_insights_by_table:
+                            existing_insights_by_table[table] = []
+                        existing_insights_by_table[table].append({
+                            "title": bi.get("title", ""),
+                            "severity": bi.get("severity", "medium"),
+                            "description": bi.get("description", ""),
+                        })
+
+            # 4. 각 개념에 Phase 2 정보 연결
+            for concept in context.ontology_concepts:
+                concept_name = concept.name
+                concept_tables = concept.source_tables or []
+
+                enrichment = {
+                    "causal_info": causal_map.get(concept_name, {"causes": [], "caused_by": []}),
+                    "related_insights": [],
+                    "risk_factors_from_insights": [],
+                }
+
+                # 테이블 기반 인사이트 수집
+                for table in concept_tables:
+                    enrichment["related_insights"].extend(insights_by_table.get(table, []))
+                    enrichment["related_insights"].extend(existing_insights_by_table.get(table, []))
+
+                # 높은 심각도 인사이트를 리스크 요소로 추출
+                for insight in enrichment["related_insights"]:
+                    if insight.get("severity") in ("critical", "high"):
+                        enrichment["risk_factors_from_insights"].append(insight.get("title", "Risk"))
+
+                phase2_enrichment[concept.concept_id] = enrichment
+
+            # 5. v22.0: Knowledge Graph Triples → 개념별 온톨로지 관계 매핑
+            kg_triples = context.knowledge_graph_triples or []
+            kg_triple_map = {}
+            for triple in kg_triples:
+                if isinstance(triple, dict):
+                    subject = triple.get("subject", "")
+                    concept_id = subject.split(":", 1)[1] if ":" in subject else subject
+                    if concept_id not in kg_triple_map:
+                        kg_triple_map[concept_id] = []
+                    kg_triple_map[concept_id].append({
+                        "predicate": triple.get("predicate", ""),
+                        "object": triple.get("object", ""),
+                    })
+
+            # KG triples을 enrichment에 추가
+            for concept in context.ontology_concepts:
+                cid = concept.concept_id
+                if cid in phase2_enrichment:
+                    phase2_enrichment[cid]["kg_triples"] = kg_triple_map.get(cid, [])
+                    phase2_enrichment[cid]["kg_triple_count"] = len(kg_triple_map.get(cid, []))
+
+            logger.info(f"[v17.1] Phase 2 enrichment: {len(causal_map)} causal nodes, "
+                       f"{sum(len(v) for v in insights_by_table.values())} insights, "
+                       f"{len(kg_triples)} KG triples ({len(kg_triple_map)} concepts mapped)")
+
+        except Exception as e:
+            logger.warning(f"[v17.1] Phase 2 integration failed: {e}")
+
+        # === v22.0: OWL2/SHACL + Calibration + v17 서비스 통합 ===
+        owl2_shacl_context = {}
+        v17_calibration_context = {}
+        try:
+            # OWL2 추론 결과 (Phase 2에서 context_updates로 전파됨)
+            owl2_results = context.get_dynamic("owl2_reasoning_results", {})
+            shacl_results = context.get_dynamic("shacl_validation_results", {})
+            if owl2_results or shacl_results:
+                owl2_shacl_context = {
+                    "owl2_axioms_discovered": owl2_results.get("axioms_discovered", 0),
+                    "owl2_inferred_classes": owl2_results.get("inferred_classes", []),
+                    "owl2_property_chains": owl2_results.get("property_chains", []),
+                    "shacl_is_conformant": shacl_results.get("is_conformant", True),
+                    "shacl_violations_count": shacl_results.get("violations_count", 0),
+                    "shacl_violations": shacl_results.get("violations", [])[:10],
+                }
+                logger.info(
+                    f"[v22.0] OWL2/SHACL context: {owl2_shacl_context.get('owl2_axioms_discovered', 0)} axioms, "
+                    f"conformant={owl2_shacl_context.get('shacl_is_conformant')}"
+                )
+
+            # v17 Calibrator 서비스에서 보정된 신뢰도 데이터
+            v17_services = context.get_dynamic("_v17_services", {})
+            calibrator = v17_services.get("calibrator")
+            if calibrator:
+                try:
+                    calibration_summary = calibrator.get_calibration_summary()
+                    v17_calibration_context = {
+                        "calibration_available": True,
+                        "calibration_summary": calibration_summary,
+                    }
+                    logger.info(f"[v22.0] Calibration data integrated into governance")
+                except Exception as cal_err:
+                    logger.debug(f"[v22.0] Calibration summary failed: {cal_err}")
+
+        except Exception as e:
+            logger.debug(f"[v22.0] OWL2/SHACL/Calibration integration skipped: {e}")
+
+        # === v22.0: QualityJudge 평가 결과 통합 ===
+        quality_context = {}
+        try:
+            quality_summary = context.get_dynamic("quality_assessment_summary", {})
+            quality_stats = context.get_dynamic("quality_enhanced_stats", {})
+            if quality_summary:
+                quality_context = {
+                    "total_evaluated": quality_summary.get("total_evaluated", 0),
+                    "approved": quality_summary.get("approved", 0),
+                    "provisional": quality_summary.get("provisional", 0),
+                    "rejected": quality_summary.get("rejected", 0),
+                    "avg_score": quality_summary.get("avg_score", 0),
+                }
+                if quality_stats:
+                    quality_context["calibrated_confidence"] = quality_stats.get("avg_calibrated_confidence", 0)
+                    quality_context["bft_agreement"] = quality_stats.get("avg_bft_agreement", 0)
+                logger.info(
+                    f"[v22.0] Quality context: {quality_context.get('total_evaluated', 0)} evaluated, "
+                    f"approved={quality_context.get('approved', 0)}, rejected={quality_context.get('rejected', 0)}"
+                )
+        except Exception as e:
+            logger.debug(f"[v22.0] Quality assessment integration skipped: {e}")
+
         # === v5.0: Enhanced Validation System ===
         enhanced_validation_results = {}
         if ENHANCED_VALIDATOR_AVAILABLE:
@@ -341,9 +572,9 @@ Respond ONLY with valid JSON."""
                 ]
                 bft_result = self.bft_consensus.reach_consensus(votes)
 
-                # Confidence Calibration
+                # Confidence Calibration (v17.0: 베이스 클래스 메서드 사용)
                 raw_confidence = (ds_result['confidence'] + bft_result['confidence']) / 2
-                calibrated = self.calibrator.calibrate(raw_confidence)
+                calibrated = self.calibrate_confidence(raw_confidence)
 
                 enhanced_validation_results[concept_id] = {
                     'ds_decision': ds_result['decision'],
@@ -387,10 +618,13 @@ Respond ONLY with valid JSON."""
                 }
 
                 # Embedded LLM Judge 평가 (규칙 기반)
-                evaluation = self.embedded_llm_judge.evaluate_governance_decision(
-                    insight=insight_data,
-                    decision=decision_data,
-                    agent_opinions=[],
+                # v18.0: asyncio.to_thread로 블로킹 호출 방지
+                import asyncio
+                evaluation = await asyncio.to_thread(
+                    self.embedded_llm_judge.evaluate_governance_decision,
+                    insight_data,
+                    decision_data,
+                    [],  # agent_opinions
                 )
                 embedded_evaluations[concept_id] = evaluation
 
@@ -477,6 +711,10 @@ Respond ONLY with valid JSON."""
                             "risk_level": algo_decision.get("risk_level", "unknown"),
                             "source_tables": concept.source_tables,
                             "description": concept.description or "",
+                            # v22.0: OWL2/SHACL + Calibration + Quality 컨텍스트 추가
+                            "owl2_shacl_context": owl2_shacl_context if owl2_shacl_context else None,
+                            "calibration_context": v17_calibration_context if v17_calibration_context else None,
+                            "quality_context": quality_context if quality_context else None,
                         }
 
                         # BFT 기반 Council Debate 수행 (동기 함수)
@@ -702,6 +940,26 @@ Respond ONLY with valid JSON."""
                     f"final_type={final_decision_type}"
                 )
 
+            # v17.1: Phase 2 enrichment data 가져오기
+            p2_enrichment = phase2_enrichment.get(concept_id, {})
+
+            # v17.1: 인과 관계 및 인사이트 기반 reasoning 보강
+            if p2_enrichment.get("causal_info", {}).get("causes") or p2_enrichment.get("causal_info", {}).get("caused_by"):
+                causal_causes = len(p2_enrichment.get("causal_info", {}).get("causes", []))
+                causal_effects = len(p2_enrichment.get("causal_info", {}).get("caused_by", []))
+                final_reasoning += f" [v17.1: Causal - causes {causal_causes}, caused_by {causal_effects}]"
+
+            if p2_enrichment.get("risk_factors_from_insights"):
+                risk_factors = p2_enrichment.get("risk_factors_from_insights", [])[:3]
+                final_reasoning += f" [v17.1: Risk factors from insights: {', '.join(risk_factors)}]"
+
+            # v22.0: OWL2/SHACL 위반 시 confidence 보정
+            if owl2_shacl_context and not owl2_shacl_context.get("shacl_is_conformant", True):
+                violations = owl2_shacl_context.get("shacl_violations_count", 0)
+                if violations > 0:
+                    final_confidence = min(final_confidence, 0.7)
+                    final_reasoning += f" [v22.0: SHACL non-conformant ({violations} violations) - confidence capped]"
+
             decision = GovernanceDecision(
                 decision_id=f"decision_{concept_id}",
                 concept_id=concept_id,
@@ -714,6 +972,10 @@ Respond ONLY with valid JSON."""
                     "embedded_llm_judge": embedded_eval,  # v4.5
                     "enhanced_validation": enhanced_val,  # v5.0
                     "evidence_based_debate": evidence_debate,  # v11.0
+                    "phase2_enrichment": p2_enrichment,  # v17.1: Phase 2 데이터 통합
+                    "owl2_shacl": owl2_shacl_context,  # v22.0: OWL2/SHACL 온톨로지 추론
+                    "calibration": v17_calibration_context,  # v22.0: 신뢰도 보정
+                    "quality_assessment": quality_context,  # v22.0: QualityJudge 평가 결과
                 },
                 recommended_actions=llm_enhancement.get("recommended_actions", []),
             )
@@ -805,6 +1067,138 @@ Respond ONLY with valid JSON."""
                 f"evidence_cited={total_evidence_cited}"
             )
 
+        # === v17.1: What-If Analyzer 통합 - 승인된 결정의 영향도 시뮬레이션 ===
+        whatif_results = {"scenarios_analyzed": 0, "total_impact_score": 0.0}
+        try:
+            whatif_analyzer = self.get_v17_service("whatif_analyzer")
+            if whatif_analyzer:
+                approved_decisions = [d for d in governance_decisions if d.decision_type == "approve"]
+
+                for decision in approved_decisions[:5]:  # 상위 5개만 분석
+                    # 시나리오 정의: 해당 개념이 온톨로지에 추가될 경우의 영향
+                    scenario = {
+                        "concept_id": decision.concept_id,
+                        "change_type": "add_concept",
+                        "confidence": decision.confidence,
+                        "source_tables": getattr(decision, 'source_tables', []),
+                    }
+
+                    # What-If 분석 실행
+                    impact_result = whatif_analyzer.analyze_impact(
+                        scenario=scenario,
+                        context=context,
+                    )
+
+                    if impact_result:
+                        whatif_results["scenarios_analyzed"] += 1
+                        whatif_results["total_impact_score"] += impact_result.get("impact_score", 0)
+
+                        # 결정에 영향 분석 결과 추가
+                        decision.agent_opinions["whatif_analysis"] = {
+                            "impact_score": impact_result.get("impact_score", 0),
+                            "affected_entities": impact_result.get("affected_entities", []),
+                            "risk_level": impact_result.get("risk_level", "unknown"),
+                        }
+
+                if whatif_results["scenarios_analyzed"] > 0:
+                    avg_impact = whatif_results["total_impact_score"] / whatif_results["scenarios_analyzed"]
+                    logger.info(
+                        f"[v17.1] What-If Analysis: {whatif_results['scenarios_analyzed']} scenarios, "
+                        f"avg impact={avg_impact:.2f}"
+                    )
+        except Exception as e:
+            logger.debug(f"[v17.1] What-If Analysis skipped: {e}")
+
+        # === v16.0: CDC Sync Engine 통합 ===
+        cdc_sync_results = {}
+        self._report_progress(0.92, "Configuring CDC Sync Engine (v16.0)")
+
+        try:
+            if CDC_ENGINE_AVAILABLE and create_cdc_engine_with_context:
+                cdc_engine = create_cdc_engine_with_context(context)
+
+                # 거버넌스 결정 기반 동기화 구독 설정
+                subscriptions_created = 0
+                for decision in governance_decisions[:10]:  # 상위 10개
+                    if decision.decision == "approve":
+                        # 승인된 개념에 대해 CDC 구독 생성
+                        for source_table in (decision.source_tables or [])[:3]:
+                            subscription = cdc_engine.subscribe(
+                                table_name=source_table,
+                                callback=None,  # 실제 콜백은 나중에 등록
+                            )
+                            if subscription:
+                                subscriptions_created += 1
+
+                cdc_sync_results = {
+                    "subscriptions_created": subscriptions_created,
+                    "sync_enabled": True,
+                    "tables_monitored": subscriptions_created,
+                }
+
+                context.set_dynamic("cdc_sync_config", {
+                    "subscriptions": subscriptions_created,
+                    "enabled": True,
+                })
+
+                logger.info(
+                    f"[v16.0] CDC Sync Engine: {subscriptions_created} subscriptions created"
+                )
+            else:
+                logger.info("[v16.0] CDC Sync Engine not available, skipping")
+
+        except Exception as e:
+            logger.warning(f"[v16.0] CDC Sync Engine integration failed: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
+
+        # === v22.0: decision_explainer로 거버넌스 결정 설명 생성 ===
+        decision_explanations = []
+        try:
+            decision_explainer = self.get_v17_service("decision_explainer")
+            if decision_explainer and governance_decisions:
+                for decision in governance_decisions[:5]:  # 상위 5개 결정만
+                    explanation = await decision_explainer.explain(
+                        decision_type="governance",
+                        decision_data={
+                            "concept_id": decision.concept_id,
+                            "decision": decision.decision,
+                            "confidence": decision.confidence,
+                            "reasoning": decision.reasoning[:200] if decision.reasoning else "",
+                        },
+                        context={"phase": "governance", "agent": self.agent_name},
+                    )
+                    if explanation:
+                        decision_explanations.append({
+                            "concept_id": decision.concept_id,
+                            "explanation": explanation.get("summary", ""),
+                            "factors": explanation.get("key_factors", []),
+                        })
+                if decision_explanations:
+                    logger.info(f"[v22.0] DecisionExplainer generated {len(decision_explanations)} explanations")
+        except Exception as e:
+            logger.debug(f"[v22.0] DecisionExplainer skipped: {e}")
+
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="governance_decision",
+            input_data={"task": "governance_strategy", "concepts": len(algorithmic_decisions)},
+            output_data={"decisions_made": len(governance_decisions), "approved": summary.get("approved", 0)},
+            outcome="success",
+            confidence=0.85,
+        )
+
+        # v22.0: Agent Bus - 거버넌스 결정 결과 브로드캐스트
+        await self.broadcast_discovery(
+            discovery_type="governance_decisions_made",
+            data={
+                "decisions_made": len(governance_decisions),
+                "approved": summary.get("approved", 0),
+                "rejected": summary.get("rejected", 0),
+                "needs_review": summary.get("needs_review", 0),
+            },
+        )
+
         return TodoResult(
             success=True,
             output={
@@ -812,6 +1206,7 @@ Respond ONLY with valid JSON."""
                 "summary": summary,
                 # v4.6: ProcessAnalyzer 결과 요약
                 "process_analyses_count": len(process_analyses),
+                "decision_explanations": len(decision_explanations),  # v22.0
                 # v4.3: Knowledge Graph 통계
                 "kg_stats": {
                     "governance_triples": len(governance_triples),
@@ -822,6 +1217,8 @@ Respond ONLY with valid JSON."""
                 "debate_conducted": len(debate_results),
                 # v11.0: Evidence-Based Debate 통계
                 "evidence_based_debate_stats": evidence_debate_stats,
+                # v16.0: CDC Sync 통계
+                "cdc_subscriptions_created": cdc_sync_results.get("subscriptions_created", 0),
             },
             context_updates={
                 "governance_decisions": governance_decisions,
@@ -839,6 +1236,8 @@ Respond ONLY with valid JSON."""
                 "debate_details": debate_results,
                 # v11.0: Evidence-Based Council Debate 상세 결과
                 "evidence_based_debate_details": evidence_based_debate_results,
+                # v16.0: CDC Sync 상세 결과
+                "cdc_sync_results": cdc_sync_results,
             },
         )
 
@@ -1227,7 +1626,139 @@ Respond with ONLY valid JSON matching this schema."""
         # 4단계: 실행 순서 결정
         execution_sequence = [a.get("action_id") for a in enhanced_actions[:20]]
 
+        # === v22.0: Semantic Search로 관련 엔티티 조회 및 액션 보강 ===
+        try:
+            semantic_searcher = self.get_v17_service("semantic_searcher")
+            if semantic_searcher and enhanced_actions:
+                for action in enhanced_actions[:10]:  # 상위 10개 액션만
+                    action_desc = action.get("description", "") or action.get("title", "")
+                    if action_desc:
+                        related = await semantic_searcher.search(query=action_desc[:200], limit=3)
+                        if related:
+                            action["semantic_context"] = [r.get("name", r.get("id", "")) for r in related[:3]]
+                logger.info(f"[v22.0] SemanticSearcher enriched {min(len(enhanced_actions), 10)} actions with context")
+        except Exception as e:
+            logger.debug(f"[v22.0] SemanticSearcher skipped in ActionPrioritizer: {e}")
+
+        # === v16.0: Actions Engine 통합 ===
+        actions_engine_results = {}
+        self._report_progress(0.85, "Configuring Actions Engine (v16.0)")
+
+        try:
+            if ACTIONS_ENGINE_AVAILABLE and ActionsEngine:
+                actions_engine = ActionsEngine()
+
+                # 각 우선순위 액션을 Actions Engine에 등록
+                registered_actions = []
+                for action_data in enhanced_actions[:20]:  # 상위 20개
+                    priority = action_data.get("calculated_priority", "medium")
+
+                    # 트리거 유형 결정
+                    trigger_type = TriggerType.MANUAL
+                    if priority == "critical":
+                        trigger_type = TriggerType.EVENT  # 자동 실행
+                    elif action_data.get("action_type") == "data_quality":
+                        trigger_type = TriggerType.DATA_QUALITY
+
+                    # 액션 유형 매핑
+                    action_type_map = {
+                        "implementation": ActionType.CREATE,
+                        "schema_change": ActionType.UPDATE,
+                        "data_quality": ActionType.VALIDATE,
+                        "monitoring": ActionType.NOTIFY,
+                        "documentation": ActionType.CREATE,
+                        "cleanup": ActionType.DELETE,
+                    }
+                    action_type = action_type_map.get(
+                        action_data.get("action_type", "implementation"),
+                        ActionType.CREATE
+                    )
+
+                    # 트리거 생성
+                    trigger = Trigger(
+                        trigger_id=f"trigger_{action_data.get('action_id', '')}",
+                        trigger_type=trigger_type,
+                        name=f"Trigger for {action_data.get('title', 'Action')[:30]}",
+                        description=f"Auto-generated trigger for priority action",
+                    )
+
+                    # 액션 생성 및 등록
+                    action = Action(
+                        action_id=action_data.get("action_id", ""),
+                        name=action_data.get("title", "Untitled Action")[:50],
+                        description=action_data.get("description", "")[:200],
+                        action_type=action_type,
+                        triggers=[trigger],
+                        parameters=[],
+                        handler=None,  # 실제 핸들러는 나중에 등록
+                        created_by="action_prioritizer_agent",
+                    )
+
+                    actions_engine.register_action(action)
+                    registered_actions.append(action.action_id)
+
+                    # Critical 액션은 즉시 실행 가능 상태로 표시
+                    if priority == "critical":
+                        action_data["auto_execute"] = True
+                        action_data["trigger_configured"] = True
+
+                actions_engine_results = {
+                    "actions_registered": len(registered_actions),
+                    "registered_action_ids": registered_actions[:10],
+                    "engine_status": "configured",
+                }
+
+                # context에 저장
+                context.set_dynamic("actions_engine_config", {
+                    "registered_actions": registered_actions,
+                    "total_registered": len(registered_actions),
+                })
+
+                logger.info(
+                    f"[v16.0] Actions Engine: {len(registered_actions)} actions registered"
+                )
+            else:
+                logger.info("[v16.0] Actions Engine not available, skipping")
+
+        except Exception as e:
+            logger.warning(f"[v16.0] Actions Engine integration failed: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
+
         self._report_progress(0.95, "Finalizing action backlog")
+
+        # === v17.1: Report Generator 통합 - 액션 우선순위 보고서 생성 ===
+        report_results = {"report_generated": False, "report_type": None}
+        try:
+            report_generator = self.get_v17_service("report_generator")
+            if report_generator and len(enhanced_actions) > 0:
+                # 액션 우선순위 보고서 생성
+                report_data = {
+                    "title": "Action Priority Report",
+                    "total_actions": len(enhanced_actions),
+                    "critical_count": len([a for a in enhanced_actions if a.get("calculated_priority") == "critical"]),
+                    "high_count": len([a for a in enhanced_actions if a.get("calculated_priority") == "high"]),
+                    "quick_wins": quick_wins[:5],
+                    "top_actions": enhanced_actions[:10],
+                    "generated_at": datetime.now().isoformat() if 'datetime' in dir() else "N/A",
+                }
+
+                report = report_generator.generate_summary(
+                    report_type="action_priority",
+                    data=report_data,
+                    context=context,
+                )
+
+                if report:
+                    report_results["report_generated"] = True
+                    report_results["report_type"] = "action_priority"
+
+                    # 보고서를 context에 저장
+                    context.set_dynamic("action_priority_report", report)
+
+                    logger.info(f"[v17.1] Report Generator: Action priority report generated")
+        except Exception as e:
+            logger.debug(f"[v17.1] Report Generator skipped: {e}")
 
         # 집계
         priority_summary = {
@@ -1237,12 +1768,23 @@ Respond with ONLY valid JSON matching this schema."""
             "low": len([a for a in enhanced_actions if a.get("calculated_priority") == "low"]),
         }
 
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="governance_decision",
+            input_data={"task": "action_prioritization", "raw_actions": len(raw_actions)},
+            output_data={"actions_created": len(enhanced_actions), "quick_wins": len(quick_wins)},
+            outcome="success",
+            confidence=0.8,
+        )
+
         return TodoResult(
             success=True,
             output={
                 "actions_created": len(enhanced_actions),
                 "priority_summary": priority_summary,
                 "quick_wins_count": len(quick_wins),
+                # v16.0
+                "actions_engine_registered": actions_engine_results.get("actions_registered", 0),
             },
             context_updates={
                 "action_backlog": enhanced_actions,
@@ -1250,6 +1792,8 @@ Respond with ONLY valid JSON matching this schema."""
             metadata={
                 "execution_sequence": execution_sequence,
                 "quick_wins": quick_wins,
+                # v16.0
+                "actions_engine_results": actions_engine_results,
             },
         )
 
@@ -1524,6 +2068,61 @@ Respond ONLY with valid JSON."""
 
         self._report_progress(0.1, "Computing algorithmic risk assessments")
 
+        # === v17.1: Phase 1 operational_insights 로드 ===
+        # DataAnalyst가 생성한 운영 인사이트 (취소율, 오류율, 이상치 등)
+        operational_insights = context.get_dynamic("operational_insights", {})
+        status_analysis = context.get_dynamic("status_analysis", {})
+
+        # 운영 리스크 요소 추출
+        operational_risk_factors = []
+        if operational_insights:
+            # 높은 취소율, 오류율 등은 리스크 증가 요인
+            for key, value in operational_insights.items():
+                if isinstance(value, dict):
+                    rate = value.get("rate", value.get("percentage", 0))
+                    if rate and rate > 0.1:  # 10% 이상이면 리스크 요소로 추가
+                        operational_risk_factors.append({
+                            "factor": key,
+                            "rate": rate,
+                            "tables": value.get("tables", value.get("affected_tables", [])),
+                            "severity": "high" if rate > 0.3 else "medium",
+                        })
+            logger.info(f"[v17.1] Loaded {len(operational_risk_factors)} operational risk factors from Phase 1")
+
+        # 상태 분석에서 문제 있는 필드 추출
+        problematic_status_fields = []
+        if status_analysis:
+            for table, analysis in status_analysis.items():
+                if isinstance(analysis, dict):
+                    for field, info in analysis.items():
+                        if isinstance(info, dict) and info.get("has_issues", False):
+                            problematic_status_fields.append({
+                                "table": table,
+                                "field": field,
+                                "issue_type": info.get("issue_type", "unknown"),
+                            })
+            if problematic_status_fields:
+                logger.info(f"[v17.1] Found {len(problematic_status_fields)} problematic status fields")
+
+        # === v22.0: OWL2/SHACL + v17 서비스 리스크 보강 ===
+        owl2_risk_factors = []
+        try:
+            owl2_results = context.get_dynamic("owl2_reasoning_results", {})
+            shacl_results = context.get_dynamic("shacl_validation_results", {})
+
+            # SHACL 위반은 온톨로지 리스크
+            if shacl_results and not shacl_results.get("is_conformant", True):
+                violations = shacl_results.get("violations", [])
+                for v in violations[:5]:
+                    owl2_risk_factors.append({
+                        "factor": f"SHACL violation: {v.get('path', 'unknown')}",
+                        "severity": "high" if v.get("severity") == "Violation" else "medium",
+                        "source": "shacl_validation",
+                    })
+                logger.info(f"[v22.0] {len(owl2_risk_factors)} SHACL violation risk factors added")
+        except Exception as e:
+            logger.debug(f"[v22.0] OWL2/SHACL risk integration skipped: {e}")
+
         # v2.1: Business Insights 기반 데이터 리스크 분석
         business_insights = []
         try:
@@ -1531,13 +2130,10 @@ Respond ONLY with valid JSON."""
                 name: {"columns": info.columns, "row_count": info.row_count}
                 for name, info in context.tables.items()
             }
-            sample_data = {
-                name: info.sample_data
-                for name, info in context.tables.items()
-                if info.sample_data
-            }
+            # v22.1: 전체 데이터 로드 (샘플링 금지)
+            sample_data = context.get_all_full_data()
 
-            logger.info(f"[RiskAssessor] Tables for insights: {len(tables_for_insights)}, Sample data tables: {len(sample_data)}")
+            logger.info(f"[RiskAssessor] Tables for insights: {len(tables_for_insights)}, Full data tables: {len(sample_data)}")
 
             # v14.0: DataAnalyst가 분석한 column_semantics 가져오기
             column_semantics = context.get_dynamic("column_semantics", {})
@@ -1545,16 +2141,120 @@ Respond ONLY with valid JSON."""
                 logger.info(f"[RiskAssessor v14.0] Using LLM-analyzed column_semantics: {len(column_semantics)} columns")
 
             if sample_data:
-                logger.info(f"[RiskAssessor] Calling BusinessInsightsAnalyzer with {len(sample_data)} tables")
-                # v14.0: domain_context 업데이트 (LLM 도메인 특화 인사이트용)
+                # v14.0: domain_context
                 domain_ctx = context.get_domain() if hasattr(context, 'get_domain') else None
-                self.business_insights_analyzer.domain_context = domain_ctx
-                business_insights = self.business_insights_analyzer.analyze(
-                    tables=tables_for_insights,
-                    data=sample_data,
-                    column_semantics=column_semantics,  # v14.0: LLM 분석 결과 전달
-                )
-                logger.info(f"[RiskAssessor] Business Insights Analysis found {len(business_insights)} insights")
+                domain_str = domain_ctx.industry if domain_ctx and hasattr(domain_ctx, 'industry') else "general"
+
+                # v19.0: Use UnifiedInsightPipeline (Algorithm→Simulation→LLM 3-phase)
+                if UNIFIED_PIPELINE_AVAILABLE:
+                    logger.info("[v22.0] UnifiedInsightPipeline AVAILABLE, using it")
+                    logger.info(f"[RiskAssessor v19.0] Using UnifiedInsightPipeline (Algorithm→Simulation→LLM)")
+
+                    # Build correlations from causal analysis treatment_effects
+                    correlations = self._build_correlations_from_causal(context)
+                    logger.info(f"[RiskAssessor v19.0] Built {len(correlations)} correlations from causal analysis")
+
+                    # v18.3: pipeline_context for BusinessInsightsAnalyzer (Phase 1 내부)
+                    pipeline_ctx = {
+                        "causal_insights": getattr(context, 'causal_insights', {}) or {},
+                        "causal_relationships": getattr(context, 'causal_relationships', []) or [],
+                        "counterfactual_analysis": getattr(context, 'counterfactual_analysis', []) or [],
+                        "virtual_entities": getattr(context, 'virtual_entities', []) or [],
+                        "palantir_insights": getattr(context, 'palantir_insights', []) or [],
+                    }
+                    pipeline_ctx = {k: v for k, v in pipeline_ctx.items() if v}
+
+                    # Set pipeline_context on the business analyzer inside UnifiedInsightPipeline
+                    self.business_insights_analyzer.domain_context = domain_ctx
+                    if pipeline_ctx:
+                        self.business_insights_analyzer._pipeline_context = pipeline_ctx
+
+                    unified_pipeline = UnifiedInsightPipeline(
+                        context=context,
+                        llm_client=self.llm_client,
+                        domain=domain_str,
+                        enable_simulation=bool(correlations),
+                        enable_llm=True,
+                        pipeline_context=pipeline_ctx,  # v19.4: ATE/stratified analysis → LLM
+                    )
+
+                    import asyncio
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            # Already in async context
+                            pipeline_result = await unified_pipeline.run(
+                                tables=tables_for_insights,
+                                data=sample_data,
+                                correlations=correlations,
+                                column_semantics=column_semantics,
+                            )
+                        else:
+                            pipeline_result = loop.run_until_complete(unified_pipeline.run(
+                                tables=tables_for_insights,
+                                data=sample_data,
+                                correlations=correlations,
+                                column_semantics=column_semantics,
+                            ))
+                    except RuntimeError:
+                        # Fallback: create new event loop
+                        pipeline_result = asyncio.run(unified_pipeline.run(
+                            tables=tables_for_insights,
+                            data=sample_data,
+                            correlations=correlations,
+                            column_semantics=column_semantics,
+                        ))
+
+                    # Convert UnifiedInsight → BusinessInsight-compatible format
+                    for ui in pipeline_result.unified_insights:
+                        ui_dict = ui.to_dict()
+                        # Create a mock BusinessInsight-like object for backward compatibility
+                        from ..analysis.business_insights import BusinessInsight, InsightType, InsightSeverity
+                        try:
+                            bi = BusinessInsight(
+                                insight_id=ui_dict.get("insight_id", ""),
+                                title=ui_dict.get("title", ""),
+                                description=ui_dict.get("summary", ""),
+                                insight_type=InsightType.OPERATIONAL,
+                                severity=InsightSeverity(ui_dict.get("severity", "medium")),
+                                source_table=ui_dict.get("source_table", ""),
+                                source_column=ui_dict.get("source_column", ""),
+                                source_system="UnifiedInsightPipeline",
+                                recommendations=ui_dict.get("recommendations", []),
+                                business_impact=ui_dict.get("business_impact", ""),
+                            )
+                            # Attach Palantir-style fields as extra attributes
+                            bi._hypothesis = ui_dict.get("hypothesis", "")
+                            bi._evidence = ui_dict.get("evidence", [])
+                            bi._validation_summary = ui_dict.get("validation_summary", "")
+                            bi._prescriptive_actions = ui_dict.get("prescriptive_actions", [])
+                            bi._confidence_breakdown = ui_dict.get("confidence_breakdown", {})
+                            bi._algorithm_findings = ui_dict.get("algorithm_findings", {})
+                            bi._simulation_evidence = ui_dict.get("simulation_evidence", {})
+                            bi._phases_completed = ui_dict.get("phases_completed", [])
+                            business_insights.append(bi)
+                        except Exception as e:
+                            logger.warning(f"Failed to convert UnifiedInsight to BusinessInsight: {e}")
+
+                    logger.info(f"[RiskAssessor v19.0] UnifiedInsightPipeline: {len(business_insights)} insights "
+                               f"({pipeline_result.simulation_experiments_count} simulation experiments, "
+                               f"phases={pipeline_result.phases_executed})")
+                else:
+                    # Fallback: legacy BusinessInsightsAnalyzer
+                    logger.info(f"[RiskAssessor] Fallback: BusinessInsightsAnalyzer (UnifiedInsightPipeline not available)")
+                    self.business_insights_analyzer.domain_context = domain_ctx
+                    pipeline_ctx = {
+                        "causal_insights": getattr(context, 'causal_insights', {}) or {},
+                        "causal_relationships": getattr(context, 'causal_relationships', []) or [],
+                    }
+                    pipeline_ctx = {k: v for k, v in pipeline_ctx.items() if v}
+                    business_insights = self.business_insights_analyzer.analyze(
+                        tables=tables_for_insights,
+                        data=sample_data,
+                        column_semantics=column_semantics,
+                        pipeline_context=pipeline_ctx,
+                    )
+                    logger.info(f"[RiskAssessor] BusinessInsightsAnalyzer found {len(business_insights)} insights")
             else:
                 logger.warning("[RiskAssessor] No sample_data available, skipping BusinessInsightsAnalyzer")
         except Exception as e:
@@ -1622,11 +2322,8 @@ Respond ONLY with valid JSON."""
 
         anomaly_results = {}
         try:
-            sample_data = {
-                name: info.sample_data
-                for name, info in context.tables.items()
-                if info.sample_data
-            }
+            # v22.1: 전체 데이터 로드 (샘플링 금지)
+            sample_data = context.get_all_full_data()
             if sample_data:
                 anomalies = self.anomaly_detector.detect_anomalies(sample_data)
                 anomaly_results = {
@@ -1645,6 +2342,89 @@ Respond ONLY with valid JSON."""
                 logger.info(f"AnomalyDetector found {anomaly_results.get('anomalies_found', 0)} anomalies")
         except Exception as e:
             logger.warning(f"AnomalyDetector failed: {e}")
+
+        # === v16.0: Column-level Lineage Tracking ===
+        lineage_results = {}
+        self._report_progress(0.47, "Building Column-level Lineage (v16.0)")
+        try:
+            if LINEAGE_AVAILABLE and build_lineage_from_context:
+                lineage_tracker = build_lineage_from_context(context)
+                lineage_stats = lineage_tracker.get_statistics()
+
+                # 모든 고위험 개념에 대해 영향 분석 실행
+                impact_analyses = []
+                for concept in context.ontology_concepts[:5]:  # 상위 5개
+                    # 개념의 소스 테이블에서 첫 번째 컬럼을 기준으로 영향 분석
+                    if concept.source_tables:
+                        for table in concept.source_tables[:1]:
+                            # 테이블의 첫 번째 컬럼으로 영향 분석
+                            if table in context.tables:
+                                table_info = context.tables[table]
+                                if table_info.columns:
+                                    first_col = table_info.columns[0].get("name", table_info.columns[0]) if isinstance(table_info.columns[0], dict) else table_info.columns[0]
+                                    col_id = f"{table}.{first_col}"
+                                    impact = lineage_tracker.get_impact_analysis(col_id)
+                                    if impact:
+                                        impact_analyses.append({
+                                            "concept_id": concept.concept_id,
+                                            "source_column": col_id,
+                                            "direct_downstream": impact.direct_downstream,
+                                            "total_affected": impact.total_affected,
+                                            "max_depth": impact.max_depth,
+                                            "affected_tables": list(impact.affected_tables)[:5],
+                                        })
+
+                lineage_results = {
+                    "total_nodes": lineage_stats.get("total_nodes", 0),
+                    "total_edges": lineage_stats.get("total_edges", 0),
+                    "tables_tracked": lineage_stats.get("tables_count", 0),
+                    "impact_analyses": impact_analyses,
+                    "by_edge_type": lineage_stats.get("by_edge_type", {}),
+                }
+                logger.info(
+                    f"[v16.0] Lineage Tracker: {lineage_results['total_nodes']} nodes, "
+                    f"{lineage_results['total_edges']} edges, {len(impact_analyses)} impact analyses"
+                )
+
+                # context에 lineage 저장
+                context.set_dynamic("lineage_graph", lineage_tracker.to_dict())
+            else:
+                logger.info("[v16.0] Lineage Tracker not available, skipping")
+        except Exception as e:
+            logger.warning(f"[v16.0] Lineage Tracker failed: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
+
+        # === v22.0: What-If Analyzer로 리스크 시나리오 시뮬레이션 ===
+        whatif_risk_results = {"scenarios_analyzed": 0, "high_impact_scenarios": 0}
+        try:
+            whatif_analyzer = self.get_v17_service("whatif_analyzer")
+            if whatif_analyzer and all_risks:
+                # 고위험 개념들에 대한 What-If 시나리오 분석
+                high_risk_concepts = [c for c in context.ontology_concepts if
+                    any(r.risk_level in ["high", "critical"] for r in self.risk_assessor.assess_concept_risk({
+                        "concept_id": c.concept_id, "concept_type": c.concept_type,
+                        "name": c.name, "confidence": c.confidence,
+                        "source_evidence": c.source_evidence, "source_tables": c.source_tables,
+                    }))]
+
+                for concept in high_risk_concepts[:5]:  # 상위 5개 고위험 개념
+                    scenario = {
+                        "scenario_type": "risk_mitigation",
+                        "concept_id": concept.concept_id,
+                        "hypothesis": f"What if {concept.name} data quality improves by 20%?",
+                    }
+                    impact_result = whatif_analyzer.analyze_impact(scenario=scenario, context=context)
+                    if impact_result:
+                        whatif_risk_results["scenarios_analyzed"] += 1
+                        if impact_result.get("impact_score", 0) > 0.5:
+                            whatif_risk_results["high_impact_scenarios"] += 1
+
+                if whatif_risk_results["scenarios_analyzed"] > 0:
+                    logger.info(f"[v22.0] What-If Risk Analysis: {whatif_risk_results['scenarios_analyzed']} scenarios, "
+                               f"{whatif_risk_results['high_impact_scenarios']} high-impact")
+        except Exception as e:
+            logger.debug(f"[v22.0] What-If Analyzer skipped in RiskAssessor: {e}")
 
         # === v6.1: Counterfactual Reasoning - "만약 ~했다면?" 분석 ===
         counterfactual_results = []
@@ -1707,8 +2487,9 @@ Respond ONLY with valid JSON."""
         self._report_progress(0.8, "Computing risk summary")
 
         # v2.1: Business Insights를 직렬화 가능한 형태로 변환
-        insights_serialized = [
-            {
+        insights_serialized = []
+        for i in business_insights:
+            d = {
                 "insight_id": i.insight_id,
                 "title": i.title,
                 "description": i.description,
@@ -1719,9 +2500,40 @@ Respond ONLY with valid JSON."""
                 "metric_value": i.metric_value,
                 "recommendations": i.recommendations,
                 "business_impact": i.business_impact,
+                # v19.0: Palantir-style prescriptive fields
+                "hypothesis": getattr(i, '_hypothesis', ''),
+                "evidence": getattr(i, '_evidence', []),
+                "validation_summary": getattr(i, '_validation_summary', ''),
+                "prescriptive_actions": getattr(i, '_prescriptive_actions', []),
+                "confidence_breakdown": getattr(i, '_confidence_breakdown', {}),
+                # v19.4c: 누락 필드 추가
+                "algorithm_findings": getattr(i, '_algorithm_findings', {}),
+                "simulation_evidence": getattr(i, '_simulation_evidence', {}),
+                "phases_completed": getattr(i, '_phases_completed', []),
+                "source_system": getattr(i, 'source_system', 'UnifiedInsightPipeline'),
             }
-            for i in business_insights
-        ]
+            insights_serialized.append(d)
+
+        # v19.2: Palantir-style insights를 palantir_insights로 라우팅
+        logger.info(f"[v22.0] insights_serialized: {len(insights_serialized)}, has_hypothesis: {sum(1 for d in insights_serialized if d.get('hypothesis'))}")
+        palantir_routed = []
+        for d in insights_serialized:
+            if d.get("hypothesis") and d.get("evidence"):
+                palantir_routed.append({
+                    "title": d.get("title", ""),
+                    "hypothesis": d["hypothesis"],
+                    "evidence": d["evidence"],
+                    "validation_summary": d.get("validation_summary", ""),
+                    "prescriptive_actions": d.get("prescriptive_actions", []),
+                    "confidence_breakdown": d.get("confidence_breakdown", {}),
+                    "severity": d.get("severity", "medium"),
+                    "source_table": d.get("source_table", ""),
+                    "source_system": "UnifiedInsightPipeline",
+                    # v19.4c: 누락 필드 추가
+                    "algorithm_findings": d.get("algorithm_findings", {}),
+                    "simulation_evidence": d.get("simulation_evidence", {}),
+                    "phases_completed": d.get("phases_completed", []),
+                })
 
         # 4단계: 리스크 요약
         high_severity_insights = [i for i in business_insights if i.severity in ("critical", "high")]
@@ -1733,9 +2545,24 @@ Respond ONLY with valid JSON."""
             "top_concerns": enhanced_analysis.get("top_concerns", []),
             "business_insights_count": len(business_insights),  # v2.1
             "critical_high_insights": len(high_severity_insights),  # v2.1
+            # v17.1: Phase 1 operational_insights 통합
+            "operational_risk_factors": len(operational_risk_factors),
+            "problematic_status_fields": len(problematic_status_fields),
+            # v22.0: OWL2/SHACL 리스크 요소
+            "owl2_shacl_risk_factors": len(owl2_risk_factors),
         }
 
         self._report_progress(0.95, "Finalizing risk assessment")
+
+        # v22.0: Agent Learning - 경험 기록
+        total_risks = risk_summary["critical_risks"] + risk_summary["high_risks"]
+        self.record_experience(
+            experience_type="governance_decision",
+            input_data={"task": "risk_assessment", "concepts": len(algorithmic_risks)},
+            output_data={"critical_high_risks": total_risks, "insights_generated": len(business_insights)},
+            outcome="success" if total_risks < len(algorithmic_risks) / 2 else "partial",
+            confidence=0.75,
+        )
 
         return TodoResult(
             success=True,
@@ -1744,18 +2571,83 @@ Respond ONLY with valid JSON."""
                 "risk_summary": risk_summary,
                 "business_insights_generated": len(business_insights),  # v2.1
                 "counterfactual_scenarios_analyzed": len(counterfactual_results),  # v6.1
+                # v16.0: Lineage 통계
+                "lineage_nodes": lineage_results.get("total_nodes", 0),
+                "lineage_edges": lineage_results.get("total_edges", 0),
+                "impact_analyses_run": len(lineage_results.get("impact_analyses", [])),
             },
             context_updates={
                 "business_insights": insights_serialized,  # v2.1
                 "counterfactual_analysis": counterfactual_results,  # v6.1
+                "palantir_insights": palantir_routed,  # v19.2: Palantir-style 라우팅
             },
             metadata={
                 "concept_risks": enhanced_analysis.get("concept_risks", algorithmic_risks),
                 "action_risks": enhanced_analysis.get("action_risks", action_risks),
                 "business_insights_summary": insights_serialized[:10],  # v2.1
                 "counterfactual_details": counterfactual_results,  # v6.1
+                # v16.0: Lineage & Impact Analysis
+                "lineage_results": lineage_results,
+                "causal_results": causal_results,
+                "anomaly_results": anomaly_results,
+                # v17.1: Phase 1 operational_insights 통합
+                "operational_risk_factors": operational_risk_factors,
+                "problematic_status_fields": problematic_status_fields,
             },
         )
+
+    def _build_correlations_from_causal(self, context) -> list:
+        """
+        v19.0: 인과분석 treatment_effects → CorrelationResult 변환 (SimulationEngine 입력용)
+
+        CausalImpactAnalyzer의 significant treatment effects를 CorrelationResult로 변환하여
+        SimulationEngine의 segmentation/threshold/bootstrap 실험에 사용.
+        """
+        from ..analysis.cross_entity_correlation import CorrelationResult
+        import numpy as np
+
+        correlations = []
+        try:
+            causal_insights = getattr(context, 'causal_insights', {}) or {}
+            impact_analysis = causal_insights.get("impact_analysis", {})
+            treatment_effects = impact_analysis.get("treatment_effects", [])
+
+            # 첫 번째 테이블명 가져오기 (단일 테이블 시나리오)
+            table_names = list(context.tables.keys()) if hasattr(context, 'tables') else []
+            default_table = table_names[0] if table_names else "unknown"
+
+            for te in treatment_effects:
+                if not te.get("significant", False):
+                    continue
+
+                treatment_col = te.get("treatment", "")
+                outcome_col = te.get("outcome", "")
+                p_value = te.get("p_value", 1.0)
+                ate = te.get("estimate", 0)
+                sample_size = te.get("sample_size", 0)
+
+                if not treatment_col or not outcome_col:
+                    continue
+
+                # ATE를 상관계수로 근사 (방향 유지)
+                corr_approx = min(max(ate / 100.0, -1.0), 1.0) if abs(ate) < 100 else (1.0 if ate > 0 else -1.0)
+
+                correlations.append(CorrelationResult(
+                    source_table=default_table,
+                    source_column=treatment_col,
+                    target_table=default_table,
+                    target_column=outcome_col,
+                    correlation=corr_approx,
+                    p_value=p_value,
+                    sample_size=sample_size,
+                    relationship_direction="positive" if ate > 0 else "negative",
+                ))
+
+            logger.info(f"[v19.0] Built {len(correlations)} correlations from {len(treatment_effects)} treatment effects")
+        except Exception as e:
+            logger.warning(f"[v19.0] Failed to build correlations from causal: {e}")
+
+        return correlations
 
     def _assess_action_risks(
         self,
@@ -2201,12 +3093,8 @@ Respond ONLY with valid JSON."""
 
         kpi_results = {}
         try:
-            # 테이블 데이터로 KPI 예측 실행
-            sample_data = {
-                name: info.sample_data
-                for name, info in context.tables.items()
-                if info.sample_data
-            }
+            # v22.1: 전체 데이터 로드 (샘플링 금지)
+            sample_data = context.get_all_full_data()
 
             if sample_data:
                 # 시계열 KPI 예측
@@ -2241,11 +3129,8 @@ Respond ONLY with valid JSON."""
 
         forecast_results = {}
         try:
-            sample_data = {
-                name: info.sample_data
-                for name, info in context.tables.items()
-                if info.sample_data
-            }
+            # v22.1: 전체 데이터 로드 (샘플링 금지)
+            sample_data = context.get_all_full_data()
 
             if sample_data:
                 # 시계열 메트릭 예측 (예: 데이터 품질 트렌드)
@@ -2292,6 +3177,26 @@ Respond ONLY with valid JSON."""
 
         self._report_progress(0.95, "Finalizing policies")
 
+        # === v22.0: version_manager로 정책 버전 커밋 ===
+        policy_version = None
+        try:
+            version_manager = self.get_v17_service("version_manager")
+            if version_manager and enhanced_policies:
+                policy_version = await version_manager.commit(
+                    content_type="policy",
+                    content={
+                        "policies": enhanced_policies,
+                        "access_policies": access_policies,
+                        "monitoring_dashboards": monitoring_dashboards,
+                    },
+                    message=f"Policy generation: {len(enhanced_policies)} rules created",
+                    tags=["governance", "policy", f"rules_{len(enhanced_policies)}"],
+                )
+                if policy_version:
+                    logger.info(f"[v22.0] VersionManager committed policy version: {policy_version}")
+        except Exception as e:
+            logger.debug(f"[v22.0] VersionManager skipped: {e}")
+
         # 집계
         summary = {
             "total_rules": len(enhanced_policies),
@@ -2306,7 +3211,17 @@ Respond ONLY with valid JSON."""
                 "medium": len([p for p in enhanced_policies if p.get("severity") == "medium"]),
                 "low": len([p for p in enhanced_policies if p.get("severity") == "low"]),
             },
+            "policy_version": policy_version,  # v22.0
         }
+
+        # v22.0: Agent Learning - 경험 기록
+        self.record_experience(
+            experience_type="governance_decision",
+            input_data={"task": "policy_generation", "concepts": len(algorithmic_rules)},
+            output_data={"policies_generated": len(enhanced_policies), "by_type": summary["by_type"]},
+            outcome="success",
+            confidence=0.8,
+        )
 
         return TodoResult(
             success=True,

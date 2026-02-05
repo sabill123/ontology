@@ -31,16 +31,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OrchestratorConfig:
     """오케스트레이터 설정"""
-    max_concurrent_agents: int = 5       # 최대 동시 실행 에이전트 수
+    max_concurrent_agents: int = 10      # 최대 동시 실행 에이전트 수 (v17.1: 5→10 확장)
     agent_idle_timeout: float = 0        # 에이전트 유휴 타임아웃 비활성화
     phase_timeout: float = 0             # Phase 타임아웃 비활성화 (무제한)
     enable_parallel: bool = True         # 병렬 실행 활성화
     auto_scale: bool = True              # 에이전트 자동 스케일링
 
-    # 합의 설정
+    # 합의 설정 (v17.1: 토론 확장)
     enable_consensus: bool = True        # 멀티에이전트 합의 활성화
-    consensus_max_rounds: int = 3        # 합의 최대 라운드
-    consensus_acceptance_threshold: float = 0.75  # 승인 임계값
+    consensus_max_rounds: int = 5        # 합의 최대 라운드 (v17.1: 3→5 확장)
+    consensus_acceptance_threshold: float = 0.66  # 승인 임계값 (v17.1: 0.75→0.66 완화)
     consensus_min_agents: int = 3        # 합의에 필요한 최소 에이전트 수
 
     # 합의가 필요한 Todo 유형들
@@ -251,6 +251,14 @@ class AgentOrchestrator:
                     gate_result = self.shared_context.validate_phase2_output()
                     if gate_result.get("fallbacks_applied"):
                         logger.warning(f"[v14.0 Gate] Phase 2 fallbacks applied: {gate_result['fallbacks_applied']}")
+                elif phase == "governance":
+                    # v17.1: Phase 3 검증 게이트
+                    gate_result = self.shared_context.validate_phase3_output()
+                    if gate_result.get("fallbacks_applied"):
+                        logger.warning(f"[v17.1 Gate] Phase 3 fallbacks applied: {gate_result['fallbacks_applied']}")
+
+                    # v17.1: 통합 연결 자동화 (Phase 3 완료 후)
+                    await self._run_v17_integration()
 
                 # v14.0 Enhanced: TodoManager에서 terminate_mode/completion_signal 메트릭 수집
                 phase_gate_metrics = self.todo_manager.get_phase_gate_metrics(phase)
@@ -351,7 +359,11 @@ class AgentOrchestrator:
             self._register_agents_for_consensus(phase)
 
         # 작업 루프
+        loop_count = 0
+        max_idle_loops = 500  # v22.1: 무한 루프 방지
+        idle_loop_count = 0
         while not self.todo_manager.is_phase_complete(phase):
+            loop_count += 1
             # 타임아웃 체크 (비활성화: phase_timeout이 0이면 무제한)
             if self.config.phase_timeout > 0 and time.time() - phase_start > self.config.phase_timeout:
                 logger.warning(f"Phase {phase} timed out")
@@ -360,6 +372,22 @@ class AgentOrchestrator:
                     "phase": phase,
                 }
                 break
+
+            # 주기적 상태 출력 (10초마다)
+            if loop_count % 100 == 1:
+                all_todos = self.todo_manager.get_todos_by_phase(phase)
+                status_summary = {}
+                for t in all_todos:
+                    s = t.status.value
+                    if s not in status_summary:
+                        status_summary[s] = []
+                    status_summary[s].append(t.name)
+                print(f"[ORCHESTRATOR] Phase '{phase}' loop #{loop_count}, elapsed={time.time()-phase_start:.1f}s")
+                for s, names in status_summary.items():
+                    print(f"  [{s}]: {names}")
+                active_agents = [f"{a.agent_id}({a.agent_type}:{a.state.value})" for a in self._agents.values() if a.state != AgentState.IDLE]
+                print(f"  Active agents: {active_agents}")
+                print(f"  Pending tasks: {list(self._agent_tasks.keys())}")
 
             # Ready 상태 Todo 처리
             ready_todos = self.todo_manager.get_ready_todos()
@@ -407,6 +435,32 @@ class AgentOrchestrator:
                 "progress": stats.completion_rate,
             }
 
+            # v22.1: BLOCKED/FAILED 상태 체크 - 진행 불가 시 조기 종료
+            all_todos = self.todo_manager.get_todos_by_phase(phase)
+            blocked_or_failed = [t for t in all_todos if t.status in {TodoStatus.BLOCKED, TodoStatus.FAILED}]
+            active_or_ready = [t for t in all_todos if t.status in {TodoStatus.READY, TodoStatus.IN_PROGRESS, TodoStatus.PENDING}]
+
+            # 모든 미완료 작업이 blocked/failed면 조기 종료
+            if blocked_or_failed and not active_or_ready:
+                logger.warning(f"[v22.1] Phase {phase} cannot progress - all remaining todos blocked/failed")
+                print(f"[ORCHESTRATOR] Phase '{phase}' EARLY EXIT: {len(blocked_or_failed)} todos blocked/failed, no active todos")
+                yield {
+                    "type": "phase_blocked",
+                    "phase": phase,
+                    "blocked_todos": [t.name for t in blocked_or_failed],
+                }
+                break
+
+            # v22.1: Idle loop 감지 (ready todo 없고 active agent 없으면)
+            if not ready_todos and not self._agent_tasks:
+                idle_loop_count += 1
+                if idle_loop_count >= max_idle_loops:
+                    logger.warning(f"[v22.1] Phase {phase} idle loop limit reached ({max_idle_loops})")
+                    print(f"[ORCHESTRATOR] Phase '{phase}' IDLE TIMEOUT: {idle_loop_count} idle loops")
+                    break
+            else:
+                idle_loop_count = 0
+
             # 잠시 대기
             await asyncio.sleep(0.1)
 
@@ -434,10 +488,22 @@ class AgentOrchestrator:
         from ..shared_context import TableInfo
 
         for table_name, table_data in tables_data.items():
+            # columns 형식 변환: Dict[str, Dict] -> List[Dict] (TableInfo 형식)
+            raw_columns = table_data.get("columns", [])
+            if isinstance(raw_columns, dict):
+                # 키가 컬럼명인 dict를 list로 변환
+                columns = [
+                    {"name": col_name, **col_info}
+                    for col_name, col_info in raw_columns.items()
+                    if isinstance(col_info, dict)
+                ]
+            else:
+                columns = raw_columns if isinstance(raw_columns, list) else []
+
             table_info = TableInfo(
                 name=table_name,
                 source=table_data.get("source", "unknown"),
-                columns=table_data.get("columns", []),
+                columns=columns,
                 row_count=table_data.get("row_count", 0),
                 sample_data=table_data.get("sample_data", []),
                 metadata=table_data.get("metadata", {}),
@@ -453,7 +519,7 @@ class AgentOrchestrator:
     def _prepare_agents_for_phase(self, phase: str) -> None:
         """Phase에 필요한 에이전트 준비"""
         phase_agent_types = {
-            "discovery": ["tda_expert", "schema_analyst", "value_matcher",
+            "discovery": ["data_analyst", "tda_expert", "schema_analyst", "value_matcher",
                          "entity_classifier", "relationship_detector"],
             "refinement": ["ontology_architect", "conflict_resolver",
                           "quality_judge", "semantic_validator"],
@@ -488,22 +554,29 @@ class AgentOrchestrator:
 
     async def _assign_agent_to_todo(self, todo: PipelineTodo) -> Optional[AutonomousAgent]:
         """Todo에 에이전트 할당 및 실행"""
+        print(f"[ASSIGN] Looking for agent for '{todo.name}' (required_type={todo.required_agent_type})")
+
         # 적합한 에이전트 찾기
         agent = self._find_suitable_agent(todo)
 
         if not agent:
             # 필요시 새 에이전트 생성
             if todo.required_agent_type:
+                print(f"[ASSIGN] No idle agent found, creating new '{todo.required_agent_type}'")
                 agent = self._create_agent(todo.required_agent_type)
 
         if not agent:
+            print(f"[ASSIGN] FAILED: No suitable agent for '{todo.name}'")
             logger.warning(f"No suitable agent for todo: {todo.todo_id}")
             return None
 
         # Todo 할당
         assigned = self.todo_manager.assign_todo(todo.todo_id, agent.agent_id)
         if not assigned:
+            print(f"[ASSIGN] FAILED: Could not assign '{todo.name}' to agent {agent.agent_id}")
             return None
+
+        print(f"[ASSIGN] SUCCESS: '{todo.name}' -> {agent.agent_type} ({agent.agent_id})")
 
         # 비동기 실행
         task = asyncio.create_task(self._run_agent_task(agent, todo))
@@ -513,16 +586,20 @@ class AgentOrchestrator:
 
     async def _run_agent_task(self, agent: AutonomousAgent, todo: PipelineTodo) -> None:
         """에이전트 작업 실행"""
+        print(f"[AGENT_TASK] START: {todo.name} (type={todo.task_type}, agent={agent.agent_type})")
         try:
             result = await agent.run_single(todo.todo_id)
 
             if result and result.success:
                 self.stats.total_todos_completed += 1
+                print(f"[AGENT_TASK] SUCCESS: {todo.name} (agent={agent.agent_type})")
             else:
                 self.stats.total_todos_failed += 1
+                print(f"[AGENT_TASK] FAILED: {todo.name} (agent={agent.agent_type}, error={result.error if result else 'no result'})")
 
         except Exception as e:
             logger.error(f"Agent task error: {e}", exc_info=True)
+            print(f"[AGENT_TASK] EXCEPTION: {todo.name} (agent={agent.agent_type}, error={e})")
             self.todo_manager.fail_todo(todo.todo_id, str(e))
             self.stats.total_todos_failed += 1
 
@@ -530,6 +607,7 @@ class AgentOrchestrator:
             # 태스크 정리
             if todo.todo_id in self._agent_tasks:
                 del self._agent_tasks[todo.todo_id]
+            print(f"[AGENT_TASK] CLEANUP: {todo.name} removed from pending tasks")
 
     def _find_suitable_agent(self, todo: PipelineTodo) -> Optional[AutonomousAgent]:
         """
@@ -614,6 +692,117 @@ class AgentOrchestrator:
         """모든 Todo 완료 콜백"""
         logger.info("All todos completed!")
 
+    # === v17.1: 통합 연결 자동화 ===
+
+    async def _run_v17_integration(self) -> None:
+        """
+        v17.1: 파이프라인 완료 후 통합 연결 자동화
+
+        1. 컴포넌트 간 참조 연결 (link_components)
+        2. UnifiedInsightPipeline 실행
+        3. 통합 메트릭 계산
+        """
+        logger.info("[v17.1] Running integration automation...")
+
+        ctx = self.shared_context
+
+        try:
+            # 1. 온톨로지 개념 ↔ 거버넌스 결정 연결
+            for decision in ctx.governance_decisions:
+                concept_id = decision.concept_id
+                decision_id = decision.decision_id
+
+                # 개념 → 결정 연결
+                ctx.link_components(
+                    source_id=concept_id,
+                    target_id=decision_id,
+                    relation_type="has_governance_decision"
+                )
+
+                # 결정 → 액션 연결
+                for action in ctx.action_backlog:
+                    if isinstance(action, dict):
+                        action_concept = action.get("target_concept", action.get("concept_id", ""))
+                        if action_concept == concept_id:
+                            ctx.link_components(
+                                source_id=decision_id,
+                                target_id=action.get("action_id", ""),
+                                relation_type="recommends_action"
+                            )
+
+            logger.info(f"[v17.1] Linked {len(ctx.component_references)} component references")
+
+            # 2. UnifiedInsightPipeline 실행 (LLM 클라이언트 있는 경우)
+            # v17.1 Fix: Orchestrator 자체의 llm_client 사용 (이미 초기화됨)
+            llm_client = self.llm_client
+
+            if llm_client is None and ctx.has_v17_services():
+                # Fallback: v17 서비스에서 LLM 클라이언트 가져오기 시도
+                services = ctx.get_all_v17_services()
+                # semantic_searcher, whatif_analyzer 등에서 LLM 클라이언트 추출
+                for service_name in ["semantic_searcher", "whatif_analyzer", "remediation_engine"]:
+                    service = services.get(service_name)
+                    if service and hasattr(service, 'llm_client') and service.llm_client:
+                        llm_client = service.llm_client
+                        logger.info(f"[v17.1] LLM client extracted from {service_name}")
+                        break
+
+            # tables와 data 준비
+            tables = {}
+            data = {}
+            for table_name, table_info in ctx.tables.items():
+                tables[table_name] = {
+                    "columns": table_info.columns if hasattr(table_info, 'columns') else [],
+                    "row_count": table_info.row_count if hasattr(table_info, 'row_count') else 0,
+                }
+                # sample_data가 있으면 사용
+                if hasattr(table_info, 'sample_data') and table_info.sample_data:
+                    data[table_name] = table_info.sample_data
+
+            if tables and data:
+                try:
+                    from .analysis.unified_insight_pipeline import UnifiedInsightPipeline
+
+                    domain = ctx.get_industry() if hasattr(ctx, 'get_industry') else "general"
+                    pipeline = UnifiedInsightPipeline(
+                        context=ctx,
+                        llm_client=llm_client,
+                        domain=domain,
+                        enable_simulation=True,
+                        enable_llm=llm_client is not None,
+                    )
+
+                    # 상관관계 수집 (causal_relationships 사용)
+                    correlations = []
+                    for causal in (ctx.causal_relationships or []):
+                        if isinstance(causal, dict):
+                            correlations.append(causal)
+
+                    result = await pipeline.run(
+                        tables=tables,
+                        data=data,
+                        correlations=correlations[:10],  # 상위 10개
+                    )
+
+                    # 통합 인사이트 저장
+                    for insight in result.unified_insights:
+                        ctx.add_unified_insight(insight.to_dict())
+
+                    logger.info(f"[v17.1] UnifiedInsightPipeline: {len(result.unified_insights)} insights generated")
+
+                except Exception as e:
+                    logger.warning(f"[v17.1] UnifiedInsightPipeline failed: {e}")
+
+            # 3. 통합 메트릭 계산
+            connectivity = ctx.calculate_component_connectivity()
+            ctx.update_integration_metrics("algorithm_confidence", 0.75)  # 기본값
+            ctx.update_integration_metrics("pipeline_completed", 1.0)
+
+            logger.info(f"[v17.1] Integration complete: connectivity={connectivity:.2%}")
+
+        except Exception as e:
+            logger.error(f"[v17.1] Integration automation failed: {e}", exc_info=True)
+
     # === 정리 ===
 
     async def _cleanup(self) -> None:
@@ -651,11 +840,14 @@ class AgentOrchestrator:
 
         todo_name_normalized = todo.name.lower().replace(" ", "_").replace("-", "_")
 
-        # v7.1: 품질에 직접 영향을 주는 핵심 결정만 합의
+        # v7.1+v22.0: 품질에 직접 영향을 주는 핵심 결정만 합의
+        # v22.0: 실제 todo 이름과 일치하도록 수정
         critical_quality_decisions = [
             "quality_assessment",    # 품질 평가 - 중요
-            "ontology_approval",     # 온톨로지 승인 - 중요
-            "governance_decision",   # 거버넌스 결정 - 중요
+            "ontology_approval",     # 온톨로지 승인
+            "ontology_proposal",     # v22.0: 실제 todo 이름
+            "governance_decision",   # 거버넌스 결정
+            "governance_strategy",   # v22.0: 실제 todo 이름
         ]
 
         for critical in critical_quality_decisions:
@@ -1116,7 +1308,7 @@ class AgentOrchestrator:
         avg_conf = self._calc_avg_confidence(concepts) if concepts else 0.5
 
         # === Phase 1: 완전 스킵 (탐색 단계) ===
-        if todo.phase == 1:
+        if todo.phase == "discovery":
             return "full_skip", "Phase 1 discovery - exploration stage", avg_conf
 
         # === Phase 2: Refinement ===
@@ -1438,7 +1630,7 @@ Provide your assessment:
         concepts = ctx.ontology_concepts or []
 
         # === Phase 1: Discovery 단계는 consensus 불필요 ===
-        if todo.phase == 1:
+        if todo.phase == "discovery":
             return True, "Phase 1 discovery - exploration stage, no consensus needed"
 
         # === Phase 2: Refinement ===

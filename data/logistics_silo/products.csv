@@ -1,0 +1,11 @@
+product_id,sku,product_name,category,weight_lbs,dimensions,unit_cost,supplier_id,lead_time_days,hazmat,fragile
+PRD001,SKU-A1001,Electronic Component A,electronics,0.5,4x3x2,12.50,SUP001,7,false,true
+PRD002,SKU-B2002,Industrial Valve,machinery,8.5,12x8x6,85.00,SUP002,14,false,false
+PRD003,SKU-C3003,Plastic Container Set,packaging,2.3,10x10x8,15.75,SUP003,5,false,false
+PRD004,SKU-D4004,Chemical Reagent,chemicals,1.2,6x4x4,45.00,SUP004,10,true,true
+PRD005,SKU-E5005,Steel Fastener Pack,hardware,3.8,8x6x4,22.50,SUP005,7,false,false
+PRD006,SKU-F6006,Textile Roll,textiles,15.0,36x12x12,125.00,SUP006,21,false,false
+PRD007,SKU-G7007,Rubber Gasket Set,automotive,0.8,6x4x2,18.25,SUP007,5,false,false
+PRD008,SKU-H8008,Lithium Battery Pack,electronics,2.5,8x6x3,95.00,SUP001,14,true,true
+PRD009,SKU-I9009,Paper Product Bundle,office,12.0,24x18x12,35.00,SUP008,3,false,false
+PRD010,SKU-J0010,Aluminum Extrusion,construction,25.0,48x6x4,150.00,SUP009,28,false,false
