@@ -913,7 +913,6 @@ class AgentOrchestrator:
                 "reason": skip_reason,
                 "mode": "full_skip",
             }
-            from .consensus import ConsensusResult
             default_result = ConsensusResult(
                 success=True,
                 result_type=ConsensusType.ACCEPTED,
@@ -1049,7 +1048,6 @@ class AgentOrchestrator:
 
                 if not debate_result.get("fallback"):
                     # 구조화된 토론 결과로 ConsensusResult 생성
-                    from .consensus import ConsensusResult, ConsensusType
                     final_decision = debate_result.get("final_decision", "review")
 
                     result_type_map = {
@@ -1578,8 +1576,6 @@ Provide your assessment:
         Quality Judge 에이전트가 스킵되어도 concept.status를 설정하여
         Phase 3의 LLM 리뷰가 정상적으로 실행되도록 함
         """
-        from .consensus import ConsensusType
-
         concepts = self.shared_context.ontology_concepts or []
         if not concepts:
             return
