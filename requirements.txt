@@ -4,7 +4,10 @@ rich
 fastapi
 uvicorn[standard]
 pandas
+numpy
+scipy
 pydantic>=2.0
 sqlalchemy
 aiosqlite
 supabase>=2.0.0
+instructor
