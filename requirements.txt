@@ -11,3 +11,12 @@ sqlalchemy
 aiosqlite
 supabase>=2.0.0
 instructor
+
+# === Optional: Advanced Analysis Modules ===
+scikit-learn
+pyod
+datasketch
+faiss-cpu
+sentence-transformers
+networkx
+statsmodels
