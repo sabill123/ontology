@@ -20,3 +20,7 @@ faiss-cpu
 sentence-transformers
 networkx
 statsmodels
+
+# === TDA (Topological Data Analysis) ===
+ripser
+persim

@@ -79,11 +79,18 @@ class AgentOpinion:
     @property
     def adjusted_confidence(self) -> float:
         """
-        v5.2: 불확실성과 의심을 반영한 조정 신뢰도
-        - 더 관대한 계산: (1-uncertainty/2)로 불확실성 영향 감소
+        v23.0: 불확실성과 의심을 반영한 조정 신뢰도
+        - v5.2에서 너무 공격적으로 감소시켜 0.07 같은 극단적 결과 발생
+        - v23.0: 더 완화된 계산 + floor 보장
+
+        기존 문제: conf=0.65, unc=0.8, doubt=0.6 → 0.27 (너무 낮음)
+        v23.0: 최소 confidence의 50%는 보장 + 감쇠 factor 완화
         """
-        # v5.2: 불확실성 영향을 절반으로 줄임
-        return max(0.0, self.confidence * (1 - self.uncertainty / 2) * (1 - self.doubt / 2))
+        # v23.0: uncertainty/doubt 영향을 1/3로 줄임 (기존 1/2)
+        # 또한 최소값을 confidence의 40%로 보장
+        adjusted = self.confidence * (1 - self.uncertainty / 3) * (1 - self.doubt / 3)
+        min_floor = self.confidence * 0.4  # confidence의 40%는 최소 보장
+        return max(min_floor, adjusted)
 
     @property
     def legacy_vote(self) -> str:

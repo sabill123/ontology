@@ -1020,6 +1020,45 @@ class AgentOrchestrator:
 
         # 결과 처리
         if consensus_result:
+            # === v23.0: Evidence-based vote 결과 통합 (핵심 버그 수정) ===
+            # evidence_vote_result가 negotiate 결과보다 좋으면 이를 반영
+            if evidence_vote_result and not evidence_vote_result.get("fallback"):
+                ev_confidence = evidence_vote_result.get("confidence", 0)
+                ev_consensus = evidence_vote_result.get("consensus", "")
+
+                # Evidence-based vote가 더 높은 confidence를 가진 경우 결과 보정
+                if ev_confidence > consensus_result.combined_confidence:
+                    logger.info(
+                        f"[v23.0] Boosting consensus with evidence-based vote: "
+                        f"negotiate={consensus_result.combined_confidence:.2f} → evidence={ev_confidence:.2f}"
+                    )
+
+                    # Evidence-based consensus가 approve/strong_approve이고 confidence가 높으면
+                    # negotiate 결과를 override
+                    if ev_consensus in ["approve", "strong_approve"] and ev_confidence >= 0.6:
+                        consensus_result = ConsensusResult(
+                            success=True,
+                            result_type=ConsensusType.ACCEPTED,
+                            combined_confidence=ev_confidence,
+                            agreement_level=evidence_vote_result.get("approve_ratio", 0.5),
+                            total_rounds=consensus_result.total_rounds,
+                            final_decision="approve",
+                            reasoning=f"Evidence-based vote override: {ev_consensus} with {ev_confidence:.2f} confidence",
+                            dissenting_views=[],
+                        )
+                    elif ev_consensus == "review" and ev_confidence >= 0.5:
+                        # Review인 경우 PROVISIONAL로 처리
+                        consensus_result = ConsensusResult(
+                            success=True,
+                            result_type=ConsensusType.PROVISIONAL,
+                            combined_confidence=ev_confidence,
+                            agreement_level=evidence_vote_result.get("approve_ratio", 0.5),
+                            total_rounds=consensus_result.total_rounds,
+                            final_decision="provisional",
+                            reasoning=f"Evidence-based vote boost: {ev_consensus} with {ev_confidence:.2f} confidence",
+                            dissenting_views=[],
+                        )
+
             await self._apply_consensus_result(todo, consensus_result)
 
             yield {
