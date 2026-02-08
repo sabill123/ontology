@@ -2601,7 +2601,8 @@ Respond with structured JSON matching this schema."""
                     "entity_id": e.entity_id,
                     "name": e.name,
                     "source_tables": e.source_tables,
-                    "attributes": e.inferred_attributes,
+                    # inferred_attributes는 List[str]이므로 Dict로 변환
+                    "attributes": {attr: attr for attr in e.inferred_attributes} if isinstance(e.inferred_attributes, list) else e.inferred_attributes,
                 }
                 for e in extracted_entities
             ]
