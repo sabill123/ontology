@@ -1,19 +1,14 @@
 """
-Autonomous Agent System (v17.0)
+Autonomous Agent System
 
 자율 에이전트 시스템
-- AutonomousAgent: 자율 에이전트 베이스 클래스 (v1.0)
-- AutonomousAgentV2: 팔란티어급 에이전트 (v2.0)
+- AutonomousAgent: 자율 에이전트 베이스 클래스
 - AgentOrchestrator: 에이전트 오케스트레이터
 - TodoContinuationEnforcer: Todo 지속 실행기
 - v16.0: AgentCommunicationBus - 에이전트간 직접 통신 버스
-- v17.0: Object-Centric Agent (Object→Action 패턴)
 """
 
 from .base import AutonomousAgent, AgentState
-
-# v17.0: Palantir-style Agent
-from .base_v2 import AutonomousAgentV2, ReasoningMode, ObjectAction, ReasoningContext
 from .orchestrator import AgentOrchestrator
 from .continuation import TodoContinuationEnforcer
 
@@ -44,16 +39,10 @@ except ImportError:
     create_validation_request = None
 
 __all__ = [
-    # v1.0 Agent
     "AutonomousAgent",
     "AgentState",
     "AgentOrchestrator",
     "TodoContinuationEnforcer",
-    # v17.0: Palantir-style Agent
-    "AutonomousAgentV2",
-    "ReasoningMode",
-    "ObjectAction",
-    "ReasoningContext",
     # v16.0: Agent Communication Bus
     "AgentCommunicationBus",
     "AgentMessage",
