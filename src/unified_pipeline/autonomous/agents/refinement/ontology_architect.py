@@ -281,6 +281,18 @@ Respond ONLY with valid JSON."""
         # 4단계: OntologyConcept 객체 생성
         ontology_concepts = []
         for c in enhanced_concepts:
+            # v25.2: TDA 시그니처 기반 confidence 보정
+            tda_boost = 0.0
+            for src_table in c.get("source_tables", []):
+                sig = tda_signatures.get(src_table, {})
+                if isinstance(sig, dict) and sig.get("betti_numbers"):
+                    betti = sig["betti_numbers"]
+                    if len(betti) > 0 and betti[0] > 0:
+                        tda_boost = max(tda_boost, min(0.1, betti[0] * 0.02))
+
+            raw_confidence = c.get("confidence", 0.0)
+            adjusted_confidence = min(1.0, raw_confidence + tda_boost)
+
             concept = OntologyConcept(
                 concept_id=c.get("concept_id", f"concept_{len(ontology_concepts)}"),
                 concept_type=c.get("concept_type", "object_type"),
@@ -290,7 +302,8 @@ Respond ONLY with valid JSON."""
                 source_tables=c.get("source_tables", []),
                 source_evidence=c.get("source_evidence", {}),
                 status="pending",
-                confidence=c.get("confidence", 0.0),
+                confidence=adjusted_confidence,
+                source_agent="ontology_architect",
             )
             ontology_concepts.append(concept)
 

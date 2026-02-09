@@ -214,6 +214,11 @@ Respond ONLY with valid JSON."""
                 },
                 "clean_concepts_count": len(clean_concepts),
             },
+            # v25.2: context_updates로 전파하여 Governance Phase에서 활용 가능하게
+            context_updates={
+                "conflicts_detected": conflicts_data,
+                "clean_concepts": clean_concepts,
+            },
             metadata={
                 "conflicts_detected": conflicts_data,
                 "clean_concepts": clean_concepts,

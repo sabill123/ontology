@@ -350,9 +350,12 @@ Respond ONLY with valid JSON."""
                 "summary": summary,
                 "enhanced_validation_stats": enhanced_stats,  # v5.0
             },
+            # v25.2: 개별 평가 결과도 context로 전파 → Governance Phase에서 활용
             context_updates={
                 "quality_assessment_summary": summary,
                 "quality_enhanced_stats": enhanced_stats,
+                "quality_assessments": all_assessments,
+                "algorithmic_scores": algorithmic_scores,
             },
             metadata={
                 "quality_assessments": all_assessments,

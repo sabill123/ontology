@@ -117,6 +117,9 @@ class OntologyConcept:
     # 에이전트 평가
     agent_assessments: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
+    # v25.2: 생성 에이전트 식별
+    source_agent: str = ""
+
 
 @dataclass
 class GovernanceDecision:

@@ -583,7 +583,7 @@ Respond ONLY with valid JSON."""
         try:
             # 토론 대상 선정: confidence < 0.85 또는 risk가 있는 것들
             debate_candidates = []
-            for concept in context.ontology_concepts[:10]:
+            for concept in context.ontology_concepts[:30]:  # v25.2: 10→30 확장
                 algo_decision = algorithmic_decisions.get(concept.concept_id, {})
                 if (algo_decision.get("confidence", 1) < 0.85 or
                     algo_decision.get("risk_level") in ["high", "medium", "low"]):
@@ -597,7 +597,7 @@ Respond ONLY with valid JSON."""
                         if len(debate_candidates) >= 2:
                             break
 
-            for concept in debate_candidates[:5]:
+            for concept in debate_candidates[:15]:  # v25.2: 5→15 확장
                 algo_decision = algorithmic_decisions.get(concept.concept_id, {})
 
                 # === v11.0: Evidence-Based Debate Protocol ===
@@ -613,7 +613,7 @@ Respond ONLY with valid JSON."""
                                 concept_evidence.append(ev)
 
                         # 관련 근거 블록 ID 수집
-                        supporting_block_ids = [ev["block_id"] for ev in concept_evidence[:10]]
+                        supporting_block_ids = [ev["block_id"] for ev in concept_evidence[:30]]  # v25.2: 10→30
 
                         # Proposal 구성
                         proposal = {
@@ -640,7 +640,7 @@ Respond ONLY with valid JSON."""
                             evidence_chain=evidence_chain,
                             context={
                                 "domain": context.get_industry() if hasattr(context, 'get_industry') else "general",
-                                "supporting_evidence": concept_evidence[:5],
+                                "supporting_evidence": concept_evidence[:15],  # v25.2: 5→15
                                 "algorithmic_decision": algo_decision,
                             },
                         )
@@ -859,11 +859,18 @@ Respond ONLY with valid JSON."""
             # v17.1: Phase 2 enrichment data 가져오기
             p2_enrichment = phase2_enrichment.get(concept_id, {})
 
-            # v17.1: 인과 관계 및 인사이트 기반 reasoning 보강
-            if p2_enrichment.get("causal_info", {}).get("causes") or p2_enrichment.get("causal_info", {}).get("caused_by"):
-                causal_causes = len(p2_enrichment.get("causal_info", {}).get("causes", []))
-                causal_effects = len(p2_enrichment.get("causal_info", {}).get("caused_by", []))
-                final_reasoning += f" [v17.1: Causal - causes {causal_causes}, caused_by {causal_effects}]"
+            # v25.2: 인과 관계 상세 정보를 reasoning에 포함 (v17.1에서 카운트만 전달하던 것 개선)
+            causal_info = p2_enrichment.get("causal_info", {})
+            if causal_info.get("causes") or causal_info.get("caused_by"):
+                causal_causes_list = causal_info.get("causes", [])[:3]
+                causal_effects_list = causal_info.get("caused_by", [])[:3]
+                cause_details = ", ".join(
+                    f"{c.get('target', '?')}(eff={c.get('effect', 0):.2f})" for c in causal_causes_list
+                )
+                effect_details = ", ".join(
+                    f"{c.get('source', '?')}(eff={c.get('effect', 0):.2f})" for c in causal_effects_list
+                )
+                final_reasoning += f" [v25.2: Causal - causes: {cause_details}; caused_by: {effect_details}]"
 
             if p2_enrichment.get("risk_factors_from_insights"):
                 risk_factors = p2_enrichment.get("risk_factors_from_insights", [])[:3]

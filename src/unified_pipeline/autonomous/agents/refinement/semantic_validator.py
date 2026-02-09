@@ -421,11 +421,14 @@ Respond ONLY with valid JSON."""
             },
             # v4.3: Knowledge Graph 트리플을 context에 저장
             # v22.0: OWL2/SHACL 결과도 context로 전파 → Governance 에이전트가 활용
+            # v25.2: 개별 검증 결과도 context로 전파
             context_updates={
                 "semantic_base_triples": base_triples,
                 "inferred_triples": inferred_triples,
                 "owl2_reasoning_results": owl2_results,
                 "shacl_validation_results": shacl_results,
+                "semantic_validations": all_validations,
+                "algorithmic_validations": algorithmic_validations,
             },
         )
 
