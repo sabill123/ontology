@@ -403,7 +403,6 @@ class AgentOrchestrator:
                             yield event
                             if event.get("skip_todo_completion"):
                                 needs_agent_execution = True
-                        consensus_completed_todos.add(todo.todo_id)
 
                         if needs_agent_execution:
                             agent = await self._assign_agent_to_todo(todo)
@@ -415,6 +414,12 @@ class AgentOrchestrator:
                                     "todo_name": todo.name,
                                     "mode": "post_lightweight_consensus",
                                 }
+                                # v25.2: 에이전트 할당 성공 시에만 consensus 완료 처리
+                                consensus_completed_todos.add(todo.todo_id)
+                            # 할당 실패 시 다음 루프에서 재시도 (consensus_completed_todos에 추가하지 않음)
+                        else:
+                            # consensus에서 에이전트 실행 불필요 판단 → 완료 처리
+                            consensus_completed_todos.add(todo.todo_id)
                     else:
                         agent = await self._assign_agent_to_todo(todo)
                         if agent:

@@ -1178,6 +1178,7 @@ class SharedContext:
                         source_tables=entity.source_tables,
                         status="provisional",
                         confidence=entity.confidence * 0.8,
+                        source_agent="phase2_fallback_gate",
                     )
                     self.ontology_concepts.append(fallback_concept)
                 fallbacks_applied.append("created_fallback_concepts_from_entities")
