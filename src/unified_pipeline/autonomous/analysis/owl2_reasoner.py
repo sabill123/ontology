@@ -750,7 +750,8 @@ def run_owl2_reasoning_and_update_context(
             })
 
     if not all_triples:
-        logger.warning("[OWL2Reasoner] No triples found in SharedContext")
+        # v24.0: WARNING → DEBUG (단일 테이블에서는 정상 동작)
+        logger.debug("[OWL2Reasoner] No triples found in SharedContext")
         return {
             "axioms_discovered": 0,
             "triples_inferred": 0,

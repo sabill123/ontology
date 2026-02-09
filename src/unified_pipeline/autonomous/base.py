@@ -225,8 +225,8 @@ class AgentMetrics:
         """
         import statistics
 
-        # 충분한 히스토리가 없으면 기본값 반환
-        if len(self.response_lengths) < 3 or len(self.confidence_history) < 3:
+        # v24.0: 충분한 히스토리가 없으면 기본값 반환 (최소 샘플 3→8)
+        if len(self.response_lengths) < 8 or len(self.confidence_history) < 8:
             return 0.7  # 데이터 부족 시 중립적 점수
 
         # 1. 응답 길이 분산 (낮을수록 안정적)
@@ -275,11 +275,12 @@ class AgentMetrics:
         """
         asi = self.calculate_asi()
 
-        if asi < 0.3:
+        # v24.0: 임계값 조정 — 자연 탐색 분산 고려
+        if asi < 0.25:
             return f"CRITICAL: Agent highly unstable (ASI={asi:.2f}). Consider replacement."
-        elif asi < 0.5:
+        elif asi < 0.35:
             return f"WARNING: Agent showing drift signs (ASI={asi:.2f}). Monitor closely."
-        elif asi < 0.6:
+        elif asi < 0.45:
             return f"NOTICE: Agent stability declining (ASI={asi:.2f})."
         return None
 

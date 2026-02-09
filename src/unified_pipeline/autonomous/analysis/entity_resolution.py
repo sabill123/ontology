@@ -836,6 +836,10 @@ class EntityResolver:
         """후보 쌍 생성 (블로킹 적용)"""
         candidate_pairs = set()
 
+        # v24.0: 단일 테이블 모드 감지 — 같은 테이블 내 엔티티도 비교 허용
+        unique_tables = set(e.source_table for e in entities_list)
+        single_table_mode = len(unique_tables) == 1
+
         if self.blocker and self.use_blocking:
             self.blocker.build_index(entities_list)
 
@@ -851,7 +855,7 @@ class EntityResolver:
             # 브루트포스 (모든 쌍)
             for i, e1 in enumerate(entities_list):
                 for e2 in entities_list[i+1:]:
-                    if e1.source_table != e2.source_table:
+                    if single_table_mode or e1.source_table != e2.source_table:
                         candidate_pairs.add((e1.record_id, e2.record_id))
 
         return candidate_pairs

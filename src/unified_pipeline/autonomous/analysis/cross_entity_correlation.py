@@ -448,7 +448,8 @@ class CrossEntityCorrelationAnalyzer:
                 tables_data[name] = df
 
         if len(tables_data) < 2:
-            logger.warning("Need at least 2 tables for cross-table correlation")
+            # v24.0: WARNING → DEBUG (단일 테이블에서는 정상 동작)
+            logger.debug("Need at least 2 tables for cross-table correlation")
             return correlations
 
         table_list = list(tables_data.keys())

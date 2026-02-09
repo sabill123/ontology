@@ -16,6 +16,8 @@ on:
           - sample_csv/production.csv
           - sample_csv/sales.csv
           - sample_csv/students.csv
+          # === Extended datasets ===
+          - q2cut_metadata_extended_20260206_121859.csv
           # === Multi-table Silo (전체 디렉토리) ===
           - healthcare_silo
           - finance_silo
@@ -62,6 +64,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
+          pip install Cython numpy  # v24.0: ripser 빌드 의존성 사전 설치
           pip install -r requirements.txt
 
       - name: Resolve data path
@@ -123,6 +126,7 @@ jobs:
       - name: Run Pipeline
         env:
           LETSUR_API_KEY: ${{ secrets.LETSUR_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           MODEL_FAST: ${{ vars.MODEL_FAST || 'gpt-5.1' }}
           MODEL_BALANCED: ${{ vars.MODEL_BALANCED || 'claude-opus-4-5-20251101' }}
           MODEL_CREATIVE: ${{ vars.MODEL_CREATIVE || 'gemini-3-pro-preview' }}

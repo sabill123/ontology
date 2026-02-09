@@ -1227,7 +1227,11 @@ Respond with JSON:
             for h in embedded_results.get("homeomorphisms", []):
                 pair_key = tuple(sorted([h["table_a"], h["table_b"]]))
                 embedded_homeomorphisms_map[pair_key] = h
-            logger.info(f"Embedded results: {len(embedded_homeomorphisms_map)} pairs analyzed")
+            if embedded_homeomorphisms_map:
+                logger.info(f"Embedded results: {len(embedded_homeomorphisms_map)} pairs analyzed")
+            else:
+                # v24.0: 단일 테이블이면 debug로 격하
+                logger.debug(f"Embedded results: 0 pairs (single table or no cross-table matches)")
 
         # 1. 알고리즘으로 Homeomorphism 점수 계산
         # v4.1: context.tda_signatures가 비어있으면 context.tables 사용
@@ -2596,16 +2600,20 @@ Respond with structured JSON matching this schema."""
         resolved_entities = []
         try:
             # EntityResolver로 중복 엔티티 매칭
-            entity_candidates = [
-                {
+            entity_candidates = []
+            for e in extracted_entities:
+                # v24.0: inferred_attributes 방어적 변환 강화
+                attrs = e.inferred_attributes
+                if isinstance(attrs, list):
+                    attrs = {a: a for a in attrs if isinstance(a, str)}
+                elif not isinstance(attrs, dict):
+                    attrs = {}
+                entity_candidates.append({
                     "entity_id": e.entity_id,
                     "name": e.name,
                     "source_tables": e.source_tables,
-                    # inferred_attributes는 List[str]이므로 Dict로 변환
-                    "attributes": {attr: attr for attr in e.inferred_attributes} if isinstance(e.inferred_attributes, list) else e.inferred_attributes,
-                }
-                for e in extracted_entities
-            ]
+                    "attributes": attrs,
+                })
             if entity_candidates:
                 resolved_entities = self.entity_resolver.resolve_entities(entity_candidates)
                 logger.info(f"EntityResolver merged into {len(resolved_entities)} resolved entities")

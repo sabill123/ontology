@@ -362,8 +362,15 @@ class AgentOrchestrator:
         loop_count = 0
         max_idle_loops = 500  # v22.1: 무한 루프 방지
         idle_loop_count = 0
+        max_total_loops = 2000  # v24.0: 절대 루프 상한
+        consensus_completed_todos: set = set()  # v24.0: 합의 완료된 todo 재진입 방지
         while not self.todo_manager.is_phase_complete(phase):
             loop_count += 1
+            # v24.0: 절대 루프 가드
+            if loop_count >= max_total_loops:
+                logger.error(f"[SAFETY] Phase {phase} exceeded {max_total_loops} loops, forcing completion")
+                print(f"[ORCHESTRATOR] Phase '{phase}' SAFETY BREAK: {loop_count} total loops")
+                break
             # 타임아웃 체크 (비활성화: phase_timeout이 0이면 무제한)
             if self.config.phase_timeout > 0 and time.time() - phase_start > self.config.phase_timeout:
                 logger.warning(f"Phase {phase} timed out")
@@ -391,6 +398,8 @@ class AgentOrchestrator:
 
             # Ready 상태 Todo 처리
             ready_todos = self.todo_manager.get_ready_todos()
+            # v24.0: 이미 합의 처리된 todo 제외 (재진입 방지)
+            ready_todos = [t for t in ready_todos if t.todo_id not in consensus_completed_todos]
 
             if ready_todos and self._can_spawn_agent():
                 for todo in ready_todos[:self._available_slots()]:
@@ -403,6 +412,8 @@ class AgentOrchestrator:
                             # v8.4: 경량 검증 모드면 에이전트 실행 필요
                             if event.get("skip_todo_completion"):
                                 needs_agent_execution = True
+                        # v24.0: 합의 완료된 todo 추적 (재진입 방지)
+                        consensus_completed_todos.add(todo.todo_id)
 
                         # v8.4: 경량 검증 후 에이전트 실행
                         if needs_agent_execution:
@@ -1343,6 +1354,11 @@ class AgentOrchestrator:
         ctx = self.shared_context
         concepts = ctx.ontology_concepts or []
         avg_conf = self._calc_avg_confidence(concepts) if concepts else 0.5
+
+        # v24.0: 저신뢰 사전 필터링 — confidence < 0.15 자동 거부
+        if concepts and avg_conf < 0.15:
+            logger.info(f"[v24.0] Pre-filtered: avg confidence {avg_conf:.2f} too low for {todo.name}")
+            return "full_skip", f"Pre-filtered: confidence {avg_conf:.2f} too low", avg_conf
 
         # === Phase 1: 완전 스킵 (탐색 단계) ===
         if todo.phase == "discovery":

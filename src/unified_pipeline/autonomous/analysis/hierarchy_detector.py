@@ -169,6 +169,18 @@ class HierarchyDetector:
                 if col in pk_cols:
                     continue  # PK는 스킵
 
+                # v24.0: 숫자형 연속 데이터 컬럼 필터 — hierarchy가 아닌 경우 스킵
+                if data:
+                    col_values = [row.get(col) for row in data if row.get(col) is not None]
+                    if col_values:
+                        # 모든 값이 숫자인지 확인
+                        numeric_values = [v for v in col_values if isinstance(v, (int, float))]
+                        if len(numeric_values) > len(col_values) * 0.8:  # 80% 이상 숫자
+                            unique_count = len(set(numeric_values))
+                            unique_ratio = unique_count / max(len(numeric_values), 1)
+                            if unique_ratio > 0.3:  # 30% 이상 고유값 → 연속 데이터, hierarchy 아님
+                                continue
+
                 for pk_col in pk_cols:
                     candidate = self._check_hierarchy(
                         table_name, col, pk_col, columns, data

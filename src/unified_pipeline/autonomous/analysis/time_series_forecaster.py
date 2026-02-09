@@ -548,26 +548,47 @@ class TimeSeriesForecaster:
         if not STATSMODELS_AVAILABLE:
             raise ImportError("statsmodels required for ARIMA forecasting")
 
+        # v24.0: 사전 검증 — 시리즈가 너무 짧거나 상수이면 fallback
+        if len(series) < 10:
+            logger.debug(f"Series too short ({len(series)}) for ARIMA, using fallback")
+            return self._fallback_forecast(series, horizon)
+
+        if NUMPY_AVAILABLE:
+            series_std = float(np.std(series))
+            if series_std < 1e-10:
+                logger.debug("Constant series detected, using fallback")
+                return self._fallback_forecast(series, horizon)
+
         # 자동 order 선택
         if order is None:
             order = self._auto_select_arima_order(series)
 
         try:
-            if seasonal_order:
-                from statsmodels.tsa.statespace.sarimax import SARIMAX
-                model = SARIMAX(
-                    series,
-                    order=order,
-                    seasonal_order=seasonal_order,
-                    enforce_stationarity=False,
-                    enforce_invertibility=False,
-                )
-                model_name = f"SARIMA{order}x{seasonal_order}"
-            else:
-                model = ARIMA(series, order=order)
-                model_name = f"ARIMA{order}"
+            # v24.0: ConvergenceWarning 억제
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*convergence.*", category=UserWarning)
+                try:
+                    from statsmodels.tools.sm_exceptions import ConvergenceWarning
+                    warnings.filterwarnings("ignore", category=ConvergenceWarning)
+                except ImportError:
+                    pass
+                warnings.filterwarnings("ignore", category=RuntimeWarning)
 
-            fitted = model.fit()
+                if seasonal_order:
+                    from statsmodels.tsa.statespace.sarimax import SARIMAX
+                    model = SARIMAX(
+                        series,
+                        order=order,
+                        seasonal_order=seasonal_order,
+                        enforce_stationarity=False,
+                        enforce_invertibility=False,
+                    )
+                    model_name = f"SARIMA{order}x{seasonal_order}"
+                else:
+                    model = ARIMA(series, order=order)
+                    model_name = f"ARIMA{order}"
+
+                fitted = model.fit()
 
             # 예측
             forecast_obj = fitted.get_forecast(steps=horizon)
@@ -621,16 +642,26 @@ class TimeSeriesForecaster:
         best_aic = float('inf')
         best_order = (1, d, 1)
 
-        for p in range(3):
-            for q in range(3):
-                try:
-                    model = ARIMA(series, order=(p, d, q))
-                    fitted = model.fit()
-                    if fitted.aic < best_aic:
-                        best_aic = fitted.aic
-                        best_order = (p, d, q)
-                except Exception:
-                    continue
+        # v24.0: 그리드 서치 중 ConvergenceWarning 억제
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*convergence.*", category=UserWarning)
+            try:
+                from statsmodels.tools.sm_exceptions import ConvergenceWarning
+                warnings.filterwarnings("ignore", category=ConvergenceWarning)
+            except ImportError:
+                pass
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+            for p in range(3):
+                for q in range(3):
+                    try:
+                        model = ARIMA(series, order=(p, d, q))
+                        fitted = model.fit()
+                        if fitted.aic < best_aic:
+                            best_aic = fitted.aic
+                            best_order = (p, d, q)
+                    except Exception:
+                        continue
 
         return best_order
 

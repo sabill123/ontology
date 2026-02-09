@@ -1722,75 +1722,80 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
 
         # === v10.0: Cross-Entity Correlation Analysis (Palantir-Style Insights) ===
         palantir_insights = []
-        try:
-            from ..analysis.cross_entity_correlation import CrossEntityCorrelationAnalyzer
+        # v24.0: 단일 테이블이면 cross-entity 분석 스킵
+        table_count = len(context.tables) if context.tables else 0
+        if table_count < 2:
+            logger.debug(f"Single table dataset ({table_count} tables): skipping cross-entity correlation")
+        else:
+            try:
+                from ..analysis.cross_entity_correlation import CrossEntityCorrelationAnalyzer
 
-            # 데이터 디렉토리 가져오기
-            data_dir = getattr(context, 'data_directory', None)
-            logger.info(f"v10.0: Checking data_directory: {data_dir}")
-            if data_dir:
-                logger.info(f"Running Cross-Entity Correlation Analysis on {data_dir}")
+                # 데이터 디렉토리 가져오기
+                data_dir = getattr(context, 'data_directory', None)
+                logger.info(f"v10.0: Checking data_directory: {data_dir}")
+                if data_dir:
+                    logger.info(f"Running Cross-Entity Correlation Analysis on {data_dir}")
 
-                correlation_analyzer = CrossEntityCorrelationAnalyzer(
-                    data_dir=data_dir,
-                    correlation_threshold=0.3,
-                    p_value_threshold=0.05,
-                    llm_client=self.llm_client,
-                )
+                    correlation_analyzer = CrossEntityCorrelationAnalyzer(
+                        data_dir=data_dir,
+                        correlation_threshold=0.3,
+                        p_value_threshold=0.05,
+                        llm_client=self.llm_client,
+                    )
 
-                # 도메인 컨텍스트 가져오기 (v13.2: dynamic_data에서 LLM 탐지 결과 조회)
-                domain_context = None
-                detected_domain = context.get_dynamic('detected_domain', '')
-                if detected_domain:
-                    domain_context = detected_domain
-                    logger.info(f"v13.2: Using LLM-detected domain from dynamic_data: {domain_context}")
-                elif hasattr(context, 'domain_context') and context.domain_context:
-                    domain_context = getattr(context.domain_context, 'industry', None)
+                    # 도메인 컨텍스트 가져오기 (v13.2: dynamic_data에서 LLM 탐지 결과 조회)
+                    domain_context = None
+                    detected_domain = context.get_dynamic('detected_domain', '')
+                    if detected_domain:
+                        domain_context = detected_domain
+                        logger.info(f"v13.2: Using LLM-detected domain from dynamic_data: {domain_context}")
+                    elif hasattr(context, 'domain_context') and context.domain_context:
+                        domain_context = getattr(context.domain_context, 'industry', None)
 
-                # v13.2: Phase 1 DataAnalystAgent 분석 결과를 dynamic_data에서 조회
-                phase1_analysis = {
-                    "data_understanding": context.get_dynamic('data_understanding', {}),
-                    "column_semantics": context.get_dynamic('column_semantics', {}),
-                    "data_patterns": context.get_dynamic('data_patterns', []),
-                    "data_quality_issues": context.get_dynamic('data_quality_issues', []),
-                    "recommended_analysis": context.get_dynamic('recommended_analysis', {}),
-                }
-                logger.info(f"v13.2: Passing Phase 1 analysis from dynamic_data: "
-                           f"patterns={len(phase1_analysis['data_patterns'])}, "
-                           f"quality_issues={len(phase1_analysis['data_quality_issues'])}")
+                    # v13.2: Phase 1 DataAnalystAgent 분석 결과를 dynamic_data에서 조회
+                    phase1_analysis = {
+                        "data_understanding": context.get_dynamic('data_understanding', {}),
+                        "column_semantics": context.get_dynamic('column_semantics', {}),
+                        "data_patterns": context.get_dynamic('data_patterns', []),
+                        "data_quality_issues": context.get_dynamic('data_quality_issues', []),
+                        "recommended_analysis": context.get_dynamic('recommended_analysis', {}),
+                    }
+                    logger.info(f"v13.2: Passing Phase 1 analysis from dynamic_data: "
+                               f"patterns={len(phase1_analysis['data_patterns'])}, "
+                               f"quality_issues={len(phase1_analysis['data_quality_issues'])}")
 
-                # 실제 데이터 기반 상관관계 분석
-                palantir_results = correlation_analyzer.analyze_sync(
-                    table_names=list(context.tables.keys()),
-                    fk_relations=fk_relations,
-                    entity_matches=entity_matches,
-                    domain_context=domain_context,
-                    phase1_analysis=phase1_analysis,  # v13.0: Phase 1 분석 결과 전달
-                )
+                    # 실제 데이터 기반 상관관계 분석
+                    palantir_results = correlation_analyzer.analyze_sync(
+                        table_names=list(context.tables.keys()),
+                        fk_relations=fk_relations,
+                        entity_matches=entity_matches,
+                        domain_context=domain_context,
+                        phase1_analysis=phase1_analysis,  # v13.0: Phase 1 분석 결과 전달
+                    )
 
-                # 결과를 dict로 변환
-                palantir_insights = [pi.to_dict() for pi in palantir_results]
-                insights["palantir_insights"] = palantir_insights
+                    # 결과를 dict로 변환
+                    palantir_insights = [pi.to_dict() for pi in palantir_results]
+                    insights["palantir_insights"] = palantir_insights
 
-                # 높은 신뢰도의 인사이트를 causal_relationships에도 추가
-                for pi in palantir_results:
-                    if pi.confidence > 0.5:
-                        causal_relationships.append({
-                            "relationship_type": "predictive_correlation",
-                            "source": f"{pi.source_table}.{pi.source_column}",
-                            "target": f"{pi.target_table}.{pi.target_column}",
-                            "effect_estimate": pi.correlation_coefficient,
-                            "confidence": pi.confidence,
-                            "insight": pi.business_interpretation,
-                            "predicted_impact": pi.predicted_impact,
-                        })
+                    # 높은 신뢰도의 인사이트를 causal_relationships에도 추가
+                    for pi in palantir_results:
+                        if pi.confidence > 0.5:
+                            causal_relationships.append({
+                                "relationship_type": "predictive_correlation",
+                                "source": f"{pi.source_table}.{pi.source_column}",
+                                "target": f"{pi.target_table}.{pi.target_column}",
+                                "effect_estimate": pi.correlation_coefficient,
+                                "confidence": pi.confidence,
+                                "insight": pi.business_interpretation,
+                                "predicted_impact": pi.predicted_impact,
+                            })
 
-                logger.info(f"Cross-Entity Correlation: {len(palantir_insights)} Palantir-style insights generated")
-            else:
-                logger.warning("Data directory not set in context, skipping Cross-Entity Correlation Analysis")
+                    logger.info(f"Cross-Entity Correlation: {len(palantir_insights)} Palantir-style insights generated")
+                else:
+                    logger.warning("Data directory not set in context, skipping Cross-Entity Correlation Analysis")
 
-        except Exception as e:
-            logger.warning(f"Cross-Entity Correlation Analysis failed: {e}")
+            except Exception as e:
+                logger.warning(f"Cross-Entity Correlation Analysis failed: {e}")
 
         logger.info(f"Causal Inference: {len(causal_relationships)} relationships, {len(insights['granger_causality'])} Granger hints")
 
