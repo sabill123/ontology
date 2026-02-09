@@ -11,8 +11,8 @@
          Autonomous Ontology Discovery & Data Intelligence Platform
 ```
 
-> **Version**: v1.0
-> **Last Updated**: 2026-01-27
+> **Version**: v23.0
+> **Last Updated**: 2026-02-09
 
 ---
 
@@ -596,35 +596,82 @@ src/unified_pipeline/
 ├── autonomous_pipeline.py             # Pipeline orchestrator
 ├── shared_context.py                  # Central memory system
 ├── model_config.py                    # LLM configuration
+├── contracts.py                       # Phase contract validation (v6.0)
 │
 ├── autonomous/
 │   ├── orchestrator.py                # Agent orchestrator
-│   ├── base.py                        # AutonomousAgent base class
-│   ├── agent_bus.py                   # Communication bus
+│   ├── base.py                        # AutonomousAgent base class (78KB)
+│   ├── agent_bus.py                   # Communication bus (v16.0)
+│   ├── evidence_chain.py              # Blockchain-style audit trail
+│   ├── debate_protocol.py             # BFT debate with CouncilAgent
 │   │
 │   ├── agents/
 │   │   ├── discovery.py               # 6 Discovery agents
 │   │   ├── refinement.py              # 4 Refinement agents
 │   │   └── governance.py              # 4 Governance agents
 │   │
-│   ├── analysis/
-│   │   ├── integrated_fk_detector.py  # Unified FK detection
+│   ├── analysis/                      # 49 analysis modules
+│   │   ├── # ── FK Detection ──
+│   │   ├── integrated_fk_detector.py  # Unified 5-stage FK pipeline
 │   │   ├── composite_fk_detector.py   # Multi-column FK
 │   │   ├── hierarchy_detector.py      # Self-reference hierarchies
 │   │   ├── temporal_fk_detector.py    # SCD Type 2 detection
-│   │   ├── owl2_reasoner.py           # OWL 2 reasoning
-│   │   ├── shacl_validator.py         # SHACL validation
+│   │   ├── fk_signal_scorer.py        # 5-signal FK scoring
+│   │   ├── fk_direction_analyzer.py   # Probabilistic direction
+│   │   ├── semantic_fk_detector.py    # Semantic FK detection
+│   │   ├── semantic_entity_resolver.py # Entity name resolution
+│   │   ├── enhanced_fk_detector.py    # Advanced FK detection
+│   │   ├── enhanced_fk_pipeline.py    # FK pipeline orchestration
+│   │   ├── universal_fk_detector.py   # Domain-agnostic FK (v6.0)
+│   │   ├── llm_fk_validator.py        # LLM-based FK validation
+│   │   ├── llm_fk_verifier.py         # LLM FK verification
+│   │   ├── # ── Semantic/Ontology ──
+│   │   ├── owl2_reasoner.py           # OWL 2 reasoning (5 axiom types)
+│   │   ├── shacl_validator.py         # SHACL validation (6 constraints)
+│   │   ├── knowledge_graph.py         # RDF triple construction
+│   │   ├── ontology.py                # Conflict/Quality/Semantic analysis
+│   │   ├── ontology_alignment.py      # Cross-domain alignment
+│   │   ├── semantic_reasoner.py       # RDFS/OWL reasoning engine
+│   │   ├── graph.py                   # Graph analysis
+│   │   ├── graph_embedding.py         # Node2Vec + community detection
+│   │   ├── # ── Statistical/Causal ──
 │   │   ├── tda.py                     # Topological data analysis
-│   │   ├── cross_entity_correlation.py
-│   │   ├── business_insights.py
-│   │   └── ...
+│   │   ├── advanced_tda.py            # Ripser-based persistent homology
+│   │   ├── cross_entity_correlation.py # Multi-table correlation
+│   │   ├── causal_impact.py           # Causal inference (125KB)
+│   │   ├── anomaly_detection.py       # Ensemble outlier detection
+│   │   ├── enhanced_validator.py      # Dempster-Shafer + stat tests
+│   │   ├── # ── Business/Insights ──
+│   │   ├── business_insights.py       # LLM-based business insights
+│   │   ├── unified_insight_pipeline.py # Algorithm→Simulation→LLM
+│   │   ├── kpi_predictor.py           # Time series + ROI prediction
+│   │   ├── simulation_engine.py       # Scenario simulation
+│   │   ├── time_series_forecaster.py  # Temporal prediction
+│   │   ├── # ── Entity/Schema ──
+│   │   ├── entity_extractor.py        # Hidden entity extraction
+│   │   ├── entity_resolution.py       # ML-based entity matching
+│   │   ├── schema.py                  # Schema profiling
+│   │   ├── similarity.py              # Jaccard/Containment
+│   │   ├── advanced_similarity.py     # MinHash/LSH/HyperLogLog
+│   │   ├── # ── Utility ──
+│   │   ├── column_normalizer.py       # Column normalization
+│   │   ├── data_quality_analyzer.py   # Data quality assessment
+│   │   ├── governance.py              # Governance analysis
+│   │   ├── insight_standardizer.py    # Insight format normalization
+│   │   ├── llm_schema_analyzer.py     # LLM schema analysis
+│   │   ├── llm_semantic_enhancer.py   # LLM semantic enrichment
+│   │   ├── process_analyzer.py        # Business process analysis
+│   │   ├── structured_debate.py       # Structured debate framework
+│   │   ├── value_pattern_analyzer.py  # Value pattern detection
+│   │   ├── virtual_entity_generator.py # Domain-specific virtual entities
+│   │   └── utils.py                   # JSON parsing, retry utilities
 │   │
 │   ├── consensus/
-│   │   ├── engine.py                  # BFT + DS consensus
+│   │   ├── engine.py                  # BFT + DS consensus (85KB)
 │   │   └── models.py                  # Consensus data models
 │   │
 │   └── learning/
-│       └── agent_memory.py            # Experience replay
+│       └── agent_memory.py            # Experience replay (v16.0)
 │
 ├── actions/
 │   └── engine.py                      # Trigger-based actions
@@ -638,14 +685,26 @@ src/unified_pipeline/
 ├── versioning/
 │   └── version_manager.py             # Git-style versioning
 │
-├── calibration/                       # Confidence calibration
+├── domain/                            # Domain auto-detection
+├── todo/                              # Agent task management
+├── calibration/                       # Confidence calibration (3-part)
 ├── writeback/                         # Data writeback
 ├── remediation/                       # Error recovery
 ├── explanation/                       # Decision explainability
-├── what_if/                           # What-if analysis
+├── what_if/                           # What-if scenario analysis
 ├── reporting/                         # Report generation
 ├── semantic_search/                   # Natural language search
-└── osdk/                              # OSDK integration
+├── osdk/                              # OSDK integration
+├── branching/                         # Branch/merge management
+├── streaming/                         # Event bus & streaming engine
+├── validation/                        # Cross-dataset validation
+├── measurement/                       # Outcome measurement
+├── dspy_modules/                      # DSPy prompt optimization
+├── oql/                               # Ontology Query Language
+├── workflow/                          # Workflow orchestration
+├── definitions/                       # Schema definitions
+├── infrastructure/                    # Infrastructure utilities
+└── enterprise/                        # Audit logging
 ```
 
 ---
@@ -675,14 +734,14 @@ src/unified_pipeline/
 │   │ terminals   │  │ loans       │  │ enrollments │  │ carriers    │         │
 │   └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘         │
 │                                                                                │
-│   ┌─────────────┐                                                              │
-│   │MANUFACTURING│   Domain Auto-Detection: 100% Confidence                    │
-│   ├─────────────┤   Pattern Matching: Table names, Column names               │
-│   │ 10 tables   │                                                              │
-│   │ plants      │                                                              │
-│   │ work_orders │                                                              │
-│   │ equipment   │                                                              │
-│   └─────────────┘                                                              │
+│   ┌─────────────┐  ┌─────────────┐                                             │
+│   │MANUFACTURING│  │   MEDIA/    │   Domain Auto-Detection: 92-100%            │
+│   ├─────────────┤  │ENTERTAINMENT│   Pattern Matching: Table names, Columns    │
+│   │ 10 tables   │  ├─────────────┤                                             │
+│   │ plants      │  │ videos      │                                             │
+│   │ work_orders │  │ channels    │                                             │
+│   │ equipment   │  │ creators    │                                             │
+│   └─────────────┘  └─────────────┘                                             │
 │                                                                                │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -712,8 +771,8 @@ output/healthcare_silo_test_YYYYMMDD_HHMMSS/
 
 ```python
 # Environment Variables
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
+LLM_GATEWAY_URL=https://gateway.letsur.ai/v1   # LLM Gateway
+LLM_GATEWAY_API_KEY=...                          # Gateway API Key
 
 # Pipeline Configuration
 PipelineConfig:
@@ -723,7 +782,8 @@ PipelineConfig:
     auto_detect_domain: True
     enable_agent_bus: True
     enable_agent_learning: True
-    llm_model: "gpt-4o-mini"
+    enable_v17_services: True
+    llm_model: "auto"  # Gateway routes to optimal model
 ```
 
 ---
@@ -740,4 +800,31 @@ PipelineConfig:
 
 ---
 
-*Document Version: v1.0 | Last Updated: 2026-01-27*
+## 13. v17 Enterprise Services Framework
+
+```
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                    v17 ENTERPRISE SERVICES FRAMEWORK                          │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                                                                                │
+│   PRE-PIPELINE HOOKS                     POST-PIPELINE HOOKS                  │
+│   ════════════════════                   ═══════════════════                  │
+│   • VersionManager.commit()              • DecisionExplainer.explain()        │
+│   • OSDKClient.sync()                    • ReportGenerator.generate()         │
+│   • SemanticSearcher.index()             • WhatIfAnalyzer.analyze()           │
+│   • RemediationEngine.check()            • VersionManager.tag()              │
+│                                                                                │
+│   POST-PHASE HOOKS                                                            │
+│   ══════════════════                                                          │
+│   • VersionManager.commit_phase()                                             │
+│   • ConfidenceCalibrator.update()                                             │
+│                                                                                │
+│   ACTIVATION: enable_v17_services=True (autonomous_pipeline.py)               │
+│   SAFETY: Each service wrapped in try/except, individual failure ≠ crash      │
+│                                                                                │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+*Document Version: v23.0 | Last Updated: 2026-02-09*

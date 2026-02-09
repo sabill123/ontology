@@ -1,7 +1,7 @@
 # Ontoloty 알고리즘 및 수학적 기반
 
-> **버전**: v1.0
-> **최종 업데이트**: 2026-01-27
+> **버전**: v23.0
+> **최종 업데이트**: 2026-02-09
 
 ---
 
@@ -1007,17 +1007,157 @@ class AgentCommunicationBus:
 
 ---
 
-## 15. 알고리즘 파이프라인 요약 (v1.0)
+## 15. 인과 추론 (Causal Inference) — v23.0
+
+### 15.1 Granger 인과성 분석
+
+시계열 데이터에서 변수 X가 변수 Y의 예측에 도움이 되는지 통계적으로 검정합니다.
+
+```
+H₀: X가 Y를 Granger-cause 하지 않음
+H₁: X의 과거 값이 Y 예측에 유의미한 기여
+
+검정:
+  F = ((RSS_restricted - RSS_unrestricted) / p) / (RSS_unrestricted / (n - 2p - 1))
+
+  restricted:   Y_t = α + Σ β_i Y_{t-i}
+  unrestricted: Y_t = α + Σ β_i Y_{t-i} + Σ γ_i X_{t-i}
+```
+
+### 15.2 ATE / CATE 추정
+
+**ATE (Average Treatment Effect)**:
+```
+ATE = E[Y(1)] - E[Y(0)]
+    ≈ (1/N) Σ (outcome_treated - outcome_control)
+```
+
+**CATE (Conditional Average Treatment Effect)** — 3가지 추정기:
+
+| 추정기 | 방식 | 장점 |
+|--------|------|------|
+| S-Learner | 단일 모델에 treatment 변수 포함 | 단순, 데이터 효율적 |
+| T-Learner | treatment/control 각각 별도 모델 | 이질적 효과 포착 |
+| X-Learner | T-Learner + 교차 추정 + 가중 결합 | 비대칭 그룹 크기에 강건 |
+
+### 15.3 Propensity Score Matching
+
+```
+e(x) = P(T=1 | X=x)  — 처리 확률 추정
+
+Matching: 각 treated unit에 대해
+  nearest_control = argmin |e(x_treated) - e(x_control)|
+
+ATE_matched = (1/N) Σ (Y_treated - Y_matched_control)
+```
+
+### 15.4 Simpson's Paradox 탐지
+
+```
+sign(ATE_naive) ≠ sign(ATE_adjusted)  →  Simpson's Paradox 경고
+
+탐지 방식:
+  1. ATE_naive = E[Y|T=1] - E[Y|T=0]  (전체)
+  2. ATE_adjusted = Σ_s P(S=s) × (E[Y|T=1,S=s] - E[Y|T=0,S=s])  (층화)
+  3. 부호 반전 시 교란변수 경고 발생
+```
+
+### 15.5 구현
+
+```python
+# src/unified_pipeline/autonomous/analysis/causal_impact.py (125KB)
+
+class CausalImpactAnalyzer:
+    def compute_ate(treatment, outcome) -> ATEResult
+    def compute_cate(treatment, outcome, moderators) -> CATEResult
+    def granger_causality_test(x, y, max_lag) -> GrangerResult
+    def propensity_score_matching(data, treatment) -> MatchedResult
+
+class CounterfactualAnalyzer:
+    def analyze_counterfactual(scenario) -> CounterfactualResult
+
+class SensitivityAnalyzer:
+    def rosenbaum_bounds(data) -> SensitivityResult
+```
+
+---
+
+## 16. 통계적 가설 검정 (Statistical Hypothesis Testing) — v23.0
+
+### 16.1 분포 비교
+
+| 검정 | 용도 | 귀무가설 |
+|------|------|---------|
+| Kolmogorov-Smirnov (KS) | 두 분포 동일성 | F₁(x) = F₂(x) |
+| Anderson-Darling (AD) | 정규성 검정 | 데이터가 정규분포를 따름 |
+
+**KS 통계량**:
+```
+D = sup_x |F₁(x) - F₂(x)|
+p-value < α → 두 분포가 유의미하게 다름
+```
+
+### 16.2 평균/분산 비교
+
+| 검정 | 용도 | 특징 |
+|------|------|------|
+| Welch's t-test | 등분산 가정 없는 평균 비교 | 자유도 Satterthwaite 근사 |
+| Levene's Test | 분산 동질성 검정 | 비정규 분포에도 강건 |
+
+### 16.3 구현
+
+```python
+# src/unified_pipeline/autonomous/analysis/enhanced_validator.py
+
+class EnhancedValidator:
+    def ks_test(sample_a, sample_b) -> TestResult
+    def welch_t_test(group_a, group_b) -> TestResult
+    def levene_test(groups) -> TestResult
+    def anderson_darling_test(sample) -> TestResult
+```
+
+---
+
+## 17. 인과 그래프 탐색 (Causal Discovery) — v23.0
+
+### 17.1 PC Algorithm
+
+관측 데이터에서 인과 방향성 그래프(DAG)를 추정합니다.
+
+```
+1. 완전 비방향 그래프로 시작 (모든 변수 쌍 연결)
+2. 조건부 독립성 검정으로 간선 제거:
+   X ⊥ Y | Z  →  X—Y 간선 제거
+3. V-structure 방향 결정:
+   X → Z ← Y  (X와 Y가 독립이고 Z로 조건화 시 의존)
+4. 방향 전파 규칙 적용
+```
+
+### 17.2 구현
+
+```python
+# src/unified_pipeline/autonomous/analysis/causal_impact.py
+
+class CausalGraphDiscovery:
+    def pc_algorithm(data, alpha) -> CausalGraph
+    def orient_edges(skeleton, sep_sets) -> DAG
+```
+
+---
+
+## 18. 알고리즘 파이프라인 요약 (v23.0)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Phase 1: Discovery                            │
 ├─────────────────────────────────────────────────────────────────┤
-│  TDA (Betti Numbers) + Enhanced FK Detection v1.0              │
+│  TDA (Betti Numbers) + Enhanced FK Detection                    │
 │  + Schema Profiling + Value Matching (Jaccard)                  │
 │  + Multi-Signal Scoring + Direction Analysis                    │
 │  + Semantic Entity Resolution                                   │
-│  + Composite FK + Hierarchy + Temporal FK (v1.0)              │
+│  + Composite FK + Hierarchy + Temporal FK                       │
+│  + MinHash/LSH/HyperLogLog (Advanced Similarity)               │
+│  + Entity Resolution (ML-based)                                 │
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -1025,7 +1165,11 @@ class AgentCommunicationBus:
 ├─────────────────────────────────────────────────────────────────┤
 │  Cross-Entity Correlation (Pearson) + Threshold Effects        │
 │  + Graph Embedding (Node2Vec) + Semantic Reasoning              │
-│  + OWL2 Reasoning + SHACL Validation (v1.0)                   │
+│  + OWL2 Reasoning + SHACL Validation                            │
+│  + Causal Impact (ATE/CATE/Granger/PC Algorithm)               │
+│  + Statistical Hypothesis Testing (KS/Welch/Levene/AD)         │
+│  + Simpson's Paradox Detection                                   │
+│  + Anomaly Detection (Ensemble: IQR/Z-score/IForest/LOF)       │
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -1033,20 +1177,24 @@ class AgentCommunicationBus:
 ├─────────────────────────────────────────────────────────────────┤
 │  Dempster-Shafer Fusion + BFT Consensus                        │
 │  + Evidence-Based Debate + Confidence Calibration               │
-│  + AgentBus Communication (v1.0)                               │
+│  + AgentBus Communication                                       │
+│  + KPI Prediction + Time Series Forecasting                     │
+│  + Simulation Engine + What-If Analysis                         │
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Post-Processing (v1.0)                       │
+│                    Post-Processing (v17 Services)               │
 ├─────────────────────────────────────────────────────────────────┤
 │  Actions Engine + CDC Sync Engine                               │
 │  + Column-level Lineage + Agent Memory                          │
+│  + Decision Explainer (XAI) + Report Generator                  │
+│  + Version Manager + Remediation Engine                         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 16. 참고 문헌
+## 19. 참고 문헌
 
 1. **TDA**: Carlsson, G. (2009). Topology and Data. Bulletin of the AMS.
 2. **Dempster-Shafer**: Shafer, G. (1976). A Mathematical Theory of Evidence.
@@ -1057,4 +1205,9 @@ class AgentCommunicationBus:
 7. **Schema Matching**: Koutras et al. (2021). Valentine: Evaluating Matching Techniques for Dataset Discovery.
 8. **OWL2**: W3C (2012). OWL 2 Web Ontology Language Document Overview.
 9. **SHACL**: W3C (2017). Shapes Constraint Language (SHACL).
+10. **Granger Causality**: Granger, C. W. J. (1969). Investigating Causal Relations by Econometric Models.
+11. **CATE**: Künzel et al. (2019). Metalearners for Estimating Heterogeneous Treatment Effects.
+12. **PC Algorithm**: Spirtes, Glymour & Scheines (2000). Causation, Prediction, and Search.
+13. **Propensity Score**: Rosenbaum & Rubin (1983). The Central Role of the Propensity Score.
+14. **Simpson's Paradox**: Simpson, E. H. (1951). The Interpretation of Interaction in Contingency Tables.
 10. **Data Lineage**: Herschel et al. (2017). A Survey on Provenance: What for? What form? What from?
