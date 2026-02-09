@@ -88,6 +88,7 @@ def chat_completion(
     temperature: float = 0.7,
     client: Optional[openai.OpenAI] = None,
     agent_name: Optional[str] = None,
+    seed: Optional[int] = None,
 ) -> str:
     """
     Send a chat completion request.
@@ -121,6 +122,9 @@ def chat_completion(
             "messages": messages,
             "temperature": temperature,
         }
+        # v25.0: seed 파라미터로 재현성 보장
+        if seed is not None:
+            kwargs["seed"] = seed
         # max_tokens intentionally omitted — let the model use its default limit
 
         # Terminal logging for debugging
@@ -217,6 +221,7 @@ def chat_completion_with_json(
     temperature: float = 0.2,
     client: Optional[openai.OpenAI] = None,
     agent_name: Optional[str] = None,
+    seed: Optional[int] = None,
 ) -> str:
     """
     Send a chat completion request expecting JSON response.
@@ -240,6 +245,9 @@ def chat_completion_with_json(
             "messages": messages,
             "temperature": temperature,
         }
+        # v25.0: seed 파라미터로 재현성 보장
+        if seed is not None:
+            kwargs["seed"] = seed
         # max_tokens intentionally omitted — let the model use its default limit
 
         # Enable JSON mode for supported models

@@ -100,35 +100,9 @@ class EntityExtractor:
         r'^([a-z]+)_',               # 단일 언더스코어
     ]
 
-    # 엔티티 도메인 키워드
-    DOMAIN_KEYWORDS = {
-        "customer": ["customer", "client", "buyer", "consumer", "account"],
-        "product": ["product", "item", "sku", "goods", "merchandise"],
-        "order": ["order", "purchase", "transaction", "sale"],
-        "supplier": ["supplier", "vendor", "provider", "manufacturer"],
-        "warehouse": ["warehouse", "wh", "storage", "depot", "facility"],
-        "shipment": ["shipment", "delivery", "transport", "freight"],
-        "vehicle": ["vehicle", "truck", "car", "fleet"],
-        "driver": ["driver", "operator", "courier"],
-        "employee": ["employee", "staff", "worker", "user"],
-        "location": ["location", "address", "zone", "region"],
-        # v4.7: Supply Chain 추가 도메인 키워드
-        "carrier": ["carrier", "shipper", "transporter", "logistics_provider"],
-        "port": ["port", "terminal", "harbor", "dock"],
-        "plant": ["plant", "factory", "manufacturing_site"],
-        "rate": ["rate", "freight_rate", "shipping_rate", "tariff"],
-    }
-
-    # v4.7: 단순 컬럼명에서 엔티티 추출 (ID 접미사 없이도 감지)
-    SIMPLE_ENTITY_COLUMNS = {
-        "carrier": "Carrier",
-        "customer": "Customer",
-        "supplier": "Supplier",
-        "product": "Product",
-        "plant": "Plant",
-        "port": "Port",
-        "warehouse": "Warehouse",
-    }
+    # v25.0: 하드코딩 도메인 키워드 제거 — 데이터 기반 탐지로 전환
+    # DOMAIN_KEYWORDS, SIMPLE_ENTITY_COLUMNS 삭제
+    # 대신 _is_categorical_entity_column()으로 데이터 특성 기반 판별
 
     def __init__(self):
         self.entities: Dict[str, ExtractedEntity] = {}
@@ -246,13 +220,11 @@ class EntityExtractor:
                 # ID 패턴 매칭
                 base_entity = self._extract_entity_from_column(col_name)
 
-                # v4.7: 단순 컬럼명에서도 엔티티 추출 (Carrier, Customer 등)
-                if not base_entity:
-                    col_lower = col_name.lower()
-                    for simple_col, entity_name in self.SIMPLE_ENTITY_COLUMNS.items():
-                        if col_lower == simple_col:
-                            base_entity = simple_col
-                            break
+                # v25.0: 데이터 기반 엔티티 탐지 (하드코딩 제거)
+                # ID 접미사 없는 컬럼도, 데이터 특성이 카테고리형이면 엔티티 후보
+                if not base_entity and table_name in (sample_data or {}):
+                    if self._is_categorical_entity_column(col_name, sample_data[table_name]):
+                        base_entity = col_name.lower()
 
                 if base_entity:
                     # 해당 테이블의 PK가 아닌 경우만 (FK로 추정)
@@ -401,10 +373,7 @@ class EntityExtractor:
             for col in table_info.get("columns", []):
                 col_name = col.get("name", "")
 
-                # status, type, category 패턴
-                if not any(pat in col_name.lower() for pat in ["status", "type", "category", "state", "mode"]):
-                    continue
-
+                # v25.0: 이름 패턴 대신 데이터 특성으로 열거형 판별
                 # 샘플 데이터에서 unique 값 수집
                 if table_name not in sample_data:
                     continue
@@ -414,10 +383,19 @@ class EntityExtractor:
                     if col_name in row and row[col_name] is not None
                 ]
 
+                if not values:
+                    continue
+
+                # 숫자형 컬럼은 열거형에서 제외
+                non_numeric = [v for v in values if not isinstance(v, (int, float))]
+                if len(non_numeric) < len(values) * 0.5:
+                    continue  # 50% 이상이 숫자면 스킵
+
                 unique_values = set(str(v) for v in values)
 
-                # 10개 이하의 unique 값만 열거형으로 취급
-                if 2 <= len(unique_values) <= 15:
+                # 데이터 기반: unique 비율이 낮으면 열거형 (카디널리티 기반)
+                unique_ratio = len(unique_values) / max(len(values), 1)
+                if 2 <= len(unique_values) <= 15 and unique_ratio < 0.5:
                     entity = ExtractedEntity(
                         entity_id=f"ENUM_{table_name.upper()}_{col_name.upper()}",
                         name=f"{self._humanize_name(col_name)} Values",
@@ -594,6 +572,56 @@ class EntityExtractor:
         # 언더스코어를 공백으로, 첫 글자 대문자
         words = name.replace("_", " ").split()
         return " ".join(word.capitalize() for word in words)
+
+    def _is_categorical_entity_column(
+        self,
+        col_name: str,
+        rows: List[Dict[str, Any]],
+    ) -> bool:
+        """
+        v25.0: 데이터 특성 기반으로 컬럼이 카테고리형 엔티티인지 판별.
+        하드코딩 키워드 없이, 값의 통계적 특성만으로 결정.
+
+        조건:
+        1. 비숫자형 텍스트 값이 50% 이상
+        2. 고유값 비율 < 50% (반복되는 값 = 카테고리)
+        3. 고유값 2~50개 (너무 많으면 free-text)
+        4. PK/ID 패턴이 아님
+        """
+        # PK/ID 컬럼은 제외
+        col_lower = col_name.lower()
+        if col_lower == "id" or col_lower.endswith("_id") or col_lower.endswith("_key"):
+            return False
+        # 날짜/시간 패턴 제외
+        if any(p in col_lower for p in ["date", "time", "timestamp", "created", "updated"]):
+            return False
+        # 이름/설명 패턴 제외 (free-text 가능성)
+        if any(p in col_lower for p in ["name", "description", "comment", "note", "address"]):
+            return False
+
+        values = [row.get(col_name) for row in rows if row.get(col_name) is not None]
+        if len(values) < 5:
+            return False
+
+        # 숫자형 값 탐지 (CSV DictReader는 모든 값을 문자열로 반환)
+        numeric_count = 0
+        for v in values:
+            try:
+                float(str(v))
+                numeric_count += 1
+            except (ValueError, TypeError):
+                pass
+        if numeric_count > len(values) * 0.5:
+            return False  # 50% 이상 숫자면 숫자 컬럼
+
+        unique_values = set(str(v) for v in values)
+        unique_ratio = len(unique_values) / max(len(values), 1)
+
+        # 카테고리형: 고유값이 적고(2~50), 반복 비율이 높음(unique < 50%)
+        if 2 <= len(unique_values) <= 50 and unique_ratio < 0.5:
+            return True
+
+        return False
 
     def _calculate_column_entity_confidence(self, analysis: Dict) -> float:
         """컬럼 기반 엔티티의 신뢰도 계산"""

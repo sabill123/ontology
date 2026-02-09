@@ -379,6 +379,12 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
         self.agent_bus: Optional[AgentCommunicationBus] = None
         self._init_agent_bus()
 
+        # v25.1: Extracted LLM Client & Job Logger (SRP)
+        from .agent_llm_client import AgentLLMClient
+        from .agent_job_logger import AgentJobLogger
+        self._llm_client = AgentLLMClient(self)
+        self._job_logger = AgentJobLogger(self.agent_name)
+
         logger.info(f"Agent initialized: {self.agent_id} (type={self.agent_type})")
 
     def _init_agent_memory(self):
@@ -1284,517 +1290,61 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
         self._pause_requested = False
         logger.info(f"Agent {self.agent_id} resumed")
 
-    # === LLM 통신 ===
+    # === LLM 통신 (AgentLLMClient에 위임) ===
 
-    async def call_llm(
-        self,
-        user_prompt: str,
-        temperature: float = 0.3,
-        max_tokens: int = 2000,
-        purpose: str = None,
-        thinking_before: str = None,
-        model_override: str = None,
-    ) -> str:
-        """
-        LLM 호출
+    async def call_llm(self, user_prompt: str, temperature: float = 0.3, max_tokens: int = 2000,
+                       purpose: str = None, thinking_before: str = None, model_override: str = None, seed: int = 42) -> str:
+        """LLM 호출 → AgentLLMClient에 위임"""
+        return await self._llm_client.call_llm(user_prompt, temperature, max_tokens, purpose, thinking_before, model_override, seed)
 
-        Args:
-            user_prompt: 사용자 프롬프트
-            temperature: 온도
-            max_tokens: 최대 토큰
-            purpose: LLM 호출 목적 (예: "entity classification")
-            thinking_before: 호출 전 에이전트의 사고 과정
-            model_override: v22.1 — 모델 타입 직접 지정 ("high_context" 등).
-                           지정 시 에이전트 기본 모델 대신 해당 모델 사용.
+    async def call_llm_with_context(self, instruction: str, context_data: Dict[str, Any],
+                                     temperature: float = 0.3, max_tokens: int = 2000, purpose: str = None,
+                                     thinking_before: str = None, request_completion_signal: bool = True,
+                                     model_override: str = None) -> str:
+        """컨텍스트와 함께 LLM 호출 → AgentLLMClient에 위임"""
+        return await self._llm_client.call_llm_with_context(instruction, context_data, temperature, max_tokens,
+                                                             purpose, thinking_before, request_completion_signal, model_override)
 
-        Returns:
-            LLM 응답
-        """
-        from ..model_config import get_agent_model, get_model, ModelType
-
-        if model_override:
-            try:
-                model = get_model(ModelType(model_override))
-            except ValueError:
-                model = model_override  # 모델 이름 직접 전달도 허용
-        else:
-            model = get_agent_model(self.agent_type)
-
-        # LLM 클라이언트가 없으면 빈 JSON 응답 반환 (알고리즘 우선 모드)
-        if self.llm_client is None:
-            logger.debug(f"LLM client not available, returning empty response for {self.agent_type}")
-            return "{}"
-
-        try:
-            from ...common.utils.llm import chat_completion, set_llm_thinking_context
-
-            # v5.1: 사고 컨텍스트 설정
-            if purpose or thinking_before:
-                set_llm_thinking_context(purpose=purpose, thinking_before=thinking_before)
-
-            # 사고 과정 이벤트
-            if self.current_todo:
-                self.event_emitter.agent_thinking(
-                    agent_id=self.agent_id,
-                    todo_id=self.current_todo.todo_id,
-                    thinking=user_prompt[:500],
-                    phase=self.phase,
-                )
-
-            # v22.0: Few-shot learning — 유사 경험을 프롬프트에 추가
-            enriched_prompt = user_prompt
-            if self.agent_memory and AGENT_LEARNING_AVAILABLE:
-                try:
-                    few_shot = self.agent_memory.get_few_shot_examples(
-                        experience_type=ExperienceType.AGENT_DECISION,
-                        n=2,
-                        only_success=True,
-                    )
-                    if few_shot:
-                        examples_text = "\n".join(
-                            f"- Prior: {exp.agent_action} → {exp.outcome.value}" +
-                            (f" (confidence: {exp.confidence_score:.2f})" if exp.confidence_score else "")
-                            for exp in few_shot
-                        )
-                        enriched_prompt = f"{user_prompt}\n\n[Historical context from similar tasks]\n{examples_text}"
-                except Exception:
-                    pass  # Few-shot 실패해도 원본 프롬프트로 진행
-
-            # v22.0: Agent Bus — 다른 에이전트 메시지를 컨텍스트에 추가
-            bus_context = ""
-            if self.agent_bus and AGENT_BUS_AVAILABLE:
-                try:
-                    pending_count = self.agent_bus.get_pending_messages(self.agent_id)
-                    if pending_count > 0:
-                        messages_text = []
-                        for _ in range(min(pending_count, 5)):
-                            msg = await self.agent_bus.receive(self.agent_id, timeout=0.1)
-                            if msg:
-                                sender = msg.sender_id
-                                content_summary = str(msg.content)[:300]
-                                messages_text.append(f"- From {sender}: {content_summary}")
-                        if messages_text:
-                            bus_context = "\n\n[Inter-agent communications]\n" + "\n".join(messages_text)
-                except Exception:
-                    pass  # Bus 실패해도 진행
-
-            # v22.0: v17 서비스 컨텍스트 자동 주입 — 모든 에이전트가 v17 정보 활용
-            v17_context = ""
-            if self.shared_context:
-                try:
-                    v17_services = self.shared_context.get_dynamic("_v17_services", {})
-                    v17_parts = []
-
-                    # Calibration 요약
-                    calibrator = v17_services.get("calibrator")
-                    if calibrator:
-                        try:
-                            cal_summary = calibrator.get_calibration_summary()
-                            if cal_summary.get("total_calibrations", 0) > 0:
-                                v17_parts.append(f"- Calibration: {cal_summary.get('total_calibrations', 0)} calibrations tracked")
-                        except Exception:
-                            pass
-
-                    # Semantic search 가용 여부
-                    if v17_services.get("semantic_searcher"):
-                        v17_parts.append("- Semantic search: available for entity lookup")
-
-                    # Remediation 상태
-                    if v17_services.get("remediation_engine"):
-                        v17_parts.append("- Auto-remediation: active for data quality issues")
-
-                    # Version 상태
-                    version_mgr = v17_services.get("version_manager")
-                    if version_mgr:
-                        try:
-                            history = version_mgr.log(limit=1)
-                            if history:
-                                v17_parts.append(f"- Versioning: {len(history)} commits tracked")
-                        except Exception:
-                            pass
-
-                    if v17_parts:
-                        v17_context = "\n\n[v17 Platform Services]\n" + "\n".join(v17_parts)
-                except Exception:
-                    pass
-
-            final_prompt = enriched_prompt + bus_context + v17_context
-
-            # v18.0: asyncio.to_thread로 블로킹 LLM 호출을 스레드 풀에서 실행
-            # 이렇게 하면 이벤트 루프가 블로킹되지 않아 WebSocket ping에 응답 가능
-            import asyncio
-            response = await asyncio.to_thread(
-                chat_completion,
-                model=model,
-                messages=[
-                    {"role": "system", "content": self.get_full_system_prompt()},  # v9.1: 프로젝트 컨텍스트 포함
-                    {"role": "user", "content": final_prompt},
-                ],
-                max_tokens=max_tokens,
-                temperature=temperature,
-                client=self.llm_client,
-            )
-
-            self.metrics.llm_calls += 1
-
-            # v15.0: ASI 메트릭 기록
-            if response:
-                # 응답에서 confidence 추출 시도
-                import re
-                conf_match = re.search(r'\[CONFIDENCE:\s*([\d.]+)\]', response, re.IGNORECASE)
-                confidence = float(conf_match.group(1)) if conf_match else 0.5
-                confidence = max(0.0, min(1.0, confidence))
-
-                # 의사결정 추출 시도
-                decision = None
-                if "approve" in response.lower():
-                    decision = "approve"
-                elif "reject" in response.lower():
-                    decision = "reject"
-
-                self.metrics.record_response(
-                    response_length=len(response),
-                    confidence=confidence,
-                    decision=decision
-                )
-
-                # Drift 경고 확인
-                drift_warning = self.metrics.get_drift_warning()
-                if drift_warning:
-                    logger.warning(f"[ASI] {self.agent_id}: {drift_warning}")
-
-            return response
-
-        except Exception as e:
-            logger.warning(f"LLM call failed: {e}, returning empty response")
-            return "{}"
-
-    async def call_llm_with_context(
-        self,
-        instruction: str,
-        context_data: Dict[str, Any],
-        temperature: float = 0.3,
-        max_tokens: int = 2000,
-        purpose: str = None,
-        thinking_before: str = None,
-        request_completion_signal: bool = True,  # v14.0: 완료 시그널 요청 여부
-        model_override: str = None,  # v22.1: 모델 오버라이드
-    ) -> str:
-        """
-        컨텍스트와 함께 LLM 호출
-
-        Args:
-            instruction: 지시사항
-            context_data: 컨텍스트 데이터
-            temperature: 온도
-            max_tokens: 최대 토큰
-            purpose: LLM 호출 목적
-            thinking_before: 호출 전 에이전트의 사고 과정
-            request_completion_signal: v14.0 - 완료 시그널 요청 여부 (기본값: True)
-            model_override: v22.1 - 모델 타입 직접 지정 ("high_context" 등)
-
-        Returns:
-            LLM 응답
-        """
-        # 컨텍스트 포맷팅
-        context_str = self._format_context_for_llm(context_data)
-
-        # v14.0: 완료 시그널 프롬프트 suffix 추가
-        completion_signal_suffix = self._get_completion_signal_prompt_suffix() if request_completion_signal else ""
-
-        user_prompt = f"""## Context
-{context_str}
-
----
-
-## Task
-{instruction}
-
-## Response Format
-Please provide your analysis in a structured format:
-
-[CONFIDENCE: 0.XX] - Your confidence level (0.0-1.0)
-
-[ANALYSIS]
-Your detailed analysis here...
-
-[KEY_FINDINGS]
-- Finding 1
-- Finding 2
-...
-
-[RECOMMENDATIONS]
-- Recommendation 1
-- Recommendation 2
-...
-
-[OUTPUT_DATA]
-```json
-{{
-    "key": "value",
-    ...
-}}
-```
-{completion_signal_suffix}
-"""
-        return await self.call_llm(user_prompt, temperature, max_tokens, purpose=purpose, thinking_before=thinking_before, model_override=model_override)
-
-    async def call_llm_structured(
-        self,
-        response_model,
-        user_prompt: str,
-        temperature: float = 0.2,
-        max_retries: int = 2,
-        purpose: str = None,
-    ):
-        """
-        구조화된 LLM 호출 (Instructor 기반)
-
-        Pydantic 모델로 타입 안전한 응답을 반환합니다.
-
-        Args:
-            response_model: 응답 Pydantic 모델 클래스
-            user_prompt: 사용자 프롬프트
-            temperature: 온도 (기본값: 0.2)
-            max_retries: 검증 실패 시 재시도 횟수
-            purpose: LLM 호출 목적
-
-        Returns:
-            response_model 인스턴스
-
-        Example:
-            from src.unified_pipeline.llm_schemas import FKAnalysisResult
-
-            result = await self.call_llm_structured(
-                response_model=FKAnalysisResult,
-                user_prompt="Analyze FK relationship...",
-            )
-            # result.is_relationship, result.confidence 등 타입 안전하게 접근
-        """
-        try:
-            from src.common.utils.llm_instructor import call_llm_structured as instructor_call
-            from ..model_config import get_agent_model
-
-            model = get_agent_model(self.agent_type)
-
-            messages = [
-                {"role": "system", "content": self.get_full_system_prompt()},
-                {"role": "user", "content": user_prompt},
-            ]
-
-            # 사고 과정 이벤트
-            if self.current_todo:
-                self.event_emitter.agent_thinking(
-                    agent_id=self.agent_id,
-                    todo_id=self.current_todo.todo_id,
-                    thinking=f"[Structured] {user_prompt[:300]}",
-                    phase=self.phase,
-                )
-
-            # v18.0: asyncio.to_thread로 블로킹 LLM 호출을 스레드 풀에서 실행
-            import asyncio
-            result = await asyncio.to_thread(
-                instructor_call,
-                response_model=response_model,
-                messages=messages,
-                model=model,
-                temperature=temperature,
-                max_retries=max_retries,
-            )
-
-            self.metrics.llm_calls += 1
-            logger.debug(f"[Instructor] {self.agent_name} -> {response_model.__name__}")
-
-            return result
-
-        except ImportError:
-            logger.warning("Instructor not available, falling back to regular call_llm")
-            # Fallback: 기존 방식으로 호출하고 수동 파싱
-            response = await self.call_llm(user_prompt, temperature, purpose=purpose)
-            # 이 경우 호출자가 수동으로 파싱해야 함
-            raise RuntimeError("Instructor not available. Install with: pip install instructor")
-
-        except Exception as e:
-            logger.error(f"Structured LLM call failed: {e}")
-            raise
+    async def call_llm_structured(self, response_model, user_prompt: str, temperature: float = 0.2,
+                                   max_retries: int = 2, purpose: str = None):
+        """구조화된 LLM 호출 → AgentLLMClient에 위임"""
+        return await self._llm_client.call_llm_structured(response_model, user_prompt, temperature, max_retries, purpose)
 
     def _format_context_for_llm(self, context_data: Dict[str, Any]) -> str:
-        """LLM용 컨텍스트 포맷팅"""
-        import json
+        """LLM용 컨텍스트 포맷팅 → AgentLLMClient에 위임"""
+        return self._llm_client._format_context(context_data)
 
-        parts = []
-        for key, value in context_data.items():
-            if isinstance(value, (dict, list)):
-                formatted = json.dumps(value, indent=2, ensure_ascii=False, default=str)
-                parts.append(f"### {key}\n```json\n{formatted}\n```")
-            else:
-                parts.append(f"### {key}\n{value}")
-        return "\n\n".join(parts)
-
-    # === v5.1: 사고 과정 로깅 헬퍼 메서드 ===
+    # === 사고 과정 로깅 (AgentJobLogger에 위임) ===
 
     def log_thinking(self, thinking_type: str, content: str, confidence: float = None, **kwargs):
-        """
-        사고 과정 기록 (편의 메서드)
-
-        Args:
-            thinking_type: 사고 유형 (analysis, reasoning, decision 등)
-            content: 사고 내용
-            confidence: 확신도 (0.0-1.0)
-            **kwargs: 추가 컨텍스트
-        """
-        job_logger = _get_job_logger()
-        if job_logger and job_logger.is_active():
-            try:
-                from ...common.utils.job_logger import ThinkingType
-                tt = ThinkingType(thinking_type) if thinking_type in [t.value for t in ThinkingType] else ThinkingType.REASONING
-                job_logger.log_thinking(
-                    agent_name=self.agent_name,
-                    thinking_type=tt,
-                    content=content,
-                    confidence=confidence,
-                    context=kwargs.get('context'),
-                    evidence=kwargs.get('evidence'),
-                    related_data=kwargs.get('related_data'),
-                )
-            except Exception:
-                pass  # 로깅 실패해도 메인 로직에 영향 없음
+        self._job_logger.log_thinking(thinking_type, content, confidence, **kwargs)
 
     def log_analysis(self, target: str, findings: List[str], confidence: float = None, **kwargs):
-        """분석 과정 기록"""
-        job_logger = _get_job_logger()
-        if job_logger and job_logger.is_active():
-            try:
-                job_logger.log_analysis(
-                    agent_name=self.agent_name,
-                    analysis_target=target,
-                    findings=findings,
-                    methodology=kwargs.get('methodology'),
-                    data_examined=kwargs.get('data_examined'),
-                    confidence=confidence,
-                )
-            except Exception:
-                pass
+        self._job_logger.log_analysis(target, findings, confidence, **kwargs)
 
     def log_reasoning(self, premise: str, logic: str, conclusion: str, confidence: float = None, **kwargs):
-        """추론 과정 기록"""
-        job_logger = _get_job_logger()
-        if job_logger and job_logger.is_active():
-            try:
-                job_logger.log_reasoning(
-                    agent_name=self.agent_name,
-                    premise=premise,
-                    logic=logic,
-                    conclusion=conclusion,
-                    confidence=confidence,
-                    supporting_evidence=kwargs.get('evidence'),
-                )
-            except Exception:
-                pass
+        self._job_logger.log_reasoning(premise, logic, conclusion, confidence, **kwargs)
 
     def log_decision(self, decision: str, options: List[str], rationale: str, confidence: float = None, **kwargs):
-        """의사결정 기록"""
-        job_logger = _get_job_logger()
-        if job_logger and job_logger.is_active():
-            try:
-                job_logger.log_decision(
-                    agent_name=self.agent_name,
-                    decision=decision,
-                    options_considered=options,
-                    rationale=rationale,
-                    confidence=confidence,
-                    impact=kwargs.get('impact'),
-                )
-            except Exception:
-                pass
+        self._job_logger.log_decision(decision, options, rationale, confidence, **kwargs)
 
     def log_insight(self, insight: str, source: str, importance: str = "medium", confidence: float = None):
-        """인사이트 도출 기록"""
-        job_logger = _get_job_logger()
-        if job_logger and job_logger.is_active():
-            try:
-                job_logger.log_insight(
-                    agent_name=self.agent_name,
-                    insight=insight,
-                    source=source,
-                    importance=importance,
-                    confidence=confidence,
-                )
-            except Exception:
-                pass
+        self._job_logger.log_insight(insight, source, importance, confidence)
 
     def log_hypothesis(self, hypothesis: str, basis: List[str], confidence: float = None):
-        """가설 수립 기록"""
-        job_logger = _get_job_logger()
-        if job_logger and job_logger.is_active():
-            try:
-                job_logger.log_hypothesis(
-                    agent_name=self.agent_name,
-                    hypothesis=hypothesis,
-                    basis=basis,
-                    confidence=confidence,
-                )
-            except Exception:
-                pass
+        self._job_logger.log_hypothesis(hypothesis, basis, confidence)
 
     def start_reasoning_chain(self, goal: str) -> Optional[str]:
-        """추론 체인 시작"""
-        job_logger = _get_job_logger()
-        if job_logger and job_logger.is_active():
-            try:
-                return job_logger.start_reasoning_chain(
-                    agent_name=self.agent_name,
-                    goal=goal,
-                )
-            except Exception:
-                pass
-        return None
+        return self._job_logger.start_reasoning_chain(goal)
 
     def add_reasoning_step(self, chain_id: str, thinking_type: str, content: str, confidence: float = None):
-        """추론 체인에 단계 추가"""
-        if not chain_id:
-            return
-        job_logger = _get_job_logger()
-        if job_logger and job_logger.is_active():
-            try:
-                from ...common.utils.job_logger import ThinkingType
-                tt = ThinkingType(thinking_type) if thinking_type in [t.value for t in ThinkingType] else ThinkingType.REASONING
-                job_logger.add_reasoning_step(
-                    chain_id=chain_id,
-                    thinking_type=tt,
-                    content=content,
-                    confidence=confidence,
-                )
-            except Exception:
-                pass
+        self._job_logger.add_reasoning_step(chain_id, thinking_type, content, confidence)
 
     def end_reasoning_chain(self, chain_id: str, conclusion: str, confidence: float = None, success: bool = True):
-        """추론 체인 종료"""
-        if not chain_id:
-            return
-        job_logger = _get_job_logger()
-        if job_logger and job_logger.is_active():
-            try:
-                job_logger.end_reasoning_chain(
-                    chain_id=chain_id,
-                    conclusion=conclusion,
-                    confidence=confidence,
-                    success=success,
-                )
-            except Exception:
-                pass
+        self._job_logger.end_reasoning_chain(chain_id, conclusion, confidence, success)
 
     def set_analysis_summary(self, summary: str):
-        """분석 요약 설정"""
-        job_logger = _get_job_logger()
-        if job_logger and job_logger.is_active():
-            try:
-                job_logger.set_analysis_summary(
-                    agent_name=self.agent_name,
-                    summary=summary,
-                )
-            except Exception:
-                pass
+        self._job_logger.set_analysis_summary(summary)
 
     # === v14.0: 완료 시그널 파싱 ===
 

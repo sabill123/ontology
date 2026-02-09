@@ -949,9 +949,9 @@ class PipelineConsensusEngine:
         current_round = self._current_discussion.start_new_round()
         active_agents = list(self._agents.values())
 
-        # v15.0: 에이전트 순서 무작위화 (순서 편향 방지)
-        import random
-        random.shuffle(active_agents)
+        # v25.0: 결정론적 순서 (재현성 보장) — agent_id 기반 정렬
+        # 순서 편향은 BFT 투표 메커니즘으로 충분히 방지됨
+        active_agents.sort(key=lambda a: a.agent_id)
 
         # v14.0 Enhanced: 빈 에이전트 처리 - 기본 결과 반환
         if not active_agents:
