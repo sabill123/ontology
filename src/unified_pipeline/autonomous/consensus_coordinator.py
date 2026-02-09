@@ -519,8 +519,9 @@ class ConsensusCoordinator:
             return "full_skip", "Phase 1 discovery - exploration stage", avg_conf
 
         if "quality" in todo_type or "assessment" in todo_type:
+            # v25.2: concepts가 비어있어도 에이전트는 반드시 실행 (full_skip 제거)
             if not concepts:
-                return "full_skip", "No concepts to assess", 0.5
+                return "lightweight", "No concepts yet - agent execution required", 0.5
             if len(concepts) <= 2:
                 return "lightweight", f"Few concepts ({len(concepts)}) - agent execution required", avg_conf
             if avg_conf >= 0.85:
