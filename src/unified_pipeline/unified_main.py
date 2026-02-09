@@ -275,7 +275,7 @@ class OntologyPlatform:
             # v10.0: 데이터 디렉토리 설정 (Cross-Entity Correlation 분석용)
             data_source_path = self._resolve_data_path(data_source)
             if data_source_path:
-                self._orchestrator.shared_context.data_directory = str(data_source_path)
+                self._orchestrator.shared_context.set_data_directory(str(data_source_path))
                 logger.info(f"v10.0: Data directory set to {data_source_path}")
 
             # 파이프라인 실행

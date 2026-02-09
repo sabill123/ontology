@@ -18,6 +18,12 @@ import json
 # Import DomainContext
 from .domain import DomainContext, DEFAULT_DOMAIN_CONTEXT
 
+# v25.0: Composition registries (extracted from SharedContext)
+from .table_registry import TableRegistry
+from .entity_registry import EntityRegistry
+from .ontology_registry import OntologyRegistry
+from .governance_registry import GovernanceRegistry
+
 # v17.0: Type hints for new features
 if TYPE_CHECKING:
     from .calibration import ConfidenceCalibrator, CalibrationConfig
@@ -296,6 +302,54 @@ class SharedContext:
     current_stage: Optional[StageType] = None
     is_complete: bool = False
 
+    # ------------------------------------------------------------------
+    # v25.0: Composition registries (created in __post_init__)
+    # ------------------------------------------------------------------
+
+    def __post_init__(self) -> None:
+        """Initialise composition registries and bind them to our data."""
+        # --- Table Registry ---
+        self._table_registry = TableRegistry()
+        self._table_registry.bind(
+            tables=self.tables,
+            raw_data=self.raw_data,
+            data_directory=self.data_directory,
+        )
+
+        # --- Entity Registry ---
+        self._entity_registry = EntityRegistry()
+        self._entity_registry.bind(
+            unified_entities=self.unified_entities,
+            homeomorphisms=self.homeomorphisms,
+            extracted_entities=self.extracted_entities,
+            enhanced_fk_candidates=self.enhanced_fk_candidates,
+            value_overlaps=self.value_overlaps,
+            indirect_fks=self.indirect_fks,
+            cross_table_mappings=self.cross_table_mappings,
+            schema_analysis=self.schema_analysis,
+            tda_signatures=self.tda_signatures,
+        )
+
+        # --- Ontology Registry ---
+        self._ontology_registry = OntologyRegistry()
+        self._ontology_registry.bind(
+            ontology_concepts=self.ontology_concepts,
+            concept_relationships=self.concept_relationships,
+            knowledge_graph_triples=self.knowledge_graph_triples,
+            semantic_base_triples=self.semantic_base_triples,
+            inferred_triples=self.inferred_triples,
+            governance_triples=self.governance_triples,
+        )
+
+        # --- Governance Registry ---
+        self._governance_registry = GovernanceRegistry()
+        self._governance_registry.bind(
+            governance_decisions=self.governance_decisions,
+            action_backlog=self.action_backlog,
+            policy_rules=self.policy_rules,
+            business_insights=self.business_insights,
+        )
+
     # === v13.2: Dynamic Data Access Methods ===
 
     def get_dynamic(self, key: str, default: Any = None) -> Any:
@@ -322,23 +376,23 @@ class SharedContext:
 
     def add_table(self, table_info: TableInfo) -> None:
         """테이블 추가"""
-        self.tables[table_info.name] = table_info
+        self._table_registry.add_table(table_info)
 
     def add_homeomorphism(self, pair: HomeomorphismPair) -> None:
         """위상동형 쌍 추가"""
-        self.homeomorphisms.append(pair)
+        self._entity_registry.add_homeomorphism(pair)
 
     def add_unified_entity(self, entity: UnifiedEntity) -> None:
         """통합 엔티티 추가"""
-        self.unified_entities.append(entity)
+        self._entity_registry.add_unified_entity(entity)
 
     def add_concept(self, concept: OntologyConcept) -> None:
         """온톨로지 개념 추가"""
-        self.ontology_concepts.append(concept)
+        self._ontology_registry.add_concept(concept)
 
     def add_governance_decision(self, decision: GovernanceDecision) -> None:
         """거버넌스 결정 추가"""
-        self.governance_decisions.append(decision)
+        self._governance_registry.add_governance_decision(decision)
 
     def add_agent_message(
         self,
@@ -372,30 +426,23 @@ class SharedContext:
 
     def get_tables_for_entity(self, entity_type: str) -> List[str]:
         """특정 엔티티 타입에 해당하는 테이블 목록"""
-        tables = []
-        for entity in self.unified_entities:
-            if entity.entity_type == entity_type:
-                tables.extend(entity.source_tables)
-        return list(set(tables))
+        return self._entity_registry.get_tables_for_entity(entity_type)
 
     def get_homeomorphisms_for_table(self, table_name: str) -> List[HomeomorphismPair]:
         """특정 테이블과 관련된 위상동형 쌍"""
-        return [
-            h for h in self.homeomorphisms
-            if h.table_a == table_name or h.table_b == table_name
-        ]
+        return self._entity_registry.get_homeomorphisms_for_table(table_name)
 
     def get_concepts_by_type(self, concept_type: str) -> List[OntologyConcept]:
         """특정 타입의 온톨로지 개념"""
-        return [c for c in self.ontology_concepts if c.concept_type == concept_type]
+        return self._ontology_registry.get_concepts_by_type(concept_type)
 
     def get_approved_concepts(self) -> List[OntologyConcept]:
         """승인된 온톨로지 개념"""
-        return [c for c in self.ontology_concepts if c.status == "approved"]
+        return self._ontology_registry.get_approved_concepts()
 
     def get_pending_actions(self) -> List[Dict[str, Any]]:
         """대기 중인 액션"""
-        return [a for a in self.action_backlog if a.get("status") == "pending"]
+        return self._governance_registry.get_pending_actions()
 
     # === Knowledge Graph Methods (v4.3) ===
 
@@ -408,13 +455,7 @@ class SharedContext:
         source: str = "asserted"
     ) -> None:
         """트리플 추가"""
-        self.knowledge_graph_triples.append({
-            "subject": subject,
-            "predicate": predicate,
-            "object": obj,
-            "confidence": confidence,
-            "source": source,
-        })
+        self._ontology_registry.add_triple(subject, predicate, obj, confidence, source)
 
     def add_inferred_triple(
         self,
@@ -425,38 +466,15 @@ class SharedContext:
         rule_applied: str = None
     ) -> None:
         """추론된 트리플 추가"""
-        self.inferred_triples.append({
-            "subject": subject,
-            "predicate": predicate,
-            "object": obj,
-            "confidence": confidence,
-            "source": "inferred",
-            "rule_applied": rule_applied,
-        })
+        self._ontology_registry.add_inferred_triple(subject, predicate, obj, confidence, rule_applied)
 
     def get_all_triples(self) -> List[Dict[str, Any]]:
         """모든 트리플 (ontology + semantic + inferred + governance) 반환"""
-        return (
-            self.knowledge_graph_triples +
-            self.semantic_base_triples +
-            self.inferred_triples +
-            self.governance_triples
-        )
+        return self._ontology_registry.get_all_triples()
 
     def get_triple_count(self) -> Dict[str, int]:
         """트리플 통계"""
-        return {
-            "ontology_asserted": len(self.knowledge_graph_triples),
-            "semantic_base": len(self.semantic_base_triples),
-            "inferred": len(self.inferred_triples),
-            "governance": len(self.governance_triples),
-            "total": (
-                len(self.knowledge_graph_triples) +
-                len(self.semantic_base_triples) +
-                len(self.inferred_triples) +
-                len(self.governance_triples)
-            ),
-        }
+        return self._ontology_registry.get_triple_count()
 
     def build_knowledge_graph(self) -> Any:
         """
@@ -465,9 +483,7 @@ class SharedContext:
         Returns:
             KnowledgeGraphBuilder 인스턴스
         """
-        from .autonomous.analysis.knowledge_graph import KnowledgeGraphBuilder
-        builder = KnowledgeGraphBuilder()
-        return builder.build_from_context(self)
+        return self._ontology_registry.build_knowledge_graph(self)
 
     # === Domain Context Methods (NEW) ===
 
@@ -771,7 +787,17 @@ class SharedContext:
         Returns:
             데이터 디렉토리 경로 또는 None
         """
-        return self.data_directory
+        return self._table_registry.get_data_directory()
+
+    def set_data_directory(self, path: str) -> None:
+        """
+        v25.0: 데이터 디렉토리 설정 (dataclass 필드 + registry 동기화)
+
+        Args:
+            path: 데이터 디렉토리 경로
+        """
+        self.data_directory = path
+        self._table_registry.set_data_directory(path)
 
     def get_full_data(self, table_name: str) -> List[Dict[str, Any]]:
         """
@@ -784,36 +810,7 @@ class SharedContext:
         Returns:
             전체 행 목록 (List[Dict])
         """
-        import os
-
-        table_info = self.tables.get(table_name)
-        if not table_info:
-            return []
-
-        # 1차: source 경로에서 CSV 직접 로드
-        source_path = getattr(table_info, "source", None) or ""
-        if source_path and os.path.exists(source_path) and source_path.endswith(".csv"):
-            try:
-                import pandas as pd
-                df = pd.read_csv(source_path)
-                return df.where(pd.notnull(df), None).to_dict("records")
-            except Exception:
-                pass
-
-        # 2차: data_directory + 테이블명.csv
-        if self.data_directory:
-            for suffix in [".csv", "_utf8.csv"]:
-                path = os.path.join(self.data_directory, f"{table_name}{suffix}")
-                if os.path.exists(path):
-                    try:
-                        import pandas as pd
-                        df = pd.read_csv(path)
-                        return df.where(pd.notnull(df), None).to_dict("records")
-                    except Exception:
-                        pass
-
-        # 3차: sample_data 그대로 반환
-        return table_info.sample_data or []
+        return self._table_registry.get_full_data(table_name)
 
     def get_all_full_data(self) -> Dict[str, List[Dict[str, Any]]]:
         """
@@ -822,12 +819,7 @@ class SharedContext:
         Returns:
             {table_name: [rows]} 딕셔너리
         """
-        result = {}
-        for table_name in self.tables:
-            data = self.get_full_data(table_name)
-            if data:
-                result[table_name] = data
-        return result
+        return self._table_registry.get_all_full_data()
 
     # === v14.0: Phase 간 검증 게이트 ===
 
