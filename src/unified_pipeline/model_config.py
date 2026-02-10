@@ -3,10 +3,10 @@ Unified Pipeline Model Configuration
 
 에이전트별 LLM 모델 설정 - 각 모델의 강점에 맞게 할당
 
-모델 특성:
-- gpt-5.1 (fast): 빠른 처리, 데이터 분석, 구조적 작업에 최적
-- claude-opus-4-5-20251101 (balanced): 복잡한 추론, 의미 분석, 판단에 최적
-- gemini-3-pro-preview (creative): 창의적 탐색, 관계 발견, 패턴 인식에 최적
+모델 특성 (v26.2 벤치마크 기반 재배분):
+- gpt-5.2 (fast): 추상추론(ARC-AGI 52.9%), 수학(AIME 100%), 분류(GPQA 92.4%), 전문지식
+- claude-opus-4-5-20251101 (balanced): SWE-bench(80.9%), 도구호출(Tau2 98.2%), 지시사항 준수
+- gemini-3-pro-preview (creative): 장문맥(1M, LongBench 68.2%), 알고리즘 코딩(LiveCodeBench 2439), 다국어/패턴
 - gemini-3-pro-preview (high_context): 대용량 입력 (전체 CSV 등) 처리에 최적
 
 v22.1: HIGH_CONTEXT 모델 타입 추가 — input token이 매우 많은 데이터 분석 태스크용
@@ -41,7 +41,7 @@ MODEL_SPECS: Dict[str, Dict[str, int]] = {
 
 # 모델 이름 매핑 (Letsur AI Gateway) — 환경변수로 오버라이드 가능
 MODELS = {
-    ModelType.FAST: os.environ.get("MODEL_FAST", "gpt-5.1"),
+    ModelType.FAST: os.environ.get("MODEL_FAST", "gpt-5.2"),
     ModelType.BALANCED: os.environ.get("MODEL_BALANCED", "claude-opus-4-5-20251101"),
     ModelType.CREATIVE: os.environ.get("MODEL_CREATIVE", "gemini-3-pro-preview"),
     ModelType.HIGH_CONTEXT: os.environ.get("MODEL_HIGH_CONTEXT", "gemini-3-pro-preview"),
@@ -97,7 +97,7 @@ DISCOVERY_AGENT_MODELS = {
     "tda_expert": ModelType.FAST,           # 위상 분석: 수학적, 구조적 → GPT (fast)
     "schema_analyst": ModelType.FAST,       # 스키마 분석: 구조적 → GPT (fast)
     "value_matcher": ModelType.FAST,        # 값 매칭: 데이터 비교 → GPT (fast)
-    "entity_classifier": ModelType.CREATIVE,  # v26.2: 엔티티 분류 — 넓은 테이블 분해, 1M 컨텍스트 활용 → Gemini (creative)
+    "entity_classifier": ModelType.FAST,       # v26.2: 엔티티 분류 — 분류/판별 작업, GPQA 92.4% → GPT-5.2 (fast)
     "relationship_detector": ModelType.CREATIVE,  # 관계 탐지: 패턴 발견 → Gemini (creative)
 }
 
@@ -219,7 +219,7 @@ UNIFIED_AGENT_CONFIGS = {
         name="Entity Classifier",
         role="entity_classifier",
         stage="discovery",
-        model_type=ModelType.CREATIVE,  # v26.2
+        model_type=ModelType.FAST,  # v26.2: GPT-5.2 GPQA 92.4%
         temperature=0.3,
         expertise_keywords=[
             "entity", "patient", "encounter", "claim", "provider",
