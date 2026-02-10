@@ -289,8 +289,10 @@ Respond ONLY with valid JSON."""
                 sig = tda_sigs.get(src_table, {})
                 if isinstance(sig, dict) and sig.get("betti_numbers"):
                     betti = sig["betti_numbers"]
-                    if len(betti) > 0 and betti[0] > 0:
-                        tda_boost = max(tda_boost, min(0.1, betti[0] * 0.02))
+                    # betti_numbers는 list 또는 dict일 수 있음
+                    b0 = betti[0] if isinstance(betti, list) and len(betti) > 0 else betti.get(0, betti.get("0", 0)) if isinstance(betti, dict) else 0
+                    if b0 and b0 > 0:
+                        tda_boost = max(tda_boost, min(0.1, b0 * 0.02))
 
             raw_confidence = c.get("confidence", 0.0)
             adjusted_confidence = min(1.0, raw_confidence + tda_boost)
