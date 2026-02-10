@@ -120,6 +120,10 @@ class OntologyConcept:
     # v25.2: 생성 에이전트 식별
     source_agent: str = ""
 
+    # v27.0: 계층 및 속성
+    unified_attributes: List[Dict[str, Any]] = field(default_factory=list)
+    parent_concept: str = ""  # 상위 개념명 (e.g., "Metrics")
+
 
 @dataclass
 class GovernanceDecision:

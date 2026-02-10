@@ -536,6 +536,10 @@ class ConsensusCoordinator:
                 return "lightweight", f"Few conflicts ({len(conflicts)}) - lightweight", 0.7
             return "full_consensus", f"Multiple conflicts ({len(conflicts)})", 0.6
 
+        # v27.0: ontology_proposal은 생성 태스크 — 에이전트가 반드시 실행되어야 함
+        if "ontology" in todo_type and "proposal" in todo_type:
+            return "lightweight", "Ontology proposal requires agent execution for concept generation", 0.7
+
         if "ontology" in todo_type and "approval" in todo_type:
             pending = [c for c in concepts if c.status in ["pending", "provisional"]]
             if not pending:

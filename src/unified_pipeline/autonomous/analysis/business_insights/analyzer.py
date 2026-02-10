@@ -198,7 +198,13 @@ class BusinessInsightsAnalyzer:
             # 13. v26.2: ID 컬럼 중복 패턴 분석 (video_id 등 longitudinal 패턴 감지)
             self._analyze_duplicate_patterns(table_name, rows, table_info, system)
 
-        # 14. v18.3: LLM 기반 도메인 특화 인사이트 생성 (분석 모델 결과 포함)
+            # 14. v27.0: 카테고리 분포 인사이트 (Language Distribution 등)
+            self._analyze_categorical_distributions(table_name, rows, table_info, system)
+
+        # 15. v27.0: 인사이트 중복 제거 및 모순 감지
+        self._consolidate_and_validate_insights()
+
+        # 16. v18.3: LLM 기반 도메인 특화 인사이트 생성 (분석 모델 결과 포함)
         if self.llm_client and self.domain_context:
             self._generate_llm_domain_insights(tables, data)
 
@@ -2048,10 +2054,9 @@ class BusinessInsightsAnalyzer:
         # _is_business_metric_column 필터가 이미 ID/키 컬럼을 제외하므로 전부 사용.
         target_kpis = numeric_kpi_cols[:15]
 
-        # --- 4. 세그먼트별 분석 ---
+        # --- 4. v27.0: 세그먼트별 통합 분석 (카테고리별 top 3 gap 통합) ---
         for cat_col, cardinality, unique_vals in categorical_cols:
-            for kpi_col in target_kpis:
-                self._compare_segments(table_name, rows, cat_col, kpi_col, system)
+            self._compare_segments_consolidated(table_name, rows, cat_col, target_kpis, system)
 
         # --- 5. 연속형 숫자 컬럼 버킷 분석 (분위수 기반) ---
         # 카테고리가 아닌 연속형 컬럼 중 고유값 비율 높은 상위 3개를 버킷 분석
@@ -2082,6 +2087,113 @@ class BusinessInsightsAnalyzer:
             return True
         except (ValueError, TypeError):
             return False
+
+    def _compare_segments_consolidated(
+        self,
+        table_name: str,
+        rows: List[Dict],
+        cat_col: str,
+        kpi_cols: List[str],
+        system: str,
+    ):
+        """v27.0: 카테고리 컬럼 당 모든 KPI gap을 수집, top 3만 하나의 인사이트로 통합."""
+        significant_gaps = []
+        tested_kpi_count = 0
+        max_observed_ratio = 1.0
+
+        for kpi_col in kpi_cols:
+            groups = defaultdict(list)
+            for row in rows:
+                cat_val = row.get(cat_col)
+                kpi_val = row.get(kpi_col)
+                if cat_val is not None and kpi_val is not None and isinstance(kpi_val, (int, float)):
+                    groups[str(cat_val)].append(kpi_val)
+
+            valid_groups = {k: v for k, v in groups.items() if len(v) >= 10}
+            if len(valid_groups) < 2:
+                continue
+
+            group_stats = {}
+            for grp, vals in valid_groups.items():
+                group_stats[grp] = {"n": len(vals), "mean": statistics.mean(vals)}
+
+            means = [s["mean"] for s in group_stats.values()]
+            max_mean = max(means)
+            min_mean = min(means)
+
+            if min_mean <= 0:
+                continue
+
+            tested_kpi_count += 1
+            ratio = max_mean / min_mean
+            max_observed_ratio = max(max_observed_ratio, ratio)
+
+            if ratio < 2.0:
+                continue
+
+            best_group = max(group_stats, key=lambda g: group_stats[g]["mean"])
+            worst_group = min(group_stats, key=lambda g: group_stats[g]["mean"])
+            significant_gaps.append((kpi_col, ratio, best_group, worst_group, group_stats))
+
+        # v27.0 Fix 6: Null-Finding 감지 — 효과 없는 카테고리 보고
+        if not significant_gaps:
+            if tested_kpi_count >= 3 and max_observed_ratio < 1.5:
+                insight = self._create_insight(
+                    title=f"No Significant Effect: {cat_col}",
+                    description=(
+                        f"{cat_col} shows no significant performance gap across {tested_kpi_count} KPIs tested "
+                        f"(max ratio {max_observed_ratio:.2f}x). This variable does not meaningfully drive outcomes."
+                    ),
+                    insight_type=InsightType.KPI,
+                    severity=InsightSeverity.LOW,
+                    source_table=table_name,
+                    source_column=cat_col,
+                    source_system=system,
+                    metric_value=max_observed_ratio,
+                    metric_name=f"null_effect_{cat_col}",
+                    recommendations=[
+                        f"Deprioritize {cat_col} as a segmentation variable",
+                        f"Focus optimization efforts on other dimensions with larger impact",
+                    ],
+                    business_impact=f"{cat_col} is not a meaningful performance driver (max gap {max_observed_ratio:.2f}x)",
+                )
+                self.insights.append(insight)
+            return
+
+        # top 3 유의미한 gap만 하나의 인사이트로 통합
+        significant_gaps.sort(key=lambda x: -x[1])
+        top_gaps = significant_gaps[:3]
+
+        gap_details = []
+        for kpi_col, ratio, best_grp, worst_grp, stats in top_gaps:
+            gap_details.append(
+                f"{kpi_col}: {best_grp}({stats[best_grp]['mean']:,.1f}) vs "
+                f"{worst_grp}({stats[worst_grp]['mean']:,.1f}) = {ratio:.1f}x"
+            )
+
+        max_ratio = top_gaps[0][1]
+        insight = self._create_insight(
+            title=f"Segment Performance: {cat_col} ({len(significant_gaps)} KPI gaps)",
+            description=(
+                f"{cat_col} shows significant performance gaps across {len(significant_gaps)} KPIs. "
+                f"Top gaps: {'; '.join(gap_details)}"
+            ),
+            insight_type=InsightType.KPI,
+            severity=InsightSeverity.HIGH if max_ratio >= 5.0 else InsightSeverity.MEDIUM,
+            source_table=table_name,
+            source_column=cat_col,
+            source_system=system,
+            metric_value=max_ratio,
+            metric_name=f"segment_gap_{cat_col}",
+            count=sum(top_gaps[0][4][g]["n"] for g in top_gaps[0][4]),
+            percentage=max_ratio,
+            recommendations=[
+                f"Investigate why {top_gaps[0][2]} consistently outperforms across {len(significant_gaps)} KPIs",
+                f"Consider stratified analysis by {cat_col} for targeted optimization",
+            ],
+            business_impact=f"{cat_col} drives up to {max_ratio:.1f}x gap across {len(significant_gaps)} metrics",
+        )
+        self.insights.append(insight)
 
     def _compare_segments(
         self,
@@ -2153,6 +2265,127 @@ class BusinessInsightsAnalyzer:
             business_impact=f"{cat_col} segment drives {ratio:.1f}x performance gap in {kpi_col}",
         )
         self.insights.append(insight)
+
+    def _analyze_categorical_distributions(
+        self,
+        table_name: str,
+        rows: List[Dict],
+        table_info: Dict,
+        system: str,
+    ):
+        """v27.0: 카테고리 컬럼의 분포 인사이트 (Language Distribution 등)."""
+        if not rows or len(rows) < 50:
+            return
+
+        from collections import Counter
+        total_rows = len(rows)
+        sample_row = rows[0]
+
+        for col in sample_row.keys():
+            if not col:
+                continue
+            if self._should_skip_segment_col(col):
+                continue
+
+            values = [
+                str(row.get(col, "")).strip() for row in rows
+                if row.get(col) is not None and str(row.get(col)).strip()
+            ]
+            if len(values) < total_rows * 0.5:
+                continue
+
+            counter = Counter(values)
+            cardinality = len(counter)
+
+            if cardinality < 5 or cardinality > 100:
+                continue
+
+            top_val = counter.most_common(1)[0][0]
+            if self._is_numeric_string(top_val):
+                continue
+
+            top_count = counter.most_common(1)[0][1]
+            if top_count / len(values) < 0.2:
+                continue
+
+            top5 = counter.most_common(5)
+            dist_str = ", ".join(f"{v}({c})" for v, c in top5)
+            remaining = cardinality - 5
+            if remaining > 0:
+                dist_str += f", +{remaining} others"
+
+            insight = self._create_insight(
+                title=f"Distribution: {col} ({cardinality} categories)",
+                description=(
+                    f"{col} has {cardinality} unique values across {len(values):,} records. "
+                    f"Top: {dist_str}"
+                ),
+                insight_type=InsightType.STATUS_DISTRIBUTION,
+                severity=InsightSeverity.INFO,
+                source_table=table_name,
+                source_column=col,
+                source_system=system,
+                metric_value=cardinality,
+                metric_name=f"distribution_{col}",
+                count=len(values),
+                percentage=top_count / len(values) * 100,
+                recommendations=[
+                    f"Consider {col} as a segmentation dimension",
+                    f"Top category '{top5[0][0]}' represents {top_count/len(values):.0%} of data",
+                ],
+                business_impact=f"{col} distribution reveals {cardinality} distinct categories",
+            )
+            self.insights.append(insight)
+
+    def _consolidate_and_validate_insights(self):
+        """v27.0: 인사이트 중복 제거 및 모순 감지."""
+        if not self.insights:
+            return
+
+        # 1. ML Anomaly 인사이트 상위 5개로 제한
+        ml_anomalies = [i for i in self.insights if i.title.startswith("ML Anomalies Detected:")]
+        if len(ml_anomalies) > 5:
+            ml_anomalies.sort(key=lambda x: -(x.percentage or 0))
+            keep = set(id(i) for i in ml_anomalies[:5])
+            self.insights = [
+                i for i in self.insights
+                if not i.title.startswith("ML Anomalies Detected:") or id(i) in keep
+            ]
+
+        # 2. 같은 컬럼에 대한 positive/negative 방향 모순 감지
+        column_directions = defaultdict(list)
+        for insight in self.insights:
+            col = insight.source_column
+            if not col:
+                continue
+            if "Segment Gap:" in insight.title or "Segment Performance:" in insight.title:
+                column_directions[col].append({
+                    "insight_id": insight.insight_id,
+                    "direction": "positive",
+                    "title": insight.title,
+                })
+            elif "Negative Correlation:" in insight.title or "Negative Driver:" in insight.title:
+                column_directions[col].append({
+                    "insight_id": insight.insight_id,
+                    "direction": "negative",
+                    "title": insight.title,
+                })
+
+        for col, entries in column_directions.items():
+            directions = set(e["direction"] for e in entries)
+            if len(directions) > 1:
+                contradiction_note = (
+                    f" [CONTRADICTION] {col} shows conflicting signals: "
+                    + "; ".join(e["title"] for e in entries)
+                )
+                for entry in entries:
+                    for insight in self.insights:
+                        if insight.insight_id == entry["insight_id"]:
+                            insight.description += contradiction_note
+                            if "Validate with controlled experiments" not in (insight.recommendations or []):
+                                insight.recommendations.append(
+                                    "Validate with controlled experiments — conflicting signals detected"
+                                )
 
     def _analyze_numeric_buckets(
         self,

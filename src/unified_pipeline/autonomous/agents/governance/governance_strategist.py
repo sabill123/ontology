@@ -904,6 +904,17 @@ Respond ONLY with valid JSON."""
             )
             governance_decisions.append(decision)
 
+            # v27.0: governance decision → concept.status 동기화
+            for concept in context.ontology_concepts:
+                if concept.concept_id == concept_id:
+                    if final_decision_type == "approve":
+                        concept.status = "approved"
+                    elif final_decision_type == "reject":
+                        concept.status = "rejected"
+                    elif final_decision_type == "schedule_review":
+                        concept.status = "provisional"
+                    break
+
             # v11.0: 거버넌스 결정을 Evidence로 기록
             if EVIDENCE_CHAIN_AVAILABLE and evidence_debate:
                 try:

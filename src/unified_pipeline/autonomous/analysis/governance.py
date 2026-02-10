@@ -684,14 +684,18 @@ class DecisionMatrix:
         # 에스컬레이션 조건
         low, high = self.thresholds["escalate_range"]
         if low <= quality_score <= high and business_value == "high":
-            confidence = 0.6
+            # v27.0: 데이터 기반 confidence (기존 하드코딩 0.6 제거)
+            confidence = min(quality_score, evidence_strength) / 100 * 0.9
+            confidence = max(0.4, min(0.7, confidence))
             reasons.append(f"Medium quality ({quality_score:.0f}%) with high business value")
             reasons.append("Requires human review")
 
             return "escalate", confidence, "; ".join(reasons)
 
         # 기본: 검토 예약
-        confidence = 0.5
+        # v27.0: 데이터 기반 confidence (기존 하드코딩 0.5 제거)
+        confidence = (quality_score + evidence_strength) / 200
+        confidence = max(0.3, min(0.7, confidence))
         reasons.append(f"Quality: {quality_score:.0f}%")
         reasons.append(f"Evidence: {evidence_strength:.0f}%")
         reasons.append(f"Risk: {risk_level}")

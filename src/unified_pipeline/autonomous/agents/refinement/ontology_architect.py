@@ -308,8 +308,15 @@ Respond ONLY with valid JSON."""
                 status="pending",
                 confidence=adjusted_confidence,
                 source_agent="ontology_architect",
+                unified_attributes=c.get("definition", {}).get("extracted_attributes", []),
             )
             ontology_concepts.append(concept)
+
+        # v27.0: 계층 정보를 concept.parent_concept에 반영
+        for parent_name, children in hierarchy.items():
+            for concept in ontology_concepts:
+                if concept.name in children and concept.concept_type == "object_type":
+                    concept.parent_concept = parent_name
 
         self._report_progress(0.95, "Finalizing ontology design")
 
@@ -516,6 +523,12 @@ Respond ONLY with valid JSON."""
             f"{len(cross_table_mappings)} cross-table mappings"
         )
 
+        # v27.0: 테이블명→엔티티명 매핑 구축 (관계 해결용)
+        table_to_entity: Dict[str, str] = {}
+        for entity in (context.unified_entities or []):
+            for table_name in entity.source_tables:
+                table_to_entity[table_name] = self._to_pascal_case(entity.canonical_name)
+
         # 1. Unified Entities에서 Object Types 추출
         for entity in context.unified_entities:
             name = self._to_pascal_case(entity.canonical_name)
@@ -652,9 +665,11 @@ Respond ONLY with valid JSON."""
                 },
                 "confidence": homeo.confidence,
                 "definition": {
-                    "source": homeo.table_a,
-                    "target": homeo.table_b,
+                    "source": table_to_entity.get(homeo.table_a, homeo.table_a),
+                    "target": table_to_entity.get(homeo.table_b, homeo.table_b),
                     "join_keys": homeo.join_keys,
+                    "source_table": homeo.table_a,
+                    "target_table": homeo.table_b,
                 },
             })
 
@@ -724,9 +739,11 @@ Respond ONLY with valid JSON."""
                 },
                 "confidence": fk_confidence,
                 "definition": {
-                    "source": from_table,
-                    "target": to_table,
+                    "source": table_to_entity.get(from_table, from_table),
+                    "target": table_to_entity.get(to_table, to_table),
                     "join_keys": [(from_column, to_column)],
+                    "source_table": from_table,
+                    "target_table": to_table,
                 },
             })
 
@@ -786,9 +803,11 @@ Respond ONLY with valid JSON."""
                 },
                 "confidence": vo_confidence,
                 "definition": {
-                    "source": from_table,
-                    "target": to_table,
+                    "source": table_to_entity.get(from_table, from_table),
+                    "target": table_to_entity.get(to_table, to_table),
                     "join_keys": [(from_column, to_column)],
+                    "source_table": from_table,
+                    "target_table": to_table,
                 },
             })
 
@@ -1008,29 +1027,34 @@ Respond ONLY with valid JSON."""
         concepts: List[Dict[str, Any]],
         context: "SharedContext",
     ) -> Dict[str, List[str]]:
-        """계층 관계 추론 (알고리즘)"""
+        """v27.0: 도메인 무관 계층 관계 추론 (토큰 겹침 기반)"""
+        import re
         hierarchy = {}
 
-        # Object Types만 추출
         object_types = [c for c in concepts if c.get("concept_type") == "object_type"]
+        if len(object_types) < 2:
+            return hierarchy
 
-        # 이름 기반 계층 추론
+        # PascalCase/snake_case를 토큰으로 분리
+        concept_tokens = {}
         for obj in object_types:
             name = obj.get("name", "")
+            tokens = set(
+                t.lower() for t in re.findall(r'[A-Z][a-z]+|[a-z]+', name)
+                if len(t) > 2
+            )
+            concept_tokens[name] = tokens
 
-            # 일반적인 상위 개념 매핑
-            if any(term in name.lower() for term in ["patient", "member", "person"]):
-                hierarchy.setdefault("Person", []).append(name)
-            elif any(term in name.lower() for term in ["claim", "bill", "charge"]):
-                hierarchy.setdefault("FinancialRecord", []).append(name)
-            elif any(term in name.lower() for term in ["encounter", "visit", "admission"]):
-                hierarchy.setdefault("ClinicalEvent", []).append(name)
-            elif any(term in name.lower() for term in ["provider", "physician", "doctor"]):
-                hierarchy.setdefault("HealthcareProvider", []).append(name)
-            elif any(term in name.lower() for term in ["diagnosis", "condition"]):
-                hierarchy.setdefault("ClinicalConcept", []).append(name)
-            elif any(term in name.lower() for term in ["procedure", "service"]):
-                hierarchy.setdefault("MedicalService", []).append(name)
+        # 공통 토큰으로 그룹핑 — 2개 이상 개념에 나타나는 토큰이 parent 후보
+        token_groups: Dict[str, List[str]] = {}
+        for name, tokens in concept_tokens.items():
+            for token in tokens:
+                token_groups.setdefault(token, []).append(name)
+
+        for token, members in token_groups.items():
+            if 2 <= len(members) <= len(object_types) // 2 + 1:
+                parent_name = token.capitalize()
+                hierarchy[parent_name] = members
 
         return hierarchy
 
