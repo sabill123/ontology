@@ -2029,26 +2029,46 @@ class BusinessInsightsAnalyzer:
         if not categorical_cols or not numeric_kpi_cols:
             return
 
-        # --- 3. 핵심 KPI 선택 (상위 5개: view_count, viral_score 등 우선) ---
-        kpi_priority = ["view_count", "viral_score", "engagement_rate", "like_count", "follower_count",
-                        "impact_score", "comment_count", "share_count"]
-        sorted_kpis = sorted(numeric_kpi_cols,
-                             key=lambda c: next((i for i, p in enumerate(kpi_priority) if p in c.lower()), 99))
-        target_kpis = sorted_kpis[:5]
+        # --- 3. 핵심 KPI 선택 (상위 5개: 분산 큰 순서) ---
+        # 도메인 무관하게 표준편차가 큰 컬럼일수록 세그먼트 간 차이가 유의미
+        kpi_variance = []
+        for col in numeric_kpi_cols:
+            vals = [row.get(col) for row in rows if row.get(col) is not None and isinstance(row.get(col), (int, float))]
+            if vals and statistics.mean(vals) != 0:
+                cv = statistics.stdev(vals) / abs(statistics.mean(vals)) if len(vals) > 1 else 0
+                kpi_variance.append((col, cv))
+        kpi_variance.sort(key=lambda x: -x[1])
+        target_kpis = [col for col, _ in kpi_variance[:5]]
 
         # --- 4. 세그먼트별 분석 ---
         for cat_col, cardinality, unique_vals in categorical_cols:
             for kpi_col in target_kpis:
                 self._compare_segments(table_name, rows, cat_col, kpi_col, system)
 
-        # --- 5. Duration 버킷 분석 (특수 케이스) ---
-        duration_col = None
+        # --- 5. 연속형 숫자 컬럼 버킷 분석 (분위수 기반) ---
+        # 카테고리가 아닌 연속형 컬럼 중 분산 높은 상위 2개를 버킷 분석
+        continuous_candidates = []
         for col in sample_row.keys():
-            if col and col.lower() == "duration":
-                duration_col = col
-                break
-        if duration_col:
-            self._analyze_duration_buckets(table_name, rows, duration_col, target_kpis, system)
+            if not col or not self._is_business_metric_column(col):
+                continue
+            col_lower = col.lower()
+            if any(p in col_lower for p in self._SEGMENT_SKIP_PATTERNS):
+                continue
+            # 카테고리 컬럼과 중복 제거
+            if any(col == cc[0] for cc in categorical_cols):
+                continue
+            # KPI 타겟과도 중복 제거
+            if col in target_kpis:
+                continue
+            vals = [row.get(col) for row in rows if row.get(col) is not None and isinstance(row.get(col), (int, float))]
+            if len(vals) >= total_rows * 0.5:
+                unique_ratio = len(set(vals)) / len(vals)
+                if unique_ratio > 0.1:  # 충분히 연속적인 컬럼
+                    continuous_candidates.append((col, unique_ratio))
+
+        continuous_candidates.sort(key=lambda x: -x[1])
+        for cont_col, _ in continuous_candidates[:2]:
+            self._analyze_numeric_buckets(table_name, rows, cont_col, target_kpis, system)
 
     def _is_numeric_string(self, val: str) -> bool:
         """문자열이 숫자인지 판별"""
@@ -2129,31 +2149,51 @@ class BusinessInsightsAnalyzer:
         )
         self.insights.append(insight)
 
-    def _analyze_duration_buckets(
+    def _analyze_numeric_buckets(
         self,
         table_name: str,
         rows: List[Dict],
-        duration_col: str,
+        bucket_col: str,
         kpi_cols: List[str],
         system: str,
     ):
-        """Duration 버킷별 KPI 분석"""
-        buckets = {
-            "<15s": (0, 15),
-            "15-30s": (15, 30),
-            "30-60s": (30, 60),
-            "60-120s": (60, 120),
-            ">120s": (120, float("inf")),
-        }
+        """
+        연속형 숫자 컬럼을 분위수 기반 버킷으로 나누어 KPI 비교.
+        도메인 무관하게 5-quantile(Q1~Q5) 사용.
+        """
+        import numpy as np
+
+        raw_vals = [
+            row.get(bucket_col) for row in rows
+            if row.get(bucket_col) is not None and isinstance(row.get(bucket_col), (int, float))
+        ]
+        if len(raw_vals) < 50:
+            return
+
+        arr = np.array(raw_vals, dtype=float)
+        quantiles = [0, 20, 40, 60, 80, 100]
+        edges = [float(np.percentile(arr, q)) for q in quantiles]
+
+        # 버킷 생성 (중복 edge 제거)
+        buckets = {}
+        for i in range(len(edges) - 1):
+            lo, hi = edges[i], edges[i + 1]
+            if lo == hi:
+                continue
+            bname = f"{lo:.1f}-{hi:.1f}"
+            buckets[bname] = (lo, hi)
+
+        if len(buckets) < 3:
+            return
 
         for kpi_col in kpi_cols:
             bucket_stats = {}
             for bname, (lo, hi) in buckets.items():
                 vals = [
                     row[kpi_col] for row in rows
-                    if row.get(duration_col) is not None
-                    and isinstance(row.get(duration_col), (int, float))
-                    and lo <= row[duration_col] < hi
+                    if row.get(bucket_col) is not None
+                    and isinstance(row.get(bucket_col), (int, float))
+                    and lo <= row[bucket_col] < (hi + 0.001 if bname == list(buckets.keys())[-1] else hi)
                     and row.get(kpi_col) is not None
                     and isinstance(row.get(kpi_col), (int, float))
                 ]
@@ -2176,24 +2216,24 @@ class BusinessInsightsAnalyzer:
             )
 
             insight = self._create_insight(
-                title=f"Duration Sweet Spot: {kpi_col}",
+                title=f"{bucket_col} Sweet Spot: {kpi_col}",
                 description=(
-                    f"{best_bucket} duration has highest avg {kpi_col} ({bucket_stats[best_bucket]['mean']:,.1f}). "
+                    f"{bucket_col} range {best_bucket} has highest avg {kpi_col} ({bucket_stats[best_bucket]['mean']:,.1f}). "
                     f"[{details}]"
                 ),
                 insight_type=InsightType.KPI,
                 severity=InsightSeverity.MEDIUM,
                 source_table=table_name,
-                source_column=duration_col,
+                source_column=bucket_col,
                 source_system=system,
                 metric_value=bucket_stats[best_bucket]["mean"],
-                metric_name=f"duration→{kpi_col}",
+                metric_name=f"{bucket_col}→{kpi_col}",
                 count=sum(s["n"] for s in bucket_stats.values()),
                 recommendations=[
-                    f"Target {best_bucket} duration for maximum {kpi_col}",
-                    "Test content length variations to validate sweet spot",
+                    f"Target {bucket_col} range {best_bucket} for maximum {kpi_col}",
+                    f"Test {bucket_col} variations to validate sweet spot",
                 ],
-                business_impact=f"Duration optimization can improve {kpi_col} by up to {max_mean/min_mean:.1f}x",
+                business_impact=f"{bucket_col} optimization can improve {kpi_col} by up to {max_mean/min_mean:.1f}x",
             )
             self.insights.append(insight)
 
@@ -2237,11 +2277,16 @@ class BusinessInsightsAnalyzer:
         if len(numeric_cols) < 2:
             return
 
-        # KPI 타겟 컬럼 (상관 분석의 기준)
-        kpi_targets = ["viral_score", "view_count", "engagement_rate", "impact_score", "like_count"]
-        target_cols = [c for c in numeric_cols if any(t in c.lower() for t in kpi_targets)]
-        if not target_cols:
-            target_cols = numeric_cols[:3]
+        # KPI 타겟 컬럼 (상관 분석의 기준) — 분산 계수(CV) 높은 순으로 선택
+        col_cv = []
+        for col in numeric_cols:
+            vals = [row.get(col) for row in rows if row.get(col) is not None and isinstance(row.get(col), (int, float))]
+            if vals and len(vals) > 1:
+                m = statistics.mean(vals)
+                if m != 0:
+                    col_cv.append((col, statistics.stdev(vals) / abs(m)))
+        col_cv.sort(key=lambda x: -x[1])
+        target_cols = [c for c, _ in col_cv[:5]] if col_cv else numeric_cols[:3]
 
         # 상관 계수 계산
         reported = set()
