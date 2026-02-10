@@ -11,8 +11,8 @@
          Autonomous Ontology Discovery & Data Intelligence Platform
 ```
 
-> **Version**: v23.0
-> **Last Updated**: 2026-02-09
+> **Version**: v25.2
+> **Last Updated**: 2026-02-10
 
 ---
 
@@ -371,7 +371,7 @@
 │   ┌──────────────────────────────────────────────────────────────────────┐   │
 │   │  ONTOLOGY                                                             │   │
 │   ├──────────────────────────────────────────────────────────────────────┤   │
-│   │  ontology_concepts: List[OntologyConcept]                            │   │
+│   │  ontology_concepts: List[OntologyConcept]  # +source_agent (v25.2)   │   │
 │   │  concept_relationships: List[ConceptRelationship]                    │   │
 │   │  knowledge_graph_triples: List[Dict]  # RDF-style triples           │   │
 │   │  semantic_base_triples: List[Dict]   # Base semantic triples       │   │
@@ -383,9 +383,15 @@
 │   │  DYNAMIC DATA                                                         │   │
 │   ├──────────────────────────────────────────────────────────────────────┤   │
 │   │  dynamic_data: Dict[str, Any]           # OWL2/SHACL 결과 포함       │   │
-│   │    ├── owl2_axioms: List[Dict]          # OWL2 Reasoner 결과         │   │
-│   │    ├── shacl_violations: List[Dict]     # SHACL 위반 목록            │   │
+│   │    ├── owl2_reasoning_results            # OWL2 Reasoner 결과         │   │
+│   │    ├── shacl_validation_results          # SHACL 검증 결과            │   │
 │   │    ├── shacl_shapes: List[Dict]         # SHACL Shape 정의           │   │
+│   │    ├── conflicts_detected (v25.2)       # 충돌 탐지 결과 전파        │   │
+│   │    ├── clean_concepts (v25.2)           # 정제된 개념 전파           │   │
+│   │    ├── quality_assessments (v25.2)      # 개별 품질 평가 전파        │   │
+│   │    ├── algorithmic_scores (v25.2)       # 알고리즘 점수 전파         │   │
+│   │    ├── semantic_validations (v25.2)     # 시맨틱 검증 결과 전파      │   │
+│   │    ├── algorithmic_validations (v25.2)  # 알고리즘 검증 전파         │   │
 │   │    ├── column_semantics, data_patterns, business_roles, ...          │   │
 │   └──────────────────────────────────────────────────────────────────────┘   │
 │                                                                                │
@@ -394,7 +400,10 @@
 │   ├──────────────────────────────────────────────────────────────────────┤   │
 │   │  governance_decisions: List[GovernanceDecision]                      │   │
 │   │  business_insights: List[BusinessInsight]                            │   │
+│   │  palantir_insights: List[PalantirInsight]  # 처방적 인사이트 (v25.2) │   │
+│   │  unified_insights_pipeline: List[Dict]  # Algorithm→Sim→LLM (v25.2) │   │
 │   │  evidence_chain: List[EvidenceBlock]   # Blockchain-style audit      │   │
+│   │  evidence_based_debate_results: Dict   # 증거 기반 토론 결과 (v25.2) │   │
 │   │  lineage_graph: Dict                   # Column-level lineage        │   │
 │   └──────────────────────────────────────────────────────────────────────┘   │
 │                                                                                │
@@ -606,9 +615,23 @@ src/unified_pipeline/
 │   ├── debate_protocol.py             # BFT debate with CouncilAgent
 │   │
 │   ├── agents/
-│   │   ├── discovery.py               # 6 Discovery agents
-│   │   ├── refinement.py              # 4 Refinement agents
-│   │   └── governance.py              # 4 Governance agents
+│   │   ├── discovery/                 # Phase 1: 6 Discovery agents (v25.1 package)
+│   │   │   ├── data_analyst.py
+│   │   │   ├── tda_expert.py
+│   │   │   ├── schema_analyst.py
+│   │   │   ├── value_matcher.py
+│   │   │   ├── entity_classifier.py
+│   │   │   └── relationship_detector.py
+│   │   ├── refinement/                # Phase 2: 4 Refinement agents (v25.1 package)
+│   │   │   ├── ontology_architect.py  # +TDA confidence boost, source_agent (v25.2)
+│   │   │   ├── conflict_resolver.py   # +context_updates 전파 (v25.2)
+│   │   │   ├── quality_judge.py       # +context_updates 전파 (v25.2)
+│   │   │   └── semantic_validator.py  # +context_updates 전파 (v25.2)
+│   │   └── governance/                # Phase 3: 4 Governance agents (v25.1 package)
+│   │       ├── governance_strategist.py  # +인과 관계 상세, slicing 확대 (v25.2)
+│   │       ├── action_prioritizer.py
+│   │       ├── risk_assessor.py
+│   │       └── policy_generator.py
 │   │
 │   ├── analysis/                      # 49 analysis modules
 │   │   ├── # ── FK Detection ──
@@ -827,4 +850,49 @@ PipelineConfig:
 
 ---
 
-*Document Version: v23.0 | Last Updated: 2026-02-09*
+## 14. v25.2 Data Flow Architecture
+
+```
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                    v25.2 PHASE INTER-COMMUNICATION                            │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                                                                                │
+│   CRITICAL PATTERN: TodoResult.context_updates → SharedContext 영구 저장       │
+│   ══════════════════════════════════════════════════════════════════════        │
+│                                                                                │
+│   Phase 2 Agent → TodoResult(context_updates={...}) → base.py._apply_       │
+│                    context_updates() → SharedContext.dynamic_data              │
+│                                                                                │
+│   ⚠ metadata={} 는 영구 저장되지 않음! context_updates만 Phase 3에 전달       │
+│                                                                                │
+│   FLOW MAP:                                                                    │
+│                                                                                │
+│   OntologyArchitect ──▶ ontology_concepts (source_agent="ontology_architect") │
+│         │                 + TDA confidence boost (betti_numbers 기반)          │
+│         ▼                                                                      │
+│   ConflictResolver ──▶ conflicts_detected, clean_concepts                     │
+│         ▼                                                                      │
+│   QualityJudge ──────▶ quality_assessments, algorithmic_scores                │
+│         ▼                                                                      │
+│   SemanticValidator ──▶ semantic_validations, algorithmic_validations          │
+│         │                + owl2_reasoning_results, shacl_validation_results    │
+│         ▼                                                                      │
+│   GovernanceStrategist ◀── All above via SharedContext.dynamic_data           │
+│         │                    + causal_info detail (target, effect values)      │
+│         ▼                                                                      │
+│   [BFT Council 4:N Vote → Evidence-based Debate → Final Decision]             │
+│                                                                                │
+│   CONSENSUS COORDINATOR (v25.2):                                               │
+│   • quality assessment → "lightweight" (not full_skip) when 0 concepts        │
+│   • Agent always runs even with empty input → fills context_updates           │
+│                                                                                │
+│   ORCHESTRATOR (v25.2):                                                        │
+│   • consensus_completed_todos.add() only AFTER successful agent assignment    │
+│   • Failed assignment → retry in next loop iteration                          │
+│                                                                                │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+*Document Version: v25.2 | Last Updated: 2026-02-10*
