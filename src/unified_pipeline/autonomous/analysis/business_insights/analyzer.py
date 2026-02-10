@@ -2041,16 +2041,10 @@ class BusinessInsightsAnalyzer:
         if not categorical_cols or not numeric_kpi_cols:
             return
 
-        # --- 3. 핵심 KPI 선택 (상위 5개: 분산 큰 순서) ---
-        # 도메인 무관하게 표준편차가 큰 컬럼일수록 세그먼트 간 차이가 유의미
-        kpi_variance = []
-        for col in numeric_kpi_cols:
-            vals = [row.get(col) for row in rows if row.get(col) is not None and isinstance(row.get(col), (int, float))]
-            if vals and statistics.mean(vals) != 0:
-                cv = statistics.stdev(vals) / abs(statistics.mean(vals)) if len(vals) > 1 else 0
-                kpi_variance.append((col, cv))
-        kpi_variance.sort(key=lambda x: -x[1])
-        target_kpis = [col for col, _ in kpi_variance[:5]]
+        # --- 3. KPI 선택: 모든 비즈니스 숫자 컬럼 사용 (최대 15개) ---
+        # CV 기반 제한은 view_count 같은 핵심 KPI를 누락시킴.
+        # _is_business_metric_column 필터가 이미 ID/키 컬럼을 제외하므로 전부 사용.
+        target_kpis = numeric_kpi_cols[:15]
 
         # --- 4. 세그먼트별 분석 ---
         for cat_col, cardinality, unique_vals in categorical_cols:
