@@ -2289,7 +2289,7 @@ class BusinessInsightsAnalyzer:
         if len(numeric_cols) < 2:
             return
 
-        # KPI 타겟 컬럼 (상관 분석의 기준) — 분산 계수(CV) 높은 순으로 선택
+        # KPI 타겟 컬럼 — CV 상위 + _score/_rate 패턴 (합성 KPI 컬럼 우선)
         col_cv = []
         for col in numeric_cols:
             vals = [row.get(col) for row in rows if row.get(col) is not None and isinstance(row.get(col), (int, float))]
@@ -2298,7 +2298,14 @@ class BusinessInsightsAnalyzer:
                 if m != 0:
                     col_cv.append((col, statistics.stdev(vals) / abs(m)))
         col_cv.sort(key=lambda x: -x[1])
-        target_cols = [c for c, _ in col_cv[:5]] if col_cv else numeric_cols[:3]
+        cv_targets = [c for c, _ in col_cv[:5]] if col_cv else numeric_cols[:3]
+        # _score/_rate/_index 패턴 컬럼도 타겟에 추가 (합성 KPI는 모든 도메인에서 중요)
+        kpi_pattern_targets = [
+            c for c in numeric_cols
+            if c not in cv_targets
+            and any(p in c.lower() for p in ("_score", "_rate", "_index", "score_", "rate_"))
+        ]
+        target_cols = cv_targets + kpi_pattern_targets[:3]
 
         # 상관 계수 계산
         reported = set()
