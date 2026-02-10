@@ -279,12 +279,14 @@ Respond ONLY with valid JSON."""
         self._report_progress(0.8, "Creating ontology concept objects")
 
         # 4단계: OntologyConcept 객체 생성
+        # v25.2: TDA 시그니처 로드 (confidence 보정에 사용)
+        tda_sigs = context.tda_signatures or {}
         ontology_concepts = []
         for c in enhanced_concepts:
             # v25.2: TDA 시그니처 기반 confidence 보정
             tda_boost = 0.0
             for src_table in c.get("source_tables", []):
-                sig = tda_signatures.get(src_table, {})
+                sig = tda_sigs.get(src_table, {})
                 if isinstance(sig, dict) and sig.get("betti_numbers"):
                     betti = sig["betti_numbers"]
                     if len(betti) > 0 and betti[0] > 0:
