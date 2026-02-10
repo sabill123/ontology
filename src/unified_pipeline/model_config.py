@@ -97,7 +97,7 @@ DISCOVERY_AGENT_MODELS = {
     "tda_expert": ModelType.FAST,           # 위상 분석: 수학적, 구조적 → GPT (fast)
     "schema_analyst": ModelType.FAST,       # 스키마 분석: 구조적 → GPT (fast)
     "value_matcher": ModelType.FAST,        # 값 매칭: 데이터 비교 → GPT (fast)
-    "entity_classifier": ModelType.BALANCED, # 엔티티 분류: 의미 이해 필요 → Claude (balanced)
+    "entity_classifier": ModelType.CREATIVE,  # v26.2: 엔티티 분류 — 넓은 테이블 분해, 1M 컨텍스트 활용 → Gemini (creative)
     "relationship_detector": ModelType.CREATIVE,  # 관계 탐지: 패턴 발견 → Gemini (creative)
 }
 
@@ -110,10 +110,10 @@ DISCOVERY_AGENT_MODELS = {
 # - 충돌 해결은 creative 모델
 
 REFINEMENT_AGENT_MODELS = {
-    "ontology_architect": ModelType.BALANCED,  # 온톨로지 설계: 복잡한 추론 → Claude (balanced)
+    "ontology_architect": ModelType.CREATIVE,   # v26.2: 온톨로지 설계 — 창의적 구조 설계 + 대용량 컨텍스트 → Gemini (creative)
     "conflict_resolver": ModelType.CREATIVE,   # 충돌 해결: 창의적 해결책 → Gemini (creative)
     "quality_judge": ModelType.BALANCED,       # 품질 평가: 판단력 → Claude (balanced)
-    "semantic_validator": ModelType.BALANCED,  # 의미 검증: 의미 분석 → Claude (balanced)
+    "semantic_validator": ModelType.FAST,       # v26.2: 의미 검증 — 구조적 체크/규칙 검증 → GPT (fast)
 }
 
 
@@ -219,7 +219,7 @@ UNIFIED_AGENT_CONFIGS = {
         name="Entity Classifier",
         role="entity_classifier",
         stage="discovery",
-        model_type=ModelType.BALANCED,
+        model_type=ModelType.CREATIVE,  # v26.2
         temperature=0.3,
         expertise_keywords=[
             "entity", "patient", "encounter", "claim", "provider",
@@ -245,7 +245,7 @@ UNIFIED_AGENT_CONFIGS = {
         name="Ontology Architect",
         role="ontology_architect",
         stage="refinement",
-        model_type=ModelType.BALANCED,
+        model_type=ModelType.CREATIVE,  # v26.2
         temperature=0.3,
         expertise_keywords=[
             "ontology", "concept", "definition", "semantic",
@@ -281,7 +281,7 @@ UNIFIED_AGENT_CONFIGS = {
         name="Semantic Validator",
         role="semantic_validator",
         stage="refinement",
-        model_type=ModelType.BALANCED,
+        model_type=ModelType.FAST,  # v26.2
         temperature=0.2,
         expertise_keywords=[
             "semantic", "validate", "meaning", "consistency",
@@ -362,10 +362,10 @@ def get_agents_by_model_type(model_type: ModelType) -> List[str]:
 # v17.0 서비스별 모델 할당 - 각 서비스의 특성에 맞게 선택
 
 V17_SERVICE_MODELS = {
-    # 분석 및 추론 서비스 - balanced (복잡한 추론 필요)
-    "what_if_analyzer": ModelType.BALANCED,      # What-If 분석: 시나리오 해석
-    "decision_explainer": ModelType.BALANCED,    # XAI: 결정 설명 생성
-    "report_generator": ModelType.BALANCED,      # 보고서: 자연어 생성
+    # v26.2: 분석 서비스 — 각 모델 강점에 맞게 재배분
+    "what_if_analyzer": ModelType.CREATIVE,       # v26.2: 시나리오 해석 — 창의적 탐색 → Gemini
+    "decision_explainer": ModelType.FAST,         # v26.2: 결정 설명 — 구조적 설명 생성 → GPT
+    "report_generator": ModelType.CREATIVE,       # v26.2: 보고서 — 합성/자연어 생성 → Gemini
 
     # 데이터 처리 서비스 - fast (구조적 작업)
     "remediation_engine": ModelType.FAST,        # 데이터 수정: 규칙 기반 + LLM 보조
@@ -391,20 +391,20 @@ def get_v17_service_model(service_name: str) -> str:
 
 INSIGHT_PIPELINE_MODELS = {
     "data_validator": ModelType.FAST,           # 수치 검증, 데이터 그라운딩 → GPT (fast)
-    "business_interpreter": ModelType.BALANCED,  # 인과 추론, 비즈니스 해석 → Claude (balanced)
+    "business_interpreter": ModelType.CREATIVE,   # v26.2: 비즈니스 해석 — 패턴 합성 → Gemini
     "pattern_discoverer": ModelType.CREATIVE,    # 교차 패턴, 신규 연결 → Gemini (creative)
-    "insight_synthesizer": ModelType.BALANCED,   # 최종 합성, 처방적 액션 → Claude (balanced)
+    "insight_synthesizer": ModelType.CREATIVE,   # v26.2: 최종 합성 — 창의적 합성/처방 → Gemini
 }
 
 # 유틸리티 서비스 모델 (에이전트 시스템 우회 코드용)
 UTILITY_SERVICE_MODELS = {
     "schema_analysis": ModelType.FAST,            # llm_schema_analyzer.py: 구조 분석
     "fk_verification": ModelType.FAST,            # llm_fk_verifier.py: FK 방향 검증
-    "governance_judge": ModelType.BALANCED,        # governance_utils.py: 규칙 판단
-    "domain_detection": ModelType.BALANCED,        # domain_detector.py: 도메인 감지
-    "cross_entity_scenario": ModelType.CREATIVE,   # cross_entity_correlation.py: 시나리오 설계
-    "cross_entity_interpret": ModelType.BALANCED,  # cross_entity_correlation.py: 해석
-    "default_pipeline": ModelType.BALANCED,        # unified_main.py: 기본값
+    "governance_judge": ModelType.BALANCED,        # governance_utils.py: 규칙 판단 → Claude (유지)
+    "domain_detection": ModelType.FAST,            # v26.2: 도메인 감지 — 분류 작업 → GPT
+    "cross_entity_scenario": ModelType.CREATIVE,   # cross_entity_correlation.py: 시나리오 설계 → Gemini
+    "cross_entity_interpret": ModelType.CREATIVE,  # v26.2: 해석 — 패턴 합성 → Gemini
+    "default_pipeline": ModelType.FAST,            # v26.2: 기본값 — 범용 → GPT
 }
 
 

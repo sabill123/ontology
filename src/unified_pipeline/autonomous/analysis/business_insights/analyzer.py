@@ -195,7 +195,10 @@ class BusinessInsightsAnalyzer:
             # 12. v26.1: 상관관계 기반 인사이트 (음의 상관 포함)
             self._analyze_correlation_insights(table_name, rows, table_info, system)
 
-        # 13. v18.3: LLM 기반 도메인 특화 인사이트 생성 (분석 모델 결과 포함)
+            # 13. v26.2: ID 컬럼 중복 패턴 분석 (video_id 등 longitudinal 패턴 감지)
+            self._analyze_duplicate_patterns(table_name, rows, table_info, system)
+
+        # 14. v18.3: LLM 기반 도메인 특화 인사이트 생성 (분석 모델 결과 포함)
         if self.llm_client and self.domain_context:
             self._generate_llm_domain_insights(tables, data)
 
@@ -2013,8 +2016,8 @@ class BusinessInsightsAnalyzer:
                 continue
             unique_vals = set(values)
             cardinality = len(unique_vals)
-            # bool 또는 low-cardinality string
-            if 2 <= cardinality <= 20:
+            # bool 또는 low-cardinality string (v26.2: 상한 20→50, language 등 중카디널리티 포함)
+            if 2 <= cardinality <= 50:
                 # 숫자 컬럼이 아닌 경우만 (or bool-like: True/False, yes/no)
                 sample_val = next(iter(unique_vals))
                 if not self._is_numeric_string(sample_val) or cardinality <= 6:
@@ -2385,6 +2388,79 @@ class BusinessInsightsAnalyzer:
                         f"Investigate confounding variables between {col} and {target}",
                     ],
                     business_impact=f"Counter-intuitive: more {col} → lower {target}",
+                )
+                self.insights.append(insight)
+
+    # === v26.2: ID 컬럼 중복 패턴 분석 ===
+
+    def _analyze_duplicate_patterns(
+        self,
+        table_name: str,
+        rows: List[Dict],
+        table_info: Dict,
+        system: str,
+    ):
+        """
+        v26.2: ID성 컬럼의 중복 비율 분석.
+        동일 ID에 여러 행이 존재하면 longitudinal/snapshot 패턴 가능성 보고.
+        """
+        if not rows or len(rows) < 20:
+            return
+
+        total_rows = len(rows)
+        sample_row = rows[0]
+
+        # ID성 컬럼 감지: "_id" 접미사 또는 cardinality 비율이 50-95% (고유하지만 중복 있음)
+        id_patterns = ("_id", "_key", "_code")
+
+        for col in sample_row.keys():
+            if not col:
+                continue
+            col_lower = col.lower()
+
+            # ID성 컬럼 판별
+            is_id_col = any(col_lower.endswith(p) for p in id_patterns)
+            if not is_id_col:
+                continue
+
+            # 값 수집
+            values = [str(row.get(col, "")) for row in rows if row.get(col) is not None and str(row.get(col)).strip()]
+            if len(values) < total_rows * 0.8:
+                continue
+
+            unique_count = len(set(values))
+            uniqueness_ratio = unique_count / len(values)
+
+            # 중복 패턴: 고유값이 50-95% (일부 중복 있음)
+            if 0.50 <= uniqueness_ratio <= 0.95:
+                dup_count = len(values) - unique_count
+                # 중복 빈도 계산
+                from collections import Counter
+                freq = Counter(values)
+                dup_ids = {k: v for k, v in freq.items() if v > 1}
+                max_freq = max(freq.values())
+                avg_freq = len(values) / unique_count
+
+                insight = self._create_insight(
+                    title=f"Duplicate Pattern: {col}",
+                    description=(
+                        f"{unique_count:,} unique {col} out of {len(values):,} rows "
+                        f"({uniqueness_ratio:.1%} unique). "
+                        f"{len(dup_ids):,} IDs have duplicates (max {max_freq}x, avg {avg_freq:.1f}x). "
+                        f"Possible longitudinal/time-series analysis pattern."
+                    ),
+                    insight_type=InsightType.DATA_QUALITY,
+                    severity=InsightSeverity.MEDIUM,
+                    source_table=table_name,
+                    source_column=col,
+                    source_system=system,
+                    metric_value=float(unique_count),
+                    recommendations=[
+                        f"Verify if multiple rows per {col} represent time-series snapshots",
+                        f"Consider deduplication (use latest record) for cross-sectional analysis",
+                        f"Explore temporal patterns across duplicate {col} entries",
+                    ],
+                    business_impact=f"{len(dup_ids):,} {col}s have repeated entries — may indicate re-analysis or versioning",
                 )
                 self.insights.append(insight)
 
