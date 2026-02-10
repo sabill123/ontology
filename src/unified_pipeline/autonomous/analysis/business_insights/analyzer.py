@@ -1967,7 +1967,6 @@ class BusinessInsightsAnalyzer:
     # 컬럼명 정확 매칭 (전체 이름)
     _SEGMENT_SKIP_EXACT = {
         "s3_key", "username", "channel_name", "hashtags",
-        "transcription_language",
     }
 
     def _should_skip_segment_col(self, col: str) -> bool:
@@ -2052,19 +2051,16 @@ class BusinessInsightsAnalyzer:
                 self._compare_segments(table_name, rows, cat_col, kpi_col, system)
 
         # --- 5. 연속형 숫자 컬럼 버킷 분석 (분위수 기반) ---
-        # 카테고리가 아닌 연속형 컬럼 중 분산 높은 상위 2개를 버킷 분석
+        # 카테고리가 아닌 연속형 컬럼 중 고유값 비율 높은 상위 3개를 버킷 분석
+        # KPI 컬럼도 버킷 대상에 포함 (segment 분석과 다른 차원의 분석)
         continuous_candidates = []
         for col in sample_row.keys():
             if not col or not self._is_business_metric_column(col):
                 continue
-            col_lower = col.lower()
             if self._should_skip_segment_col(col):
                 continue
             # 카테고리 컬럼과 중복 제거
             if any(col == cc[0] for cc in categorical_cols):
-                continue
-            # KPI 타겟과도 중복 제거
-            if col in target_kpis:
                 continue
             vals = [row.get(col) for row in rows if row.get(col) is not None and isinstance(row.get(col), (int, float))]
             if len(vals) >= total_rows * 0.5:
@@ -2073,7 +2069,7 @@ class BusinessInsightsAnalyzer:
                     continuous_candidates.append((col, unique_ratio))
 
         continuous_candidates.sort(key=lambda x: -x[1])
-        for cont_col, _ in continuous_candidates[:2]:
+        for cont_col, _ in continuous_candidates[:3]:
             self._analyze_numeric_buckets(table_name, rows, cont_col, target_kpis, system)
 
     def _is_numeric_string(self, val: str) -> bool:
