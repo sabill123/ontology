@@ -1959,12 +1959,24 @@ class BusinessInsightsAnalyzer:
 
     # === v26.1: 카테고리별 세그먼트 성과 분석 ===
 
-    # 세그먼트 분석 시 제외할 컬럼 패턴
-    _SEGMENT_SKIP_PATTERNS = {
-        "id", "key", "uuid", "hash", "url", "s3_key", "title", "description",
-        "name", "text", "hashtags", "transcription", "suggestion", "factor",
-        "username", "channel_name",
+    # 세그먼트 분석 시 제외할 컬럼 — 토큰 정확 매칭 (underscore 구분)
+    _SEGMENT_SKIP_TOKENS = {
+        "id", "key", "uuid", "url", "title", "description",
+        "name", "text", "suggestion", "factor",
     }
+    # 컬럼명 정확 매칭 (전체 이름)
+    _SEGMENT_SKIP_EXACT = {
+        "s3_key", "username", "channel_name", "hashtags",
+        "transcription_language",
+    }
+
+    def _should_skip_segment_col(self, col: str) -> bool:
+        """토큰 기반 매칭으로 분석 제외 컬럼 판별 (hash→hashtag 오탐 방지)"""
+        col_lower = col.lower()
+        if col_lower in self._SEGMENT_SKIP_EXACT:
+            return True
+        tokens = set(col_lower.replace("-", "_").split("_"))
+        return bool(tokens & self._SEGMENT_SKIP_TOKENS)
 
     def _analyze_segment_performance(
         self,
@@ -1994,7 +2006,7 @@ class BusinessInsightsAnalyzer:
                 continue
             col_lower = col.lower()
             # 제외 패턴
-            if any(p in col_lower for p in self._SEGMENT_SKIP_PATTERNS):
+            if self._should_skip_segment_col(col):
                 continue
             # 값 수집
             values = [str(row.get(col, "")) for row in rows if row.get(col) is not None and str(row.get(col)).strip()]
@@ -2015,7 +2027,7 @@ class BusinessInsightsAnalyzer:
             if not col:
                 continue
             col_lower = col.lower()
-            if any(p in col_lower for p in self._SEGMENT_SKIP_PATTERNS):
+            if self._should_skip_segment_col(col):
                 continue
             if not self._is_business_metric_column(col):
                 continue
@@ -2052,7 +2064,7 @@ class BusinessInsightsAnalyzer:
             if not col or not self._is_business_metric_column(col):
                 continue
             col_lower = col.lower()
-            if any(p in col_lower for p in self._SEGMENT_SKIP_PATTERNS):
+            if self._should_skip_segment_col(col):
                 continue
             # 카테고리 컬럼과 중복 제거
             if any(col == cc[0] for cc in categorical_cols):
@@ -2266,7 +2278,7 @@ class BusinessInsightsAnalyzer:
             if not col:
                 continue
             col_lower = col.lower()
-            if any(p in col_lower for p in self._SEGMENT_SKIP_PATTERNS):
+            if self._should_skip_segment_col(col):
                 continue
             if not self._is_business_metric_column(col):
                 continue
