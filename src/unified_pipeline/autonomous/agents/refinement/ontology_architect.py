@@ -465,6 +465,8 @@ Respond ONLY with valid JSON."""
                 "causal_insights": causal_insights,  # v6.1: 인과 인사이트
                 "virtual_entities": virtual_entities,  # v6.1: 가상 엔티티
                 "palantir_insights": palantir_insights,  # v10.0: 팔란티어 스타일 예측 인사이트
+                "confounding_variables": causal_insights.get("confounding_variables", []),  # v26.1
+                "derived_columns": causal_insights.get("derived_columns", []),  # v26.1
                 "concept_relationships": [
                     {
                         "source": c.definition.get("source", "") if isinstance(c.definition, dict) else "",
@@ -1758,6 +1760,14 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
                             })
 
                     logger.info(f"Cross-Entity Correlation: {len(palantir_insights)} Palantir-style insights generated")
+
+                    # v26.1: 교란변수/파생컬럼 결과를 insights에 전파
+                    if hasattr(correlation_analyzer, '_confounding_results') and correlation_analyzer._confounding_results:
+                        insights["confounding_variables"] = correlation_analyzer._confounding_results
+                        logger.info(f"[v26.1] {len(correlation_analyzer._confounding_results)} confounding variables detected")
+                    if hasattr(correlation_analyzer, '_derived_columns') and correlation_analyzer._derived_columns:
+                        insights["derived_columns"] = correlation_analyzer._derived_columns
+                        logger.info(f"[v26.1] {len(correlation_analyzer._derived_columns)} derived columns detected")
                 else:
                     logger.warning("Data directory not set in context, skipping Cross-Entity Correlation Analysis")
 

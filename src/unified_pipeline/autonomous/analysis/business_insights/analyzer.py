@@ -189,7 +189,13 @@ class BusinessInsightsAnalyzer:
             # 10. 광고/마케팅 도메인 전용 분석 (v3.0)
             self._analyze_advertising_metrics(table_name, rows, table_info, system)
 
-        # 11. v18.3: LLM 기반 도메인 특화 인사이트 생성 (분석 모델 결과 포함)
+            # 11. v26.1: 카테고리별 세그먼트 성과 분석 (Duration, BGM, Creator Tier, Platform 등)
+            self._analyze_segment_performance(table_name, rows, table_info, system)
+
+            # 12. v26.1: 상관관계 기반 인사이트 (음의 상관 포함)
+            self._analyze_correlation_insights(table_name, rows, table_info, system)
+
+        # 13. v18.3: LLM 기반 도메인 특화 인사이트 생성 (분석 모델 결과 포함)
         if self.llm_client and self.domain_context:
             self._generate_llm_domain_insights(tables, data)
 
@@ -1950,6 +1956,383 @@ class BusinessInsightsAnalyzer:
                         business_impact=f"{len(high_performers)}개 고성과 캠페인 발견, 확산 전략 수립 권장",
                     )
                     self.insights.append(insight)
+
+    # === v26.1: 카테고리별 세그먼트 성과 분석 ===
+
+    # 세그먼트 분석 시 제외할 컬럼 패턴
+    _SEGMENT_SKIP_PATTERNS = {
+        "id", "key", "uuid", "hash", "url", "s3_key", "title", "description",
+        "name", "text", "hashtags", "transcription", "suggestion", "factor",
+        "username", "channel_name",
+    }
+
+    def _analyze_segment_performance(
+        self,
+        table_name: str,
+        rows: List[Dict],
+        table_info: Dict,
+        system: str,
+    ):
+        """
+        v26.1: 카테고리 컬럼별 세그먼트 성과 비교 (generic, 도메인 무관)
+
+        - 카테고리 컬럼 자동 감지 (cardinality 2-20, string/bool)
+        - 숫자 KPI 컬럼 자동 감지
+        - 그룹별 평균 비교 → 유의미한 차이(2x+) 보고
+        - Duration 버킷 분석 (duration 컬럼 존재 시)
+        """
+        if not rows or len(rows) < 30:
+            return
+
+        sample_row = rows[0]
+        total_rows = len(rows)
+
+        # --- 1. 카테고리 컬럼 감지 ---
+        categorical_cols = []
+        for col in sample_row.keys():
+            if not col:
+                continue
+            col_lower = col.lower()
+            # 제외 패턴
+            if any(p in col_lower for p in self._SEGMENT_SKIP_PATTERNS):
+                continue
+            # 값 수집
+            values = [str(row.get(col, "")) for row in rows if row.get(col) is not None and str(row.get(col)).strip()]
+            if len(values) < total_rows * 0.5:
+                continue
+            unique_vals = set(values)
+            cardinality = len(unique_vals)
+            # bool 또는 low-cardinality string
+            if 2 <= cardinality <= 20:
+                # 숫자 컬럼이 아닌 경우만 (or bool-like: True/False, yes/no)
+                sample_val = next(iter(unique_vals))
+                if not self._is_numeric_string(sample_val) or cardinality <= 6:
+                    categorical_cols.append((col, cardinality, unique_vals))
+
+        # --- 2. 숫자 KPI 컬럼 감지 ---
+        numeric_kpi_cols = []
+        for col in sample_row.keys():
+            if not col:
+                continue
+            col_lower = col.lower()
+            if any(p in col_lower for p in self._SEGMENT_SKIP_PATTERNS):
+                continue
+            if not self._is_business_metric_column(col):
+                continue
+            values = [
+                row.get(col) for row in rows
+                if row.get(col) is not None and isinstance(row.get(col), (int, float))
+            ]
+            if len(values) >= total_rows * 0.5:
+                numeric_kpi_cols.append(col)
+
+        if not categorical_cols or not numeric_kpi_cols:
+            return
+
+        # --- 3. 핵심 KPI 선택 (상위 5개: view_count, viral_score 등 우선) ---
+        kpi_priority = ["view_count", "viral_score", "engagement_rate", "like_count", "follower_count",
+                        "impact_score", "comment_count", "share_count"]
+        sorted_kpis = sorted(numeric_kpi_cols,
+                             key=lambda c: next((i for i, p in enumerate(kpi_priority) if p in c.lower()), 99))
+        target_kpis = sorted_kpis[:5]
+
+        # --- 4. 세그먼트별 분석 ---
+        for cat_col, cardinality, unique_vals in categorical_cols:
+            for kpi_col in target_kpis:
+                self._compare_segments(table_name, rows, cat_col, kpi_col, system)
+
+        # --- 5. Duration 버킷 분석 (특수 케이스) ---
+        duration_col = None
+        for col in sample_row.keys():
+            if col and col.lower() == "duration":
+                duration_col = col
+                break
+        if duration_col:
+            self._analyze_duration_buckets(table_name, rows, duration_col, target_kpis, system)
+
+    def _is_numeric_string(self, val: str) -> bool:
+        """문자열이 숫자인지 판별"""
+        try:
+            float(val)
+            return True
+        except (ValueError, TypeError):
+            return False
+
+    def _compare_segments(
+        self,
+        table_name: str,
+        rows: List[Dict],
+        cat_col: str,
+        kpi_col: str,
+        system: str,
+    ):
+        """카테고리 컬럼의 각 그룹별 KPI 평균 비교"""
+        groups = defaultdict(list)
+        for row in rows:
+            cat_val = row.get(cat_col)
+            kpi_val = row.get(kpi_col)
+            if cat_val is not None and kpi_val is not None and isinstance(kpi_val, (int, float)):
+                groups[str(cat_val)].append(kpi_val)
+
+        # 최소 2그룹, 각 그룹 최소 10건
+        valid_groups = {k: v for k, v in groups.items() if len(v) >= 10}
+        if len(valid_groups) < 2:
+            return
+
+        # 그룹별 평균 계산
+        group_stats = {}
+        for grp, vals in valid_groups.items():
+            group_stats[grp] = {
+                "n": len(vals),
+                "mean": statistics.mean(vals),
+                "median": statistics.median(vals),
+            }
+
+        means = [s["mean"] for s in group_stats.values()]
+        max_mean = max(means)
+        min_mean = min(means)
+
+        # 유의미한 차이: max/min >= 2x (0인 경우 제외)
+        if min_mean <= 0 or max_mean / min_mean < 2.0:
+            return
+
+        ratio = max_mean / min_mean
+        best_group = max(group_stats, key=lambda g: group_stats[g]["mean"])
+        worst_group = min(group_stats, key=lambda g: group_stats[g]["mean"])
+
+        # 그룹별 통계 문자열
+        details = "; ".join(
+            f"{grp}(n={s['n']}, avg={s['mean']:,.1f})"
+            for grp, s in sorted(group_stats.items(), key=lambda x: -x[1]["mean"])
+        )
+
+        insight = self._create_insight(
+            title=f"Segment Gap: {cat_col} → {kpi_col}",
+            description=(
+                f"{best_group} has {ratio:.1f}x higher avg {kpi_col} than {worst_group}. "
+                f"[{details}]"
+            ),
+            insight_type=InsightType.KPI,
+            severity=InsightSeverity.HIGH if ratio >= 5.0 else InsightSeverity.MEDIUM,
+            source_table=table_name,
+            source_column=cat_col,
+            source_system=system,
+            metric_value=max_mean,
+            metric_name=f"{cat_col}→{kpi_col}",
+            count=sum(s["n"] for s in group_stats.values()),
+            percentage=ratio,
+            recommendations=[
+                f"Investigate why {best_group} outperforms {worst_group} by {ratio:.1f}x on {kpi_col}",
+                f"Consider stratified analysis by {cat_col} for deeper insights",
+            ],
+            business_impact=f"{cat_col} segment drives {ratio:.1f}x performance gap in {kpi_col}",
+        )
+        self.insights.append(insight)
+
+    def _analyze_duration_buckets(
+        self,
+        table_name: str,
+        rows: List[Dict],
+        duration_col: str,
+        kpi_cols: List[str],
+        system: str,
+    ):
+        """Duration 버킷별 KPI 분석"""
+        buckets = {
+            "<15s": (0, 15),
+            "15-30s": (15, 30),
+            "30-60s": (30, 60),
+            "60-120s": (60, 120),
+            ">120s": (120, float("inf")),
+        }
+
+        for kpi_col in kpi_cols:
+            bucket_stats = {}
+            for bname, (lo, hi) in buckets.items():
+                vals = [
+                    row[kpi_col] for row in rows
+                    if row.get(duration_col) is not None
+                    and isinstance(row.get(duration_col), (int, float))
+                    and lo <= row[duration_col] < hi
+                    and row.get(kpi_col) is not None
+                    and isinstance(row.get(kpi_col), (int, float))
+                ]
+                if len(vals) >= 10:
+                    bucket_stats[bname] = {"n": len(vals), "mean": statistics.mean(vals)}
+
+            if len(bucket_stats) < 3:
+                continue
+
+            means = [s["mean"] for s in bucket_stats.values()]
+            max_mean = max(means)
+            min_mean = min(means)
+            if min_mean <= 0 or max_mean / min_mean < 1.5:
+                continue
+
+            best_bucket = max(bucket_stats, key=lambda b: bucket_stats[b]["mean"])
+            details = "; ".join(
+                f"{b}(n={s['n']}, avg={s['mean']:,.1f})"
+                for b, s in bucket_stats.items()
+            )
+
+            insight = self._create_insight(
+                title=f"Duration Sweet Spot: {kpi_col}",
+                description=(
+                    f"{best_bucket} duration has highest avg {kpi_col} ({bucket_stats[best_bucket]['mean']:,.1f}). "
+                    f"[{details}]"
+                ),
+                insight_type=InsightType.KPI,
+                severity=InsightSeverity.MEDIUM,
+                source_table=table_name,
+                source_column=duration_col,
+                source_system=system,
+                metric_value=bucket_stats[best_bucket]["mean"],
+                metric_name=f"duration→{kpi_col}",
+                count=sum(s["n"] for s in bucket_stats.values()),
+                recommendations=[
+                    f"Target {best_bucket} duration for maximum {kpi_col}",
+                    "Test content length variations to validate sweet spot",
+                ],
+                business_impact=f"Duration optimization can improve {kpi_col} by up to {max_mean/min_mean:.1f}x",
+            )
+            self.insights.append(insight)
+
+    # === v26.1: 상관관계 기반 인사이트 (음의 상관 포함) ===
+
+    def _analyze_correlation_insights(
+        self,
+        table_name: str,
+        rows: List[Dict],
+        table_info: Dict,
+        system: str,
+    ):
+        """
+        v26.1: 숫자 컬럼 간 Pearson 상관관계 분석
+
+        - 강한 양의 상관 (r > 0.3): 드라이버 관계 보고
+        - 주목할 음의 상관 (r < -0.1): 역설/트레이드오프 보고
+        - 파생 컬럼(r ≈ 1.0) 제외
+        """
+        if not rows or len(rows) < 30:
+            return
+
+        import numpy as np
+
+        sample_row = rows[0]
+
+        # 숫자 컬럼 수집
+        numeric_cols = []
+        for col in sample_row.keys():
+            if not col:
+                continue
+            col_lower = col.lower()
+            if any(p in col_lower for p in self._SEGMENT_SKIP_PATTERNS):
+                continue
+            if not self._is_business_metric_column(col):
+                continue
+            vals = [row.get(col) for row in rows if row.get(col) is not None and isinstance(row.get(col), (int, float))]
+            if len(vals) >= len(rows) * 0.5:
+                numeric_cols.append(col)
+
+        if len(numeric_cols) < 2:
+            return
+
+        # KPI 타겟 컬럼 (상관 분석의 기준)
+        kpi_targets = ["viral_score", "view_count", "engagement_rate", "impact_score", "like_count"]
+        target_cols = [c for c in numeric_cols if any(t in c.lower() for t in kpi_targets)]
+        if not target_cols:
+            target_cols = numeric_cols[:3]
+
+        # 상관 계수 계산
+        reported = set()
+        for target in target_cols:
+            target_vals = np.array([
+                row.get(target, np.nan) for row in rows
+            ], dtype=float)
+            target_valid = ~np.isnan(target_vals)
+
+            correlations = []
+            for col in numeric_cols:
+                if col == target:
+                    continue
+                col_vals = np.array([row.get(col, np.nan) for row in rows], dtype=float)
+                valid = target_valid & ~np.isnan(col_vals)
+                if valid.sum() < 30:
+                    continue
+
+                try:
+                    r = float(np.corrcoef(target_vals[valid], col_vals[valid])[0, 1])
+                except Exception:
+                    continue
+
+                if np.isnan(r):
+                    continue
+                # 파생 컬럼 제외 (r > 0.95)
+                if abs(r) > 0.95:
+                    continue
+                correlations.append((col, r))
+
+            if not correlations:
+                continue
+
+            # 상관 순으로 정렬
+            correlations.sort(key=lambda x: -abs(x[1]))
+
+            # 양의 상관 드라이버 (top 3, r > 0.15)
+            positive = [(c, r) for c, r in correlations if r > 0.15][:3]
+            # 음의 상관 (r < -0.08)
+            negative = [(c, r) for c, r in correlations if r < -0.08]
+
+            # 양의 드라이버 보고
+            if positive:
+                pair_key = f"pos_{target}"
+                if pair_key not in reported:
+                    reported.add(pair_key)
+                    driver_details = ", ".join(f"{c}({r:.3f})" for c, r in positive)
+                    insight = self._create_insight(
+                        title=f"Top Drivers of {target}",
+                        description=f"Strongest positive correlations with {target}: {driver_details}",
+                        insight_type=InsightType.KPI,
+                        severity=InsightSeverity.MEDIUM,
+                        source_table=table_name,
+                        source_column=target,
+                        source_system=system,
+                        metric_value=positive[0][1],
+                        metric_name=f"correlation_{target}",
+                        recommendations=[
+                            f"Focus on {positive[0][0]} to improve {target}",
+                            "Validate correlation with A/B testing before causal claims",
+                        ],
+                    )
+                    self.insights.append(insight)
+
+            # 음의 상관 (paradox / tradeoff) 보고
+            for col, r in negative:
+                pair_key = f"neg_{target}_{col}"
+                if pair_key in reported:
+                    continue
+                reported.add(pair_key)
+
+                insight = self._create_insight(
+                    title=f"Negative Correlation: {col} vs {target}",
+                    description=(
+                        f"{col} shows negative correlation with {target} (r={r:.3f}). "
+                        f"Increasing {col} is associated with LOWER {target}."
+                    ),
+                    insight_type=InsightType.KPI,
+                    severity=InsightSeverity.MEDIUM,
+                    source_table=table_name,
+                    source_column=col,
+                    source_system=system,
+                    metric_value=r,
+                    metric_name=f"neg_corr_{col}_vs_{target}",
+                    recommendations=[
+                        f"Avoid over-optimizing {col} — diminishing/negative returns on {target}",
+                        f"Investigate confounding variables between {col} and {target}",
+                    ],
+                    business_impact=f"Counter-intuitive: more {col} → lower {target}",
+                )
+                self.insights.append(insight)
 
     # === v14.0: LLM 기반 도메인 특화 분석 (하드코딩 제거) ===
 
