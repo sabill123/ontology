@@ -485,9 +485,10 @@ class BusinessInsightsAnalyzer:
 
     def _infer_kpi_threshold(self, col: str, values: List[float]):
         """
-        v20: 데이터 스케일 기반 적응형 KPI 벤치마크 추론.
+        v26.0: 데이터 스케일 기반 적응형 KPI 벤치마크 추론.
         1순위: domain_context KPI 정의 (threshold)
-        2순위: 데이터 min/max 기반 스케일 감지
+        2순위: 파생 비율 컬럼 감지 (_rate, _ratio, _score 패턴)
+        3순위: 데이터 분포 기반 스케일 감지
         Returns None if no meaningful threshold.
         """
         col_lower = col.lower()
@@ -507,6 +508,26 @@ class BusinessInsightsAnalyzer:
         if val_max <= 0:
             return None
 
+        # v26.0: 비율/점수 컬럼 패턴 감지 — max가 100 초과여도 적용
+        # like_rate, comment_rate, share_rate, engagement_rate 등
+        # 이 컬럼들은 실제로 백분율이지만 이상치로 인해 max > 100 가능
+        rate_patterns = ["_rate", "_ratio", "rate_", "ratio_"]
+        score_patterns = ["_score", "score_"]
+        is_rate_col = any(p in col_lower for p in rate_patterns)
+        is_score_col = any(p in col_lower for p in score_patterns)
+
+        if is_rate_col or is_score_col:
+            import numpy as np
+            median_val = float(np.median(values))
+            p75 = float(np.percentile(values, 75))
+            # 중위수가 100 이하이면 백분율/비율 컬럼으로 간주
+            if median_val <= 100:
+                # 75th percentile 기반 벤치마크 (이상치에 강건)
+                return round(min(p75 * 1.2, 100.0), 1) if is_rate_col else round(p75, 1)
+            # 중위수가 0-1이면 비율 스케일
+            if median_val <= 1.0:
+                return round(min(p75 * 1.2, 1.0), 3)
+
         # rate 컬럼 (0-1 스케일)
         if "rate" in col_lower and val_max <= 1.0:
             return 0.7
@@ -523,9 +544,11 @@ class BusinessInsightsAnalyzer:
         if val_max <= 100:
             return 70.0
 
-        # 대형 스케일 (수백~수천) — 범위의 70% 지점
-        val_min = min(values)
-        return round(val_min + 0.7 * (val_max - val_min), 1)
+        # v26.0: 대형 스케일 — 분포 기반 (이상치 강건)
+        # 범위의 70% 대신 75th percentile 사용
+        import numpy as np
+        p75 = float(np.percentile(values, 75))
+        return round(p75, 1)
 
     def _extract_kpis(
         self,
@@ -737,9 +760,18 @@ class BusinessInsightsAnalyzer:
             c for c in sample_row.keys()
             if "date" in c.lower() or "time" in c.lower()
         ]
+
+        # v26.0: 시계열 부적합 컬럼 제외 — 순서형/나이/파생 컬럼은 시계열이 아님
+        _ts_exclude_patterns = [
+            "days_since", "age_in", "age_", "_age", "elapsed",
+            "duration", "scene_count", "keyframe_count", "line_count",
+            "text_length", "description_length", "hashtag_count",
+            "_id", "_index", "_count",
+        ]
         numeric_columns = [
             c for c in sample_row.keys()
             if isinstance(sample_row.get(c), (int, float))
+            and not any(p in c.lower() for p in _ts_exclude_patterns)
         ]
 
         if not date_columns or not numeric_columns:
@@ -2044,6 +2076,14 @@ Return a JSON array where each insight follows hypothesis → evidence → valid
 CRITICAL: Every insight MUST have hypothesis, evidence[] (min 2 models), validation_summary, prescriptive_actions[] with quantified impact.
 DO NOT create shallow insights like "X% anomalies detected" — synthesize across multiple analysis sources.
 
+## v26.0 ANTI-HALLUCINATION RULES
+1. NEVER invent specific numbers, counts, or statistics not present in the data summary above
+2. NEVER generate dollar amounts ($) unless cost/revenue data explicitly appears in the dataset
+3. When referencing categorical groups (e.g., "unknown tier"), report ONLY the statistics shown in the data summary — do NOT extrapolate or assume hidden values
+4. If the data summary says avg=0.0 for a group, that group has ZERO average — do NOT claim otherwise
+5. Distinguish CORRELATION from CAUSATION — always note "correlation observed" not "X causes Y" unless causal model confirms it
+6. For rate/ratio columns, verify the scale (0-1 vs 0-100 vs unbounded) before setting thresholds
+
 Generate 4-6 prescriptive insights. Prioritize by business impact.
 Respond ONLY with valid JSON array."""
 
@@ -2244,6 +2284,26 @@ Categorical columns:
 
 Group-level analysis (numeric by category):
 {chr(10).join(cross_analysis[:10]) if cross_analysis else '  (none)'}
+""")
+
+        # v26.0: 비용/매출 데이터 존재 여부 명시 (LLM 환각 방지)
+        has_cost_data = False
+        cost_keywords = ["cost", "salary", "price", "revenue", "budget", "expense",
+                         "income", "profit", "fee", "amount", "payment", "wage"]
+        for table_name_check, tinfo in tables.items():
+            cols = tinfo.get("columns", [])
+            for col in cols:
+                cname = (col.get("name", str(col)) if isinstance(col, dict) else str(col)).lower()
+                if any(kw in cname for kw in cost_keywords):
+                    has_cost_data = True
+                    break
+
+        if not has_cost_data:
+            summary_parts.append("""
+### ⚠️ DATA CONSTRAINTS
+- **NO cost/revenue/salary/price data** exists in this dataset
+- You MUST NOT generate monetary estimates ($, savings, cost reduction, revenue impact)
+- Use only relative metrics (%, x-fold, ratio) for impact quantification
 """)
 
         return "\n".join(summary_parts[:5])  # 최대 5개 테이블

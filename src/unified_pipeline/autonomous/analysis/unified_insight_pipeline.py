@@ -947,6 +947,43 @@ Respond ONLY with valid JSON array."""
             else:
                 ev["grounding_status"] = "GROUNDED"
 
+            # v26.0: 구체적 수치 주장 검증 — 실제 데이터와 비교
+            finding_str = str(finding).lower()
+            for mk, mv in list(metrics.items()):
+                if not isinstance(mv, (int, float)):
+                    continue
+                # 메트릭이 참조하는 컬럼의 실제 통계와 비교
+                metric_col = mk.lower().replace("_anomalies", "").replace("_percentage", "").replace("_decrease", "").replace("_correlation", "")
+                if metric_col in col_stats:
+                    actual = col_stats[metric_col]
+                    # 평균값 주장 검증
+                    if "avg" in mk.lower() or "mean" in mk.lower() or "average" in mk.lower():
+                        if actual["mean"] != 0 and abs(mv - actual["mean"]) / abs(actual["mean"]) > 0.5:
+                            ev.setdefault("grounding_corrections", []).append(
+                                f"Claimed {mk}={mv}, actual mean={actual['mean']:.2f}"
+                            )
+                            ev["grounding_status"] = "CORRECTED"
+                    # 최대/최소값 범위 검증
+                    if isinstance(mv, (int, float)) and mv > 0:
+                        if mv > actual["max"] * 2:
+                            ev.setdefault("grounding_corrections", []).append(
+                                f"Claimed {mk}={mv} exceeds data max={actual['max']:.2f}"
+                            )
+                            ev["grounding_status"] = "CORRECTED"
+
+            # v26.0: "N records" 주장 검증 — count 범위 체크
+            import re as _re
+            count_matches = _re.findall(r'(\d+)\s*(?:records?|rows?|entries|items)', finding_str)
+            for cm in count_matches:
+                claimed_n = int(cm)
+                # 전체 행 수보다 클 수 없음
+                total_rows = sum(s.get("count", 0) for s in col_stats.values()) // max(len(col_stats), 1)
+                if total_rows > 0 and claimed_n > total_rows:
+                    ev.setdefault("grounding_corrections", []).append(
+                        f"Claimed {claimed_n} records but total rows ≈ {total_rows}"
+                    )
+                    ev["grounding_status"] = "CORRECTED"
+
             # v19.5: evidence metrics 보강 — pipeline_context에서 p_value, sample_size, CI 주입
             if self._pipeline_context and "causal" in model_name:
                 ev = self._enrich_evidence_metrics(ev)

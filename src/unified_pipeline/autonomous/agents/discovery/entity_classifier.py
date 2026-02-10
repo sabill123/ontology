@@ -84,22 +84,37 @@ You are the DECISION MAKER. The algorithm provides structural analysis, but YOU 
 - manufacturing: work orders, inventory, production, machines
 - supply_chain: shipments, logistics, warehouses, suppliers
 
-## ENTITY CLASSIFICATION RULES (v7.9):
+## ENTITY CLASSIFICATION RULES (v26.0):
 
 1. **INDIVIDUAL ENTITIES FIRST**: Each table = One entity (MINIMUM)
    - Do NOT merge tables unless there is CLEAR evidence of duplication
    - Even related tables (email_sends, email_events) are SEPARATE entities
    - Table count = Minimum entity count
 
-2. **ENTITY ROLES** (v7.9 확장):
+2. **WIDE TABLE DECOMPOSITION** (v26.0 신규):
+   - If a single table has 20+ columns, it is likely a DENORMALIZED (wide) table
+   - Decompose into MULTIPLE LOGICAL ENTITIES based on column semantics
+   - Use COLUMN CARDINALITY as primary evidence:
+     * Column with unique values close to row_count → likely a PRIMARY KEY → separate entity
+     * Column with much fewer unique values → likely a FOREIGN KEY or DIMENSION
+     * Group of related columns (same prefix/suffix, semantic similarity) → attribute group
+   - Examples:
+     * Columns {video_id, title, duration, url} → "Video" entity (video_id as PK)
+     * Columns {channel_id, username, follower_count} → "Creator" entity (channel_id as PK)
+     * Columns {platform} with 3 unique values → "Platform" dimension entity
+     * Columns {view_count, like_count, comment_count, share_count, like_rate} → "PerformanceMetrics" attribute group
+   - The GRAIN of the table (which column has 1:1 with row count) defines the primary entity
+
+3. **ENTITY ROLES** (v7.9 확장):
    - master: Core business entities (Customer, Product, Campaign)
    - transaction: Business transactions (Order, Lead, Conversion)
    - event: Time-based activity events (EmailSend, EmailEvent, WebSession, AdClick)
    - metric: Aggregated performance metrics (AdPerformance, CampaignMetrics)
    - reference: Lookup/reference tables
    - bridge: M:N relationship tables
+   - attribute_group: Group of columns that form a logical sub-entity within a denormalized table (v26.0)
 
-3. **EVENT TYPE DETECTION** (v7.9 신규):
+4. **EVENT TYPE DETECTION** (v7.9 신규):
    - Tables with timestamp + action columns → EVENT type
    - Examples: web_sessions, email_events, conversions, ad_clicks
    - These should NEVER be merged with master entities
@@ -161,6 +176,7 @@ You are the DECISION MAKER. The algorithm provides structural analysis, but YOU 
 ```
 
 IMPORTANT: individual_entity_count MUST be >= table_count. Each table represents at least one entity.
+For wide tables (20+ columns), you should produce MULTIPLE entities from a single table (sub-entity decomposition).
 
 Respond with structured JSON matching this schema."""
 
@@ -266,6 +282,69 @@ Respond with structured JSON matching this schema."""
         except Exception as e:
             logger.debug(f"[v17.0] Semantic entity search skipped: {e}")
 
+        self._report_progress(0.45, "Analyzing column cardinality for sub-entity decomposition")
+
+        # v26.0: 컬럼 카디널리티 분석 — 비정규화 테이블 분해용
+        column_cardinality_analysis = {}
+        for table_name, table_info in context.tables.items():
+            columns = [c.get("name", "") for c in table_info.columns]
+            row_count = table_info.row_count or 0
+            if row_count < 10 or len(columns) < 15:
+                continue  # 작은 테이블은 분해 불필요
+
+            table_data = sample_data.get(table_name, [])
+            if not table_data:
+                continue
+
+            col_analysis = []
+            for col_name in columns:
+                values = [r.get(col_name) for r in table_data if r.get(col_name) is not None]
+                unique_count = len(set(str(v) for v in values))
+                total_count = len(values)
+
+                # 유니크 비율과 절대 수로 분류
+                if total_count == 0:
+                    role = "empty"
+                elif unique_count == total_count:
+                    role = "UNIQUE_KEY (100% unique → primary key candidate)"
+                elif unique_count / total_count > 0.8:
+                    role = f"HIGH_CARDINALITY ({unique_count} unique / {total_count} rows → possible FK)"
+                elif unique_count <= 10:
+                    role = f"DIMENSION ({unique_count} unique values → categorical/dimension)"
+                elif unique_count / total_count < 0.1:
+                    role = f"LOW_CARDINALITY ({unique_count} unique → dimension or flag)"
+                else:
+                    role = f"MEASURE ({unique_count} unique / {total_count} rows)"
+
+                col_analysis.append({
+                    "column": col_name,
+                    "unique_count": unique_count,
+                    "total_count": total_count,
+                    "role": role,
+                })
+
+            column_cardinality_analysis[table_name] = {
+                "total_columns": len(columns),
+                "total_rows": row_count,
+                "is_wide_table": len(columns) >= 20,
+                "column_profiles": col_analysis[:50],  # 최대 50 컬럼
+            }
+
+        cardinality_section = ""
+        if column_cardinality_analysis:
+            cardinality_section = f"""
+
+COLUMN CARDINALITY ANALYSIS (v26.0 — for wide table decomposition):
+{json.dumps(column_cardinality_analysis, indent=2, ensure_ascii=False)}
+
+IMPORTANT: For tables with 20+ columns (is_wide_table=true), you MUST decompose them into
+multiple logical entities. Use the cardinality information:
+- UNIQUE_KEY columns → primary key of a sub-entity
+- HIGH_CARDINALITY columns ending in _id → foreign key pointing to another sub-entity
+- DIMENSION columns → dimension entities (e.g., platform with 3 values)
+- Groups of MEASURE columns with similar names → metric/measurement attribute groups
+"""
+
         self._report_progress(0.5, "Requesting LLM validation")
 
         # 4. LLM에게 검증 요청
@@ -280,7 +359,7 @@ ENTITY GROUPS (tables representing same entity):
 
 ENHANCED ENTITY EXTRACTION (v2.1 - column-based hidden entities):
 {json.dumps(enhanced_entity_summary, indent=2)}
-
+{cardinality_section}
 Domain: {context.get_industry()}
 
 Please:
@@ -289,6 +368,12 @@ Please:
 3. INCORPORATE the hidden entities from column-based extraction
 4. SUGGEST canonical names for unified entities
 5. IDENTIFY key columns for each entity
+6. **v26.0 CRITICAL**: For wide tables (20+ columns), DECOMPOSE into multiple logical entities:
+   - Identify GRAIN (primary key) of the table → primary entity
+   - Group related columns by semantic meaning → sub-entities
+   - Detect FK relationships between sub-entities (e.g., channel_id links Video to Creator)
+   - Each sub-entity must have source_tables pointing to the SAME original table
+   - Include entity_role "attribute_group" for metric/measurement groups
 
 Respond with JSON:
 ```json

@@ -307,6 +307,88 @@ class CrossEntityCorrelationAnalyzer:
 
         return duplicates
 
+    def _detect_derived_columns(self, df: Any, table_name: str) -> List[Dict[str, Any]]:
+        """
+        v26.0: 파생(계산) 컬럼 감지
+
+        col_c ≈ col_a / col_b * K (K=1 or 100) 형태의 관계를 자동 탐지.
+        예: like_rate = like_count / view_count * 100
+        예: views_per_follower = view_count / follower_count
+        예: avg_scene_duration = duration / scene_count
+        """
+        import itertools
+
+        derived = []
+        numeric_cols = self.get_numeric_columns(df)
+
+        if len(numeric_cols) < 3:
+            return derived
+
+        for target_col in numeric_cols:
+            target = df[target_col].dropna()
+            if len(target) < 20:
+                continue
+
+            for col_a, col_b in itertools.combinations(numeric_cols, 2):
+                if col_a == target_col or col_b == target_col:
+                    continue
+
+                try:
+                    sa = df[col_a].loc[target.index].dropna()
+                    sb = df[col_b].loc[target.index].dropna()
+                    common = target.index.intersection(sa.index).intersection(sb.index)
+                    if len(common) < 20:
+                        continue
+
+                    t = target.loc[common]
+                    a = sa.loc[common]
+                    b = sb.loc[common]
+
+                    # b != 0 인 행만 사용 (division by zero 방지)
+                    nonzero_mask = b != 0
+                    if nonzero_mask.sum() < 20:
+                        continue
+
+                    t_nz = t[nonzero_mask]
+                    a_nz = a[nonzero_mask]
+                    b_nz = b[nonzero_mask]
+
+                    # a/b와 비교
+                    ratio = a_nz / b_nz
+
+                    # K=1: target ≈ a / b
+                    for multiplier, label in [(1.0, ""), (100.0, " * 100")]:
+                        computed = ratio * multiplier
+                        # 상대 오차 계산 (t가 0인 경우 절대 오차 사용)
+                        abs_diff = (t_nz - computed).abs()
+                        abs_target = t_nz.abs().clip(lower=1e-10)
+                        rel_error = (abs_diff / abs_target).median()
+
+                        if rel_error < 0.02:  # 중위 상대오차 2% 미만
+                            match_rate = float((abs_diff / abs_target < 0.05).mean())
+                            if match_rate >= 0.95:  # 95% 이상 일치
+                                formula = f"{col_a} / {col_b}{label}"
+                                derived.append({
+                                    "table": table_name,
+                                    "derived_column": target_col,
+                                    "formula": formula,
+                                    "source_columns": [col_a, col_b],
+                                    "match_rate": match_rate,
+                                    "sample_size": int(nonzero_mask.sum()),
+                                    "severity": "info",
+                                    "reason": f"'{target_col}' = {formula} (일치율 {match_rate*100:.1f}%, 파생 컬럼)",
+                                })
+                                logger.info(f"[v26.0] Derived column detected: {target_col} = {formula} ({match_rate*100:.1f}% match)")
+                                break  # 이 target_col에 대해 첫 번째 매칭만 사용
+                    else:
+                        continue
+                    break  # target_col에 대한 첫 매칭을 찾았으므로 다음 target으로
+
+                except Exception as e:
+                    logger.debug(f"Derived column check failed for {target_col} = {col_a}/{col_b}: {e}")
+
+        return derived
+
     def _detect_categorical_columns(self, df: Any) -> List[str]:
         """v12.0: 카테고리/세그먼트 컬럼 감지"""
         import pandas as pd
@@ -320,6 +402,112 @@ class CrossEntityCorrelationAnalyzer:
                     categorical_cols.append(col)
 
         return categorical_cols
+
+    def detect_confounding_variables(
+        self, df: Any, treatment_col: str, outcome_col: str,
+        candidate_confounders: List[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        v26.0: 교란변수(confounding variable) 탐지 — Simpson's Paradox 검출
+
+        treatment_col이 outcome_col에 미치는 효과가 confounder를 통제하면
+        사라지거나 반전되는지 검사합니다.
+
+        Returns: 교란변수 후보 리스트 [{confounder, raw_effect, adjusted_effect, is_confounded}]
+        """
+        from scipy import stats
+
+        confounders_found = []
+
+        if candidate_confounders is None:
+            candidate_confounders = self.get_numeric_columns(df)
+
+        # 원시 상관관계
+        try:
+            mask = df[[treatment_col, outcome_col]].notna().all(axis=1)
+            raw_corr, raw_p = stats.pearsonr(
+                df.loc[mask, treatment_col], df.loc[mask, outcome_col]
+            )
+        except Exception:
+            return confounders_found
+
+        for confounder in candidate_confounders:
+            if confounder in (treatment_col, outcome_col):
+                continue
+
+            try:
+                # 3변수 모두 존재하는 행만 사용
+                valid = df[[treatment_col, outcome_col, confounder]].dropna()
+                if len(valid) < 30:
+                    continue
+
+                # 편상관(partial correlation): treatment-outcome 상관에서 confounder 효과 제거
+                # rAB.C = (rAB - rAC * rBC) / sqrt((1 - rAC^2)(1 - rBC^2))
+                r_to = raw_corr
+                r_tc, _ = stats.pearsonr(valid[treatment_col], valid[confounder])
+                r_oc, _ = stats.pearsonr(valid[outcome_col], valid[confounder])
+
+                denom = ((1 - r_tc**2) * (1 - r_oc**2)) ** 0.5
+                if denom < 1e-10:
+                    continue
+                partial_corr = (r_to - r_tc * r_oc) / denom
+
+                # 교란 판정: 원시 상관이 유의미하지만 편상관이 50% 이상 감소
+                raw_abs = abs(raw_corr)
+                partial_abs = abs(partial_corr)
+                reduction = (raw_abs - partial_abs) / raw_abs if raw_abs > 0.05 else 0
+
+                if reduction > 0.4 and raw_abs > 0.05:
+                    # Simpson's paradox 체크: 카테고리형 treatment일 때 층화 분석
+                    is_simpson = False
+                    if df[treatment_col].nunique() <= 5:
+                        # 층화 분석 — confounder를 quantile로 나누어 각 층에서 효과 확인
+                        try:
+                            valid["_conf_bin"] = np.digitize(
+                                valid[confounder],
+                                bins=np.quantile(valid[confounder].dropna(), [0.33, 0.67]),
+                            )
+                            strata_effects = []
+                            for _, stratum in valid.groupby("_conf_bin"):
+                                if len(stratum) < 10:
+                                    continue
+                                s_corr, _ = stats.pearsonr(
+                                    stratum[treatment_col], stratum[outcome_col]
+                                )
+                                strata_effects.append(s_corr)
+                            # 층화 효과의 부호가 원시와 반대 → Simpson's Paradox
+                            if strata_effects and all(
+                                (e * raw_corr) < 0 for e in strata_effects if abs(e) > 0.02
+                            ):
+                                is_simpson = True
+                        except Exception:
+                            pass
+
+                    confounders_found.append({
+                        "confounder": confounder,
+                        "raw_correlation": round(float(raw_corr), 4),
+                        "partial_correlation": round(float(partial_corr), 4),
+                        "reduction_pct": round(float(reduction * 100), 1),
+                        "r_treatment_confounder": round(float(r_tc), 4),
+                        "r_outcome_confounder": round(float(r_oc), 4),
+                        "is_confounded": True,
+                        "is_simpsons_paradox": is_simpson,
+                        "note": (
+                            f"'{confounder}'를 통제하면 {treatment_col}→{outcome_col} "
+                            f"상관이 {raw_abs:.3f}→{partial_abs:.3f}로 {reduction*100:.0f}% 감소"
+                            + (" [Simpson's Paradox 감지]" if is_simpson else "")
+                        ),
+                    })
+                    logger.info(
+                        f"[v26.0] Confounding detected: {confounder} confounds "
+                        f"{treatment_col}→{outcome_col} (reduction={reduction*100:.0f}%"
+                        f"{', Simpson!' if is_simpson else ''})"
+                    )
+
+            except Exception as e:
+                logger.debug(f"Confounding check failed for {confounder}: {e}")
+
+        return confounders_found
 
     def _analyze_categorical_insights(self, df: Any, table_name: str) -> List[Dict[str, Any]]:
         """
@@ -510,6 +698,7 @@ class CrossEntityCorrelationAnalyzer:
         all_constraints = []
         all_duplicates = []
         all_categorical = []
+        all_derived = []  # v26.0: 파생 컬럼
 
         for table_name, df in tables_data.items():
             numeric_cols = self.get_numeric_columns(df)
@@ -534,15 +723,19 @@ class CrossEntityCorrelationAnalyzer:
             constraints = self._detect_mathematical_constraints(df, table_name)
             duplicates = self._detect_duplicate_columns(df, table_name)
             categorical = self._analyze_categorical_insights(df, table_name)
+            # v26.0: 파생 컬럼 감지
+            derived = self._detect_derived_columns(df, table_name)
 
             all_constraints.extend(constraints)
             all_duplicates.extend(duplicates)
             all_categorical.extend(categorical)
+            all_derived.extend(derived)
 
         # 캐시에 저장 (나중에 LLM에게 전달)
         self._mathematical_constraints = all_constraints
         self._duplicate_columns = all_duplicates
         self._categorical_insights = all_categorical
+        self._derived_columns = all_derived
 
         return "\n\n".join(summary_parts)
 
@@ -563,6 +756,22 @@ class CrossEntityCorrelationAnalyzer:
             for d in self._duplicate_columns:
                 warnings.append(f"  - {d['reason']}")
                 warnings.append(f"    → 이 두 컬럼은 사실상 동일한 데이터입니다. 분석 가치가 없으며, 데이터 품질 이슈로 보고해야 합니다.")
+
+        # v26.0: 파생 컬럼
+        if hasattr(self, '_derived_columns') and self._derived_columns:
+            warnings.append("\n## 📐 파생(계산) 컬럼 감지")
+            for d in self._derived_columns:
+                warnings.append(f"  - {d['reason']}")
+                warnings.append(f"    → 이 컬럼은 다른 컬럼에서 계산된 파생 값입니다. KPI 분석 시 원본 컬럼과의 상관관계는 무의미합니다.")
+
+        # v26.0: 교란변수 경고
+        if hasattr(self, '_confounding_results') and self._confounding_results:
+            warnings.append("\n## 🔍 교란변수 감지 (Simpson's Paradox 위험)")
+            for cf in self._confounding_results[:5]:
+                warnings.append(f"  - {cf['note']}")
+                if cf.get('is_simpsons_paradox'):
+                    warnings.append(f"    ⚠️ Simpson's Paradox 확인 — 층화 분석에서 효과가 반전됩니다!")
+                warnings.append(f"    → 이 상관관계를 인과관계로 보고하지 마세요. 교란변수를 통제한 편상관: {cf['partial_correlation']:.4f}")
 
         return "\n".join(warnings) if warnings else ""
 
@@ -1500,6 +1709,36 @@ JSON만 출력하세요."""
 
         if hasattr(self, '_categorical_insights') and self._categorical_insights:
             logger.info(f"[v12.0] Found {len(self._categorical_insights)} categorical insights")
+
+        # v26.0: 파생 컬럼 로깅
+        if hasattr(self, '_derived_columns') and self._derived_columns:
+            for d in self._derived_columns:
+                logger.info(f"[v26.0] Derived column: {d['reason']}")
+
+        # v26.0: 교란변수 탐지 (단일 테이블 내)
+        self._confounding_results = []
+        for table_name, df in tables_data.items():
+            numeric_cols = self.get_numeric_columns(df)
+            # 주요 상관 쌍에 대해 교란변수 체크
+            for i, col_a in enumerate(numeric_cols[:8]):
+                for col_b in numeric_cols[i+1:8]:
+                    try:
+                        from scipy import stats
+                        mask = df[[col_a, col_b]].notna().all(axis=1)
+                        if mask.sum() < 30:
+                            continue
+                        corr_val, p_val = stats.pearsonr(df.loc[mask, col_a], df.loc[mask, col_b])
+                        if abs(corr_val) > 0.3 and p_val < 0.05:
+                            confounders = self.detect_confounding_variables(
+                                df, col_a, col_b, numeric_cols
+                            )
+                            if confounders:
+                                self._confounding_results.extend(confounders)
+                    except Exception:
+                        pass
+
+        if self._confounding_results:
+            logger.info(f"[v26.0] Found {len(self._confounding_results)} confounding relationships")
 
         # 2. 상관관계 분석
         correlations = self.compute_cross_table_correlations(table_names)
