@@ -1233,6 +1233,60 @@ class SharedContext:
             "fallbacks_applied": fallbacks_applied,
         }
 
+    def dedup_ontology_concepts(self) -> int:
+        """
+        v27.0.1: 중복 ontology_concepts 제거.
+        동일 이름의 개념이 여러 source_agent에서 생성된 경우
+        ontology_architect 버전을 우선하고 fallback 속성을 머지.
+        Returns: 제거된 중복 수
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        if not self.ontology_concepts:
+            return 0
+
+        # 이름별로 그룹핑
+        by_name: Dict[str, List] = {}
+        for c in self.ontology_concepts:
+            key = c.name.lower()
+            by_name.setdefault(key, []).append(c)
+
+        deduped = []
+        removed = 0
+        for key, group in by_name.items():
+            if len(group) == 1:
+                deduped.append(group[0])
+                continue
+
+            # 우선순위: ontology_architect > 기타 > phase2_fallback_gate
+            architect = [c for c in group if c.source_agent == "ontology_architect"]
+            fallback = [c for c in group if c.source_agent == "phase2_fallback_gate"]
+            others = [c for c in group if c.source_agent not in ("ontology_architect", "phase2_fallback_gate")]
+
+            if architect:
+                winner = architect[0]
+                # fallback의 unified_attributes가 더 풍부하면 머지
+                for fb in fallback:
+                    if fb.unified_attributes and len(fb.unified_attributes) > len(winner.unified_attributes or []):
+                        winner.unified_attributes = fb.unified_attributes
+                    # fallback이 approved/provisional이면 상태 승계
+                    if fb.status in ("approved", "provisional") and winner.status == "pending":
+                        winner.status = fb.status
+                deduped.append(winner)
+            elif others:
+                deduped.append(others[0])
+            elif fallback:
+                deduped.append(fallback[0])
+
+            removed += len(group) - 1
+
+        if removed > 0:
+            self.ontology_concepts = deduped
+            logger.info(f"[v27.0.1] Dedup: removed {removed} duplicate concepts, {len(deduped)} remain")
+
+        return removed
+
     def validate_phase3_output(self) -> Dict[str, Any]:
         """
         v17.1: Phase 3 (Governance) 출력 검증 게이트

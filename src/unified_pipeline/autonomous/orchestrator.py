@@ -245,8 +245,8 @@ class AgentOrchestrator:
                 async for event in self._run_phase(phase):
                     yield event
 
-                # v27.0: Phase 완료 후 진행 중인 에이전트 대기 (게이트 전)
-                for _wait in range(300):  # max 30s
+                # v27.0.1: Phase 완료 후 진행 중인 에이전트 대기 (게이트 전)
+                for _wait in range(1200):  # max 120s
                     active = [a for a in self._agents.values() if a.state not in {AgentState.IDLE, AgentState.ERROR}]
                     pending = list(self._agent_tasks.keys())
                     if not active and not pending:
@@ -263,6 +263,10 @@ class AgentOrchestrator:
                     gate_result = self.shared_context.validate_phase2_output()
                     if gate_result.get("fallbacks_applied"):
                         logger.warning(f"[v14.0 Gate] Phase 2 fallbacks applied: {gate_result['fallbacks_applied']}")
+                    # v27.0.1: 중복 개념 제거 (architect vs fallback_gate)
+                    dedup_count = self.shared_context.dedup_ontology_concepts()
+                    if dedup_count > 0:
+                        logger.info(f"[v27.0.1] Removed {dedup_count} duplicate concepts before governance")
                 elif phase == "governance":
                     gate_result = self.shared_context.validate_phase3_output()
                     if gate_result.get("fallbacks_applied"):
@@ -463,11 +467,16 @@ class AgentOrchestrator:
                 break
 
             if not ready_todos and not self._agent_tasks:
-                idle_loop_count += 1
-                if idle_loop_count >= max_idle_loops:
-                    logger.warning(f"[v22.1] Phase {phase} idle loop limit reached ({max_idle_loops})")
-                    print(f"[ORCHESTRATOR] Phase '{phase}' IDLE TIMEOUT: {idle_loop_count} idle loops")
-                    break
+                # v27.0.1: active agent가 있으면 idle count 리셋 (continuation 대기)
+                active_agents = [a for a in self._agents.values() if a.state not in {AgentState.IDLE, AgentState.ERROR}]
+                if active_agents:
+                    idle_loop_count = 0
+                else:
+                    idle_loop_count += 1
+                    if idle_loop_count >= max_idle_loops:
+                        logger.warning(f"[v22.1] Phase {phase} idle loop limit reached ({max_idle_loops})")
+                        print(f"[ORCHESTRATOR] Phase '{phase}' IDLE TIMEOUT: {idle_loop_count} idle loops")
+                        break
             else:
                 idle_loop_count = 0
 
