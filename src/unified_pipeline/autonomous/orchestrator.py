@@ -377,18 +377,24 @@ class AgentOrchestrator:
         while not self.todo_manager.is_phase_complete(phase):
             loop_count += 1
             if loop_count >= max_total_loops:
-                # v27.2: 에이전트가 실행 중이면 safety break 하지 않음
-                # governance phase 순차 의존 체인(4 에이전트 × 2-5분)이 200초 제한을 초과하는 문제 해결
-                if self._agent_tasks:
+                # v27.3: 에이전트 실행 중이거나 처리 가능한 todo가 있으면 break하지 않음
+                # 레이스 컨디션 해결: 에이전트 완료 → _agent_tasks에서 제거 → 다음 todo 확인 전 break 방지
+                all_phase_todos = self.todo_manager.get_todos_by_phase(phase)
+                has_pending_work = any(
+                    t.status in {TodoStatus.READY, TodoStatus.PENDING, TodoStatus.IN_PROGRESS}
+                    for t in all_phase_todos
+                )
+                if self._agent_tasks or has_pending_work:
                     if loop_count % 500 == 0:
+                        pending_names = [t.name for t in all_phase_todos if t.status in {TodoStatus.READY, TodoStatus.PENDING, TodoStatus.IN_PROGRESS}]
                         logger.warning(
-                            f"[v27.2] Phase {phase} at {loop_count} loops but "
-                            f"{len(self._agent_tasks)} agent(s) still running — continuing"
+                            f"[v27.3] Phase {phase} at {loop_count} loops — "
+                            f"agents={len(self._agent_tasks)}, pending_todos={pending_names}"
                         )
-                        print(f"[ORCHESTRATOR] Phase '{phase}' loop #{loop_count}, agents running: {list(self._agent_tasks.keys())}")
+                        print(f"[ORCHESTRATOR] Phase '{phase}' loop #{loop_count}, agents={list(self._agent_tasks.keys())}, pending={pending_names}")
                 else:
-                    logger.error(f"[SAFETY] Phase {phase} exceeded {max_total_loops} loops with no agent activity, forcing completion")
-                    print(f"[ORCHESTRATOR] Phase '{phase}' SAFETY BREAK: {loop_count} total loops, no agents running")
+                    logger.error(f"[SAFETY] Phase {phase} exceeded {max_total_loops} loops with no work remaining, forcing completion")
+                    print(f"[ORCHESTRATOR] Phase '{phase}' SAFETY BREAK: {loop_count} total loops, no agents/todos remaining")
                     break
             if self.config.phase_timeout > 0 and time.time() - phase_start > self.config.phase_timeout:
                 logger.warning(f"Phase {phase} timed out")
