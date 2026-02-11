@@ -267,6 +267,15 @@ Respond ONLY with valid JSON."""
 
         self._report_progress(0.55, "Enhancing concepts with LLM")
 
+        # v27.1: LLM에 의존하지 않는 속성 인덱스 — concept_id → extracted_attributes
+        # LLM enhancement가 속성을 유실해도 원본을 반드시 복원
+        _attr_index: Dict[str, list] = {}
+        for c in extracted_concepts:
+            cid = c.get("concept_id", "")
+            attrs = c.get("definition", {}).get("extracted_attributes", [])
+            if cid and attrs:
+                _attr_index[cid] = attrs
+
         # 3단계: LLM을 통한 개념 보강
         try:
             enhanced_concepts = await self._enhance_concepts_with_llm(
@@ -297,8 +306,14 @@ Respond ONLY with valid JSON."""
             raw_confidence = c.get("confidence", 0.0)
             adjusted_confidence = min(1.0, raw_confidence + tda_boost)
 
+            cid = c.get("concept_id", f"concept_{len(ontology_concepts)}")
+            # v27.1: LLM 결과가 아닌 원본 인덱스에서 속성 복원
+            original_attrs = _attr_index.get(cid, [])
+            llm_attrs = c.get("definition", {}).get("extracted_attributes", [])
+            final_attrs = original_attrs if original_attrs else llm_attrs
+
             concept = OntologyConcept(
-                concept_id=c.get("concept_id", f"concept_{len(ontology_concepts)}"),
+                concept_id=cid,
                 concept_type=c.get("concept_type", "object_type"),
                 name=c.get("name", ""),
                 description=c.get("description", ""),
@@ -308,7 +323,7 @@ Respond ONLY with valid JSON."""
                 status="pending",
                 confidence=adjusted_confidence,
                 source_agent="ontology_architect",
-                unified_attributes=c.get("definition", {}).get("extracted_attributes", []),
+                unified_attributes=final_attrs,
             )
             ontology_concepts.append(concept)
 

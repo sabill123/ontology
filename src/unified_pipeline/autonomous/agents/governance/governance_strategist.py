@@ -583,7 +583,7 @@ Respond ONLY with valid JSON."""
         try:
             # 토론 대상 선정: confidence < 0.85 또는 risk가 있는 것들
             debate_candidates = []
-            for concept in context.ontology_concepts[:80]:  # v27.0.1: 30→80 (dedup 후에도 충분)
+            for concept in context.ontology_concepts:  # v27.1: 하드코딩 한도 제거 — 전체 개념 스캔
                 algo_decision = algorithmic_decisions.get(concept.concept_id, {})
                 if (algo_decision.get("confidence", 1) < 0.85 or
                     algo_decision.get("risk_level") in ["high", "medium", "low"]):
@@ -597,7 +597,7 @@ Respond ONLY with valid JSON."""
                         if len(debate_candidates) >= 2:
                             break
 
-            for concept in debate_candidates[:40]:  # v27.0.1: 15→40 (전체 개념 커버)
+            for concept in debate_candidates:  # v27.1: 하드코딩 한도 제거 — 전체 후보 debate
                 algo_decision = algorithmic_decisions.get(concept.concept_id, {})
 
                 # === v11.0: Evidence-Based Debate Protocol ===

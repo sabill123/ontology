@@ -245,13 +245,13 @@ class AgentOrchestrator:
                 async for event in self._run_phase(phase):
                     yield event
 
-                # v27.0.1: Phase 완료 후 진행 중인 에이전트 대기 (게이트 전)
-                for _wait in range(1200):  # max 120s
-                    active = [a for a in self._agents.values() if a.state not in {AgentState.IDLE, AgentState.ERROR}]
-                    pending = list(self._agent_tasks.keys())
-                    if not active and not pending:
-                        break
-                    await asyncio.sleep(0.1)
+                # v27.1: Phase 완료 후 모든 agent task 완전 소진 보장
+                # 매직넘버 대기가 아닌 실제 asyncio.Task await
+                if self._agent_tasks:
+                    pending_tasks = list(self._agent_tasks.values())
+                    logger.info(f"[v27.1 Gate] Waiting for {len(pending_tasks)} agent tasks before gate")
+                    await asyncio.gather(*pending_tasks, return_exceptions=True)
+                    self._agent_tasks.clear()
 
                 # v14.0: Phase 완료 후 검증 게이트 실행 (폴백 적용)
                 gate_result = None
