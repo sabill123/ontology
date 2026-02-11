@@ -377,9 +377,19 @@ class AgentOrchestrator:
         while not self.todo_manager.is_phase_complete(phase):
             loop_count += 1
             if loop_count >= max_total_loops:
-                logger.error(f"[SAFETY] Phase {phase} exceeded {max_total_loops} loops, forcing completion")
-                print(f"[ORCHESTRATOR] Phase '{phase}' SAFETY BREAK: {loop_count} total loops")
-                break
+                # v27.2: 에이전트가 실행 중이면 safety break 하지 않음
+                # governance phase 순차 의존 체인(4 에이전트 × 2-5분)이 200초 제한을 초과하는 문제 해결
+                if self._agent_tasks:
+                    if loop_count % 500 == 0:
+                        logger.warning(
+                            f"[v27.2] Phase {phase} at {loop_count} loops but "
+                            f"{len(self._agent_tasks)} agent(s) still running — continuing"
+                        )
+                        print(f"[ORCHESTRATOR] Phase '{phase}' loop #{loop_count}, agents running: {list(self._agent_tasks.keys())}")
+                else:
+                    logger.error(f"[SAFETY] Phase {phase} exceeded {max_total_loops} loops with no agent activity, forcing completion")
+                    print(f"[ORCHESTRATOR] Phase '{phase}' SAFETY BREAK: {loop_count} total loops, no agents running")
+                    break
             if self.config.phase_timeout > 0 and time.time() - phase_start > self.config.phase_timeout:
                 logger.warning(f"Phase {phase} timed out")
                 yield {
@@ -430,8 +440,29 @@ class AgentOrchestrator:
                                 consensus_completed_todos.add(todo.todo_id)
                             # 할당 실패 시 다음 루프에서 재시도 (consensus_completed_todos에 추가하지 않음)
                         else:
-                            # consensus에서 에이전트 실행 불필요 판단 → 완료 처리
-                            consensus_completed_todos.add(todo.todo_id)
+                            # consensus에서 에이전트 실행 불필요 판단
+                            # v27.2: todo가 실제로 COMPLETED인지 검증 후 추가
+                            todo_check = self.todo_manager.get_todo(todo.todo_id)
+                            if todo_check and todo_check.status == TodoStatus.COMPLETED:
+                                consensus_completed_todos.add(todo.todo_id)
+                            else:
+                                # todo가 미완료 — 에이전트 할당으로 fallback
+                                logger.warning(
+                                    f"[v27.2] Todo {todo.todo_id} not COMPLETED after consensus "
+                                    f"(status={todo_check.status.value if todo_check else 'None'}) — assigning agent as fallback"
+                                )
+                                agent = await self._assign_agent_to_todo(todo)
+                                if agent:
+                                    yield {
+                                        "type": "todo_assigned",
+                                        "todo_id": todo.todo_id,
+                                        "agent_id": agent.agent_id,
+                                        "todo_name": todo.name,
+                                        "mode": "v27.2_consensus_fallback",
+                                    }
+                                    consensus_completed_todos.add(todo.todo_id)
+                                else:
+                                    consensus_completed_todos.add(todo.todo_id)
                     else:
                         agent = await self._assign_agent_to_todo(todo)
                         if agent:

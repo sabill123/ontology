@@ -1307,7 +1307,7 @@ class SharedContext:
             warnings.append("governance_decisions is empty")
             # 폴백: ontology_concepts에서 기본 결정 생성
             if self.ontology_concepts:
-                from .shared_context import GovernanceDecision
+                # v27.2: GovernanceDecision은 같은 파일에 정의됨 — 불필요한 자기참조 import 제거
                 for concept in self.ontology_concepts:
                     # approved 상태면 approve, 아니면 schedule_review
                     decision_type = "approve" if concept.status == "approved" else "schedule_review"

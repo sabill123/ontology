@@ -147,6 +147,35 @@ class ConsensusCoordinator:
             async for event in self._fallback_structured_debate(todo, topic_data):
                 yield event
 
+        # v27.2: full_consensus 경로 안전망 — todo가 미완료면 PROVISIONAL로 강제 완료
+        # negotiation + structured_debate 모두 실패하면 todo가 미완료 상태로 남아
+        # 의존 체인 전체가 단절될 수 있음
+        from ..todo.models import TodoStatus
+        todo_obj = self.todo_manager.get_todo(todo.todo_id)
+        if todo_obj and todo_obj.status not in {TodoStatus.COMPLETED, TodoStatus.CANCELLED, TodoStatus.FAILED}:
+            logger.warning(
+                f"[v27.2] Todo {todo.todo_id} not completed after full consensus — "
+                f"force-completing as PROVISIONAL (status was: {todo_obj.status.value})"
+            )
+            fallback_result = ConsensusResult(
+                success=True,
+                result_type=ConsensusType.PROVISIONAL,
+                combined_confidence=base_confidence * 0.7,
+                agreement_level=0.5,
+                total_rounds=0,
+                final_decision="provisional_fallback",
+                reasoning="[v27.2] Auto-completed: consensus negotiation and debate both failed",
+                dissenting_views=[],
+            )
+            await self._apply_result(todo, fallback_result)
+            yield {
+                "type": "consensus_discussion_completed",
+                "todo_id": todo.todo_id,
+                "result_type": "provisional",
+                "combined_confidence": base_confidence * 0.7,
+                "mode": "v27.2_fallback",
+            }
+
     async def run_batch_consensus(
         self,
         todos: List["PipelineTodo"],
