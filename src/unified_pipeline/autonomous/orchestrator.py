@@ -467,16 +467,11 @@ class AgentOrchestrator:
                 break
 
             if not ready_todos and not self._agent_tasks:
-                # v27.0.1: active agent가 있으면 idle count 리셋 (continuation 대기)
-                active_agents = [a for a in self._agents.values() if a.state not in {AgentState.IDLE, AgentState.ERROR}]
-                if active_agents:
-                    idle_loop_count = 0
-                else:
-                    idle_loop_count += 1
-                    if idle_loop_count >= max_idle_loops:
-                        logger.warning(f"[v22.1] Phase {phase} idle loop limit reached ({max_idle_loops})")
-                        print(f"[ORCHESTRATOR] Phase '{phase}' IDLE TIMEOUT: {idle_loop_count} idle loops")
-                        break
+                idle_loop_count += 1
+                if idle_loop_count >= max_idle_loops:
+                    logger.warning(f"[v22.1] Phase {phase} idle loop limit reached ({max_idle_loops})")
+                    print(f"[ORCHESTRATOR] Phase '{phase}' IDLE TIMEOUT: {idle_loop_count} idle loops")
+                    break
             else:
                 idle_loop_count = 0
 
