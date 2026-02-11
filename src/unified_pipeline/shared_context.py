@@ -1167,26 +1167,41 @@ class SharedContext:
         warnings = []
         fallbacks_applied = []
 
-        # 1. ontology_concepts 검증
+        # 1. ontology_concepts 검증 (v27.0: additive — 기존 개념과 중복되지 않는 엔티티만 폴백)
+        existing_names = {c.name for c in self.ontology_concepts}
+        missing_entities = [
+            e for e in (self.unified_entities or [])
+            if e.canonical_name not in existing_names
+        ]
         if not self.ontology_concepts:
             warnings.append("ontology_concepts is empty")
-            # 폴백: unified_entities에서 개념 생성
-            if self.unified_entities:
-                for entity in self.unified_entities:
-                    fallback_concept = OntologyConcept(
-                        concept_id=f"concept_{entity.entity_id}",
-                        concept_type="object_type",
-                        name=entity.canonical_name,
-                        description=f"Entity type derived from {', '.join(entity.source_tables)}",
-                        definition={"source_entity": entity.entity_id},
-                        source_tables=entity.source_tables,
-                        status="provisional",
-                        confidence=entity.confidence * 0.8,
-                        source_agent="phase2_fallback_gate",
-                    )
-                    self.ontology_concepts.append(fallback_concept)
-                fallbacks_applied.append("created_fallback_concepts_from_entities")
-                logger.warning(f"[v14.0 Gate] Created {len(self.unified_entities)} fallback concepts from entities")
+        if missing_entities:
+            for entity in missing_entities:
+                # v27.0: 컬럼 메타데이터에서 속성 추출
+                fallback_attrs = []
+                for tname in entity.source_tables:
+                    tinfo = self.tables.get(tname)
+                    if tinfo and hasattr(tinfo, 'columns'):
+                        for col in (tinfo.columns or [])[:15]:
+                            col_name = col.get("name", str(col)) if isinstance(col, dict) else str(col)
+                            col_type = col.get("type", "string") if isinstance(col, dict) else "string"
+                            if not any(a["name"] == col_name for a in fallback_attrs):
+                                fallback_attrs.append({"name": col_name, "type": col_type, "source_table": tname})
+                fallback_concept = OntologyConcept(
+                    concept_id=f"concept_{entity.entity_id}",
+                    concept_type="object_type",
+                    name=entity.canonical_name,
+                    description=f"Entity type derived from {', '.join(entity.source_tables)}",
+                    definition={"source_entity": entity.entity_id, "extracted_attributes": fallback_attrs},
+                    source_tables=entity.source_tables,
+                    status="provisional",
+                    confidence=entity.confidence * 0.8,
+                    source_agent="phase2_fallback_gate",
+                    unified_attributes=fallback_attrs,
+                )
+                self.ontology_concepts.append(fallback_concept)
+            fallbacks_applied.append(f"created_{len(missing_entities)}_fallback_concepts")
+            logger.warning(f"[v27.0 Gate] Created {len(missing_entities)} fallback concepts for uncovered entities")
 
         # 2. concept_relationships 검증
         if not self.concept_relationships:

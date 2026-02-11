@@ -1178,6 +1178,12 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
                             for key in ["concept_id", "concept_type", "source_tables", "source_evidence", "confidence"]:
                                 if key not in enhanced_concept and key in original:
                                     enhanced_concept[key] = original[key]
+                            # v27.0: definition.extracted_attributes 보존
+                            orig_attrs = original.get("definition", {}).get("extracted_attributes", [])
+                            if orig_attrs:
+                                enh_def = enhanced_concept.setdefault("definition", {})
+                                if not enh_def.get("extracted_attributes"):
+                                    enh_def["extracted_attributes"] = orig_attrs
                             # 설명이 여전히 템플릿 형태면 원본 개선
                             desc = enhanced_concept.get("description", "")
                             if desc.startswith("Entity representing") or len(desc) < 30:

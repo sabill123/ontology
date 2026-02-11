@@ -2424,6 +2424,8 @@ class BusinessInsightsAnalyzer:
         if len(buckets) < 3:
             return
 
+        # v27.0: 모든 KPI를 한번에 분석하여 통합 인사이트 생성 (카테시안 곱 제거)
+        significant_kpis = []
         for kpi_col in kpi_cols:
             bucket_stats = {}
             for bname, (lo, hi) in buckets.items():
@@ -2444,36 +2446,58 @@ class BusinessInsightsAnalyzer:
             means = [s["mean"] for s in bucket_stats.values()]
             max_mean = max(means)
             min_mean = min(means)
-            if min_mean <= 0 or max_mean / min_mean < 1.5:
+            if min_mean <= 0 or max_mean / min_mean < 2.0:
                 continue
 
             best_bucket = max(bucket_stats, key=lambda b: bucket_stats[b]["mean"])
-            details = "; ".join(
-                f"{b}(n={s['n']}, avg={s['mean']:,.1f})"
-                for b, s in bucket_stats.items()
-            )
+            ratio = max_mean / min_mean
+            significant_kpis.append({
+                "kpi": kpi_col,
+                "ratio": ratio,
+                "best_bucket": best_bucket,
+                "best_mean": bucket_stats[best_bucket]["mean"],
+                "stats": bucket_stats,
+            })
 
-            insight = self._create_insight(
-                title=f"{bucket_col} Sweet Spot: {kpi_col}",
-                description=(
-                    f"{bucket_col} range {best_bucket} has highest avg {kpi_col} ({bucket_stats[best_bucket]['mean']:,.1f}). "
-                    f"[{details}]"
-                ),
-                insight_type=InsightType.KPI,
-                severity=InsightSeverity.MEDIUM,
-                source_table=table_name,
-                source_column=bucket_col,
-                source_system=system,
-                metric_value=bucket_stats[best_bucket]["mean"],
-                metric_name=f"{bucket_col}→{kpi_col}",
-                count=sum(s["n"] for s in bucket_stats.values()),
-                recommendations=[
-                    f"Target {bucket_col} range {best_bucket} for maximum {kpi_col}",
-                    f"Test {bucket_col} variations to validate sweet spot",
-                ],
-                business_impact=f"{bucket_col} optimization can improve {kpi_col} by up to {max_mean/min_mean:.1f}x",
-            )
-            self.insights.append(insight)
+        if not significant_kpis:
+            return
+
+        # 상위 3개 KPI만 하나의 인사이트로 통합
+        significant_kpis.sort(key=lambda x: x["ratio"], reverse=True)
+        top_kpis = significant_kpis[:3]
+
+        kpi_details = "; ".join(
+            f"{k['kpi']}({k['ratio']:.1f}x, best={k['best_bucket']})"
+            for k in top_kpis
+        )
+        best = top_kpis[0]
+        bucket_detail = "; ".join(
+            f"{b}(n={s['n']}, avg={s['mean']:,.1f})"
+            for b, s in best["stats"].items()
+        )
+
+        insight = self._create_insight(
+            title=f"{bucket_col} Sweet Spot ({len(top_kpis)} KPIs)",
+            description=(
+                f"{bucket_col} range {best['best_bucket']} is the sweet spot. "
+                f"Top effects: [{kpi_details}]. "
+                f"Detail for {best['kpi']}: [{bucket_detail}]"
+            ),
+            insight_type=InsightType.KPI,
+            severity=InsightSeverity.MEDIUM,
+            source_table=table_name,
+            source_column=bucket_col,
+            source_system=system,
+            metric_value=best["best_mean"],
+            metric_name=f"{bucket_col}→{best['kpi']}",
+            count=sum(s["n"] for s in best["stats"].values()),
+            recommendations=[
+                f"Target {bucket_col} range {best['best_bucket']} for maximum impact",
+                f"Affects {len(top_kpis)} KPIs with up to {best['ratio']:.1f}x variation",
+            ],
+            business_impact=f"{bucket_col} optimization affects {len(significant_kpis)} KPIs, up to {best['ratio']:.1f}x improvement",
+        )
+        self.insights.append(insight)
 
     # === v26.1: 상관관계 기반 인사이트 (음의 상관 포함) ===
 

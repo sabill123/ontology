@@ -245,6 +245,14 @@ class AgentOrchestrator:
                 async for event in self._run_phase(phase):
                     yield event
 
+                # v27.0: Phase 완료 후 진행 중인 에이전트 대기 (게이트 전)
+                for _wait in range(300):  # max 30s
+                    active = [a for a in self._agents.values() if a.state not in {AgentState.IDLE, AgentState.ERROR}]
+                    pending = list(self._agent_tasks.keys())
+                    if not active and not pending:
+                        break
+                    await asyncio.sleep(0.1)
+
                 # v14.0: Phase 완료 후 검증 게이트 실행 (폴백 적용)
                 gate_result = None
                 if phase == "discovery":
