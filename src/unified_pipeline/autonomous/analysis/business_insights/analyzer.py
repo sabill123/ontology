@@ -2138,10 +2138,18 @@ class BusinessInsightsAnalyzer:
             if len(valid_groups) < 2:
                 continue
 
-            # v27.4: trimmed mean으로 극단값 내성 확보 (engagement_rate 12M% 같은 outlier 방지)
+            # v27.5: KPI 전체 CV로 집계 방법을 한 번 결정, 모든 그룹에 동일 적용
+            all_kpi_vals = [v for vals in valid_groups.values() for v in vals]
+            kpi_mean_all = statistics.mean(all_kpi_vals) if all_kpi_vals else 0
+            if kpi_mean_all == 0:
+                continue
+            kpi_cv_all = abs(statistics.stdev(all_kpi_vals) / kpi_mean_all) if len(all_kpi_vals) > 1 else 0
+            use_median = kpi_cv_all > 10
+
             group_stats = {}
             for grp, vals in valid_groups.items():
-                group_stats[grp] = {"n": len(vals), "mean": self._robust_mean(vals)}
+                agg = statistics.median(vals) if use_median else statistics.mean(vals)
+                group_stats[grp] = {"n": len(vals), "mean": agg}
 
             means = [s["mean"] for s in group_stats.values()]
             max_mean = max(means)
@@ -2464,10 +2472,24 @@ class BusinessInsightsAnalyzer:
 
         # v27.0: 모든 KPI를 한번에 분석하여 통합 인사이트 생성 (카테시안 곱 제거)
         # v27.4: bucket_col 자기 자신을 KPI로 측정하는 순환 분석 제거
+        # v27.5: 동일 KPI 내 모든 버킷에 같은 집계 방법 사용 (mean vs median 혼합 비교 방지)
         significant_kpis = []
         for kpi_col in kpi_cols:
             if kpi_col == bucket_col:
                 continue
+            # 먼저 KPI 전체의 CV를 계산하여 집계 방법을 결정
+            all_kpi_vals = [
+                row[kpi_col] for row in rows
+                if row.get(kpi_col) is not None and isinstance(row.get(kpi_col), (int, float))
+            ]
+            if len(all_kpi_vals) < 50:
+                continue
+            kpi_mean = statistics.mean(all_kpi_vals)
+            if kpi_mean == 0:
+                continue
+            kpi_cv = abs(statistics.stdev(all_kpi_vals) / kpi_mean) if len(all_kpi_vals) > 1 else 0
+            use_median = kpi_cv > 10  # KPI 전체 기준으로 한 번만 판단
+
             bucket_stats = {}
             for bname, (lo, hi) in buckets.items():
                 vals = [
@@ -2479,7 +2501,8 @@ class BusinessInsightsAnalyzer:
                     and isinstance(row.get(kpi_col), (int, float))
                 ]
                 if len(vals) >= 10:
-                    bucket_stats[bname] = {"n": len(vals), "mean": self._robust_mean(vals)}
+                    agg = statistics.median(vals) if use_median else statistics.mean(vals)
+                    bucket_stats[bname] = {"n": len(vals), "mean": agg}
 
             if len(bucket_stats) < 3:
                 continue
@@ -2635,8 +2658,10 @@ class BusinessInsightsAnalyzer:
 
             # 양의 상관 드라이버 (top 3, r > 0.15)
             positive = [(c, r) for c, r in correlations if r > 0.15][:3]
-            # 음의 상관 (r < -0.08)
-            negative = [(c, r) for c, r in correlations if r < -0.08]
+            # v27.5: 음의 상관 임계값 강화 (r < -0.1)
+            # 이전: r < -0.08 → r≈-0.08 수준의 사실상 무상관도 보고
+            # 이제: |r| >= 0.1 이상만 보고 (통계적 의미 있는 약한 상관)
+            negative = [(c, r) for c, r in correlations if r < -0.1]
 
             # 양의 드라이버 보고
             if positive:
