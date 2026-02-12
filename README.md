@@ -1,10 +1,10 @@
-# Ontoloty v25.2
+# Ontoloty v27.5
 
 > **Multi-Agent Autonomous Ontology Discovery & Data Intelligence Platform**
 >
 > 분산 데이터 사일로에서 자동으로 엔티티를 발견하고, 관계를 추론하며, 비즈니스 인사이트를 생성합니다.
 
-[![Version](https://img.shields.io/badge/version-25.2-blue)]()
+[![Version](https://img.shields.io/badge/version-27.5-blue)]()
 [![Python](https://img.shields.io/badge/python-3.11+-green)]()
 [![Status](https://img.shields.io/badge/status-production-brightgreen)]()
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF)]()
@@ -13,7 +13,7 @@
 
 ## Overview
 
-Ontoloty는 **16개의 자율 에이전트**가 3단계 파이프라인을 통해 데이터 온톨로지를 자동 구축하고, 팔란티어 스타일의 처방적 비즈니스 인사이트를 생성하는 플랫폼입니다.
+Ontoloty는 **17개의 자율 에이전트**가 3단계 파이프라인을 통해 데이터 온톨로지를 자동 구축하고, 팔란티어 스타일의 처방적 비즈니스 인사이트를 생성하는 플랫폼입니다. 단일 CSV부터 15+ 테이블 멀티 사일로까지 자동 처리합니다.
 
 ### 핵심 기능
 
@@ -31,9 +31,19 @@ Ontoloty는 **16개의 자율 에이전트**가 3단계 파이프라인을 통�
 
 ```
 Phase 1 (Discovery)  →  Phase 2 (Refinement)  →  Phase 3 (Governance)
-     6 Agents                 4 Agents                 4+2 Agents
+     7 Agents                 4 Agents                 4+2 Agents
    + Analysis Modules       + Enhanced Validator       + Unified Insight Pipeline
 ```
+
+### Multi-Model LLM Architecture
+
+벤치마크 기반으로 에이전트별 최적 모델을 자동 배정합니다:
+
+| Tier | Model | Allocation | Agents |
+|------|-------|-----------|--------|
+| **Quality** | Claude Opus 4.5 | 12% | quality_judge, governance_strategist, risk_assessor, governance_judge |
+| **Balanced** | GPT-5.2 | 45% | entity_classifier, semantic_validator, tda_expert 등 15개 |
+| **Creative** | Gemini 3 Pro | 42% | ontology_architect, relationship_detector, business_interpreter 등 14개 |
 
 ---
 
@@ -83,7 +93,7 @@ gh workflow run "Run Ontoloty Pipeline" --ref main -f dataset=q2cut_metadata_ext
 
 ## System Architecture
 
-### 16 Autonomous Agents
+### 17 Autonomous Agents
 
 | Phase | Agent | Role |
 |-------|-------|------|
@@ -92,6 +102,7 @@ gh workflow run "Run Ontoloty Pipeline" --ref main -f dataset=q2cut_metadata_ext
 | | TDAExpertAgent | Betti Numbers, Persistent Homology, 구조적 복잡도 |
 | | SchemaAnalystAgent | 컬럼 프로파일링, PK/FK 후보 탐지 |
 | | ValueMatcherAgent | Cross-table 값 매칭, 외래키 추론 |
+| | HomeomorphismAgent | 테이블 간 위상 동형 탐지 |
 | | EntityClassifierAgent | 테이블 → 비즈니스 엔티티 매핑 |
 | | RelationshipDetectorAgent | FK 탐지, 의미적 관계 발견 |
 | **Phase 2: Refinement** | | **온톨로지 설계 및 품질 검증** |
@@ -187,7 +198,9 @@ ontoloty/
 │
 ├── scripts/
 │   ├── run_pipeline_ci.py                 # CI runner script
-│   └── detailed_pipeline_report.py        # Report generator
+│   ├── detailed_pipeline_report.py        # Detailed result analysis
+│   ├── generate_marketing_silo.py         # Marketing v2 data generator
+│   └── generate_beauty_ecommerce.py       # Beauty e-commerce data generator
 │
 ├── data/
 │   ├── sample_csv/                        # Single-table test datasets
@@ -197,12 +210,18 @@ ontoloty/
 │   │   ├── production.csv
 │   │   ├── sales.csv
 │   │   └── students.csv
-│   ├── healthcare_silo/                   # Multi-table silos
-│   ├── ecommerce_silo/
-│   ├── marketing_silo/
-│   ├── hr_silo/
-│   ├── airport_silo/
-│   └── ...
+│   ├── q2cut_metadata_extended_*.csv      # YouTube 메타데이터 (1,812행, 85컬럼)
+│   ├── healthcare_silo/                   # Multi-table silos (10 tables)
+│   ├── ecommerce_silo/                    # (11 tables)
+│   ├── marketing_silo/                    # (11 tables)
+│   ├── marketing_silo_v2/                 # (15 tables, 137MB)
+│   ├── beauty_ecommerce/                  # (10 tables, 31MB)
+│   ├── hr_silo/                           # (11 tables)
+│   ├── airport_silo/                      # (9 tables)
+│   ├── finance_silo/                      # (10 tables)
+│   ├── education_silo/                    # (10 tables)
+│   ├── logistics_silo/                    # (10 tables)
+│   └── manufacturing_silo/               # (10 tables)
 │
 ├── docs/
 │   ├── ARCHITECTURE.md                    # System architecture
@@ -253,44 +272,64 @@ ontoloty/
 
 ## Supported Domains
 
-| Domain | Silo | Tables | Keywords |
-|--------|------|--------|----------|
-| **Healthcare** | `healthcare_silo` | 10 | patient, diagnosis, prescription |
-| **E-Commerce** | `ecommerce_silo` | 11 | customer, order, product |
-| **Marketing** | `marketing_silo` | 11 | campaign, channel, conversion |
-| **HR** | `hr_silo` | 11 | employee, department, salary |
-| **Airport** | `airport_silo` | 9 | flight, passenger, terminal |
-| **Finance** | `finance_silo` | 10 | account, transaction, loan |
-| **Education** | `education_silo` | 10 | student, course, enrollment |
-| **Logistics** | `logistics_silo` | 10 | shipment, warehouse, carrier |
-| **Manufacturing** | `manufacturing_silo` | 10 | plant, work_order, equipment |
-| **Media/Entertainment** | single CSV | 1+ | video, creator, platform, viral |
+| Domain | Silo | Tables | Size | Keywords |
+|--------|------|--------|------|----------|
+| **Healthcare** | `healthcare_silo` | 10 | ~20MB | patient, diagnosis, prescription |
+| **E-Commerce** | `ecommerce_silo` | 11 | ~25MB | customer, order, product |
+| **Beauty E-Commerce** | `beauty_ecommerce` | 10 | 31MB | customer, product, review, promotion |
+| **Marketing** | `marketing_silo` | 11 | ~22MB | campaign, channel, conversion |
+| **Marketing v2** | `marketing_silo_v2` | 15 | 137MB | campaign, customer, attribution, AB test |
+| **HR** | `hr_silo` | 11 | ~18MB | employee, department, salary |
+| **Airport** | `airport_silo` | 9 | ~15MB | flight, passenger, terminal |
+| **Finance** | `finance_silo` | 10 | ~20MB | account, transaction, loan |
+| **Education** | `education_silo` | 10 | ~18MB | student, course, enrollment |
+| **Logistics** | `logistics_silo` | 10 | ~20MB | shipment, warehouse, carrier |
+| **Manufacturing** | `manufacturing_silo` | 10 | ~20MB | plant, work_order, equipment |
+| **Media/Entertainment** | single CSV | 1+ | ~37MB | video, creator, platform, viral |
 
 ---
 
 ## Pipeline Results (Recent)
 
-### patients.csv (v25.2.4)
-| Metric | Value |
-|--------|-------|
-| Entities | 38 (31 ontology_architect + 7 fallback) |
-| Relationships | 16 |
-| Insights | 12 |
-| Governance Decisions | 7 |
-| Agent Assignments | 16/16 SUCCESS |
-| Data Flow Checks | 18/18 PASS |
+### q2cut_metadata_extended (v27.4.3) — Primary Benchmark
 
-### q2cut_metadata_extended (v25.2.4)
 | Metric | Value |
 |--------|-------|
-| Records | 1,812 |
-| Entities | 1 (VideoMetadata, conf=0.95) |
-| Business Insights | 46 |
-| Palantir Insights | 4 (CRITICAL 1, HIGH 2, MEDIUM 1) |
-| ML Anomaly Detection | 19 columns analyzed |
-| Evidence Blocks | 63 (chain valid) |
-| BFT Council | 4:0 unanimous approve |
-| Execution Time | 16m 57s |
+| Records | 1,812 rows, 85 columns |
+| Domain | Media/Entertainment (auto-detected, 96% confidence) |
+| Entities | 14 (Video, Channel, Platform, CreatorTier 등) |
+| Ontology Concepts | 40 |
+| Governance Decisions | 40 (approved: 43) |
+| Business Insights | 172 |
+| Evidence Blocks | 242 (chain valid) |
+| Ground Truth Score | **10/10** (I1-I10 모든 인사이트 검출) |
+| Agents Created | 17 |
+| Todos Completed | 16/16 |
+| Execution Time | ~37 minutes |
+
+### Ground Truth Verification (q2cut)
+
+| ID | Insight | Status |
+|----|---------|--------|
+| I1 | Subscriber-View Paradox (구독자 무관 조회수) | FOUND |
+| I2 | Hashtag Saturation Curve (해시태그 포화 곡선) | FOUND |
+| I3 | Duration Sweet Spot (15-20분 최적 길이) | FOUND |
+| I4 | Content Type Neutrality (유형 무관 성과) | FOUND |
+| I5 | Late-Night Upload Premium (심야 업로드 프리미엄) | FOUND |
+| I6 | Description Length-Quality Link (설명 길이-품질) | FOUND |
+| I7 | Editing Style Impact (편집 스타일 영향) | FOUND |
+| I8 | Title Optimization Window (제목 최적화 구간) | FOUND |
+| I9 | Language Distribution (언어별 분포 패턴) | FOUND |
+| I10 | Viral Threshold Detection (바이럴 임계점) | FOUND |
+
+### Phase-by-Phase Timing (q2cut, single table)
+
+| Phase | Duration | Todos | Key Steps |
+|-------|----------|-------|-----------|
+| Discovery | 4m 15s | 7/7 | Data Understanding, TDA, Schema, Value Overlap, Homeomorphism, Entity, Relationship |
+| Refinement | 10m 31s | 5/5 | Ontology Proposal, Conflict Resolution, Quality, Semantic Validation, Cross-Entity |
+| Governance | 17m 8s | 4/4 | Governance Strategy, Action Prioritization, Risk Assessment, Policy Generation |
+| **Total** | **~32m** | **16/16** | |
 
 ---
 
@@ -298,6 +337,15 @@ ontoloty/
 
 | Version | Key Features |
 |---------|--------------|
+| **v27.5** | Sweet spot/segment 집계 일관성, 상관 임계값 강화, multi-table 데이터셋 지원 |
+| **v27.4** | Robust mean (CV>5 제거), unique_ratio 0.05 완화, segment non-effect 보고 |
+| **v27.3** | Trimmed mean 과보정 해결, 적응적 평균 알고리즘 |
+| **v27.2** | Segment gap 통합 (카테고리별 1개), null-finding 감지, 카테고리 분포 인사이트 |
+| **v27.1** | 인사이트 중복 제거, 모순 감지 (`[CONTRADICTION]` 태그), ML Anomaly 상위 5개 제한 |
+| **v27.0** | OntologyArchitect 실행 보장 (consensus bypass), 엔티티 관계 매핑, 계층 추론, Ground Truth 10/10 달성 |
+| **v26.2** | LLM 모델 벤치마크 기반 자동 배정 (Claude/GPT/Gemini), Ground Truth 10/10 달성 |
+| **v26.1** | Governance confidence 데이터 기반 계산, PolicyGenerator 활성화 |
+| **v26.0** | Unified Insight Pipeline 정확도 개선, Phase 2 fallback gate 제거 |
 | **v25.2** | Phase 간 데이터 흐름 수정 (context_updates 전파), TDA confidence boost, source_agent 추적 |
 | **v25.1** | Agent 패키지 구조 재분리 (discovery/, refinement/, governance/) |
 | **v24.0** | CI/로컬 전체 버그 수정 + 안정화 (15개 이슈) |
@@ -335,11 +383,11 @@ HF_TOKEN=...                               # HuggingFace Token (optional)
 # LLM Gateway
 LLM_GATEWAY_URL=https://gateway.letsur.ai/v1
 
-# Model Configuration (CI)
-MODEL_FAST=gpt-5.1
-MODEL_BALANCED=claude-opus-4-5-20251101
-MODEL_CREATIVE=gemini-3-pro-preview
-MODEL_HIGH_CONTEXT=gemini-3-pro-preview
+# Model Configuration (CI — v26.2.1 벤치마크 기반)
+MODEL_FAST=gpt-5.1                         # 빠른 분류/검증 작업
+MODEL_BALANCED=claude-opus-4-5-20251101    # 품질 판단/거버넌스
+MODEL_CREATIVE=gemini-3-pro-preview        # 창의적 분석/관계 발견
+MODEL_HIGH_CONTEXT=gemini-3-pro-preview    # 대용량 컨텍스트 처리
 ```
 
 ---

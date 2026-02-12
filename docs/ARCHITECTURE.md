@@ -11,8 +11,8 @@
          Autonomous Ontology Discovery & Data Intelligence Platform
 ```
 
-> **Version**: v25.2
-> **Last Updated**: 2026-02-10
+> **Version**: v27.5
+> **Last Updated**: 2026-02-12
 
 ---
 
