@@ -2073,7 +2073,7 @@ class BusinessInsightsAnalyzer:
             vals = [row.get(col) for row in rows if row.get(col) is not None and isinstance(row.get(col), (int, float))]
             if len(vals) >= total_rows * 0.5:
                 unique_ratio = len(set(vals)) / len(vals)
-                if unique_ratio > 0.1:
+                if unique_ratio > 0.05:  # v27.4.3: 0.1→0.05 (duration=0.097 탈락 방지)
                     if col in kpi_set:
                         kpi_candidates.append((col, unique_ratio))
                     else:
@@ -2096,10 +2096,9 @@ class BusinessInsightsAnalyzer:
 
     @staticmethod
     def _robust_mean(vals: list) -> float:
-        """v27.4.2: CV 기반 적응적 평균.
+        """v27.4.3: CV 기반 적응적 평균.
         - CV > 10 (극단 분포: engagement_rate 12M%): median 사용
-        - CV > 5 (높은 분산): 1% trimmed mean
-        - otherwise: 일반 mean (합법적 스큐 보존: view_count 등)
+        - otherwise: 일반 mean (합법적 스큐 보존: view_count CV=6.6 등)
         """
         if len(vals) < 5:
             return statistics.mean(vals)
@@ -2111,13 +2110,7 @@ class BusinessInsightsAnalyzer:
 
         if cv > 10:
             return statistics.median(vals)
-        elif cv > 5 and len(vals) >= 20:
-            sorted_vals = sorted(vals)
-            trim_n = max(1, int(len(sorted_vals) * 0.01))
-            trimmed = sorted_vals[trim_n:-trim_n]
-            return statistics.mean(trimmed) if trimmed else mean_val
-        else:
-            return mean_val
+        return mean_val
 
     def _compare_segments_consolidated(
         self,
