@@ -325,6 +325,7 @@ Respond with ONLY valid JSON matching this schema."""
                                 "row_count": len(df),
                                 "columns": list(df.columns),
                                 "data": df.to_csv(index=False),
+                                "_df": df,  # v27.6: DataFrame 캐시 (이중 읽기 제거)
                             }
                             logger.info(f"[v22.1] Loaded full data from data_dir: {table_name} ({len(df)} rows)")
                             break
@@ -342,6 +343,7 @@ Respond with ONLY valid JSON matching this schema."""
                             "row_count": len(df),
                             "columns": list(df.columns),
                             "data": df.to_csv(index=False),
+                            "_df": df,  # v27.6: DataFrame 캐시
                         }
                         logger.info(f"[v22.1] Loaded full data from source: {source_path} ({len(df)} rows)")
                     except Exception as e:
@@ -355,6 +357,7 @@ Respond with ONLY valid JSON matching this schema."""
                     "row_count": len(df),
                     "columns": list(df.columns),
                     "data": df.to_csv(index=False),
+                    "_df": df,  # v27.6: DataFrame 캐시
                 }
                 actual_total = getattr(table_info, "row_count", len(df))
                 if actual_total > len(df):
@@ -378,7 +381,12 @@ Respond with ONLY valid JSON matching this schema."""
         precomputed_stats_section = ""
         try:
             for table_name in all_data:
-                df_full = pd.read_csv(all_data[table_name]["path"])
+                # v27.6: 캐시된 DataFrame 사용 (이중 CSV 읽기 제거)
+                df_full = all_data[table_name].get("_df")
+                if df_full is None and all_data[table_name].get("path"):
+                    df_full = pd.read_csv(all_data[table_name]["path"])
+                if df_full is None:
+                    continue
                 precomputed_stats[table_name] = self._compute_pandas_stats(df_full, table_name)
                 logger.info(f"[v22.1] Pre-computed stats for {table_name}: "
                            f"{len(precomputed_stats[table_name].get('numeric_aggregates', {}))} numeric cols, "
@@ -396,10 +404,14 @@ Respond with ONLY valid JSON matching this schema."""
         data_quality_context = ""
         quality_report = None
         try:
-            # DataFrame 형태로 변환하여 분석
+            # v27.6: 캐시된 DataFrame 사용 (세 번째 CSV 읽기 제거)
             tables_for_analysis = {}
             for table_name, table_info in all_data.items():
-                df = pd.read_csv(table_info["path"])
+                df = table_info.get("_df")
+                if df is None and table_info.get("path"):
+                    df = pd.read_csv(table_info["path"])
+                if df is None:
+                    continue
                 tables_for_analysis[table_name] = {
                     col: df[col].dropna().tolist() for col in df.columns
                 }

@@ -554,7 +554,10 @@ class SchemaAnalyzer:
         tables: Dict[str, Dict[str, ColumnProfile]],
     ) -> List[Dict[str, Any]]:
         """
-        테이블 간 컬럼 매핑 찾기
+        테이블 간 컬럼 매핑 찾기 — v27.6 인덱스 기반 최적화
+
+        기존 O(T²×C²) 브루트포스 → O(T×C) 인덱스 구축 + O(매칭수) 비교
+        수학적으로 동일한 결과
 
         Returns:
             [
@@ -569,23 +572,104 @@ class SchemaAnalyzer:
             ]
         """
         mappings = []
-        table_names = list(tables.keys())
+        seen = set()
 
-        for i, table_a in enumerate(table_names):
-            for table_b in table_names[i + 1:]:
-                cols_a = tables[table_a]
-                cols_b = tables[table_b]
+        # O(T×C): 3개의 인덱스 구축
+        exact_index = defaultdict(list)      # col_lower → [(table, profile)]
+        normalized_index = defaultdict(list)  # normalized_name → [(table, col_name, profile)]
+        type_index = defaultdict(list)        # (inferred_type, semantic_type) → [(table, col_name, profile)]
 
-                for col_a_name, prof_a in cols_a.items():
-                    for col_b_name, prof_b in cols_b.items():
-                        mapping = self._compare_columns(
-                            table_a, prof_a,
-                            table_b, prof_b,
-                        )
-                        if mapping:
-                            mappings.append(mapping)
+        for table_name, cols in tables.items():
+            for col_name, prof in cols.items():
+                col_lower = col_name.lower()
+                exact_index[col_lower].append((table_name, prof))
 
-        # 신뢰도 순 정렬
+                norm = self._normalize_column_name(col_lower)
+                normalized_index[norm].append((table_name, col_name, prof))
+
+                if prof.semantic_type != "unknown":
+                    type_key = (prof.inferred_type, prof.semantic_type)
+                    type_index[type_key].append((table_name, col_name, prof))
+
+        # 1. Exact name matches (같은 이름의 컬럼끼리만 비교)
+        for col_lower, entries in exact_index.items():
+            for i, (table_a, prof_a) in enumerate(entries):
+                for table_b, prof_b in entries[i + 1:]:
+                    if table_a == table_b:
+                        continue
+                    pair_key = (table_a, prof_a.column_name, table_b, prof_b.column_name)
+                    if pair_key in seen:
+                        continue
+                    seen.add(pair_key)
+
+                    confidence = 0.8
+                    if prof_a.inferred_type == prof_b.inferred_type:
+                        confidence += 0.1
+                    if prof_a.semantic_type == prof_b.semantic_type and prof_a.semantic_type != "unknown":
+                        confidence += 0.1
+
+                    mappings.append({
+                        "table_a": table_a,
+                        "column_a": prof_a.column_name,
+                        "table_b": table_b,
+                        "column_b": prof_b.column_name,
+                        "mapping_type": "exact",
+                        "confidence": round(confidence, 4),
+                    })
+
+        # 2. Normalized name matches (정규화된 이름이 같은 컬럼끼리만 비교)
+        for norm, entries in normalized_index.items():
+            for i, (table_a, col_a, prof_a) in enumerate(entries):
+                for table_b, col_b, prof_b in entries[i + 1:]:
+                    if table_a == table_b:
+                        continue
+                    if col_a.lower() == col_b.lower():
+                        continue  # exact에서 이미 처리됨
+                    pair_key = (table_a, col_a, table_b, col_b)
+                    if pair_key in seen:
+                        continue
+                    seen.add(pair_key)
+
+                    confidence = 0.6
+                    if prof_a.inferred_type == prof_b.inferred_type:
+                        confidence += 0.1
+                    if prof_a.semantic_type == prof_b.semantic_type and prof_a.semantic_type != "unknown":
+                        confidence += 0.1
+
+                    mappings.append({
+                        "table_a": table_a,
+                        "column_a": col_a,
+                        "table_b": table_b,
+                        "column_b": col_b,
+                        "mapping_type": "similar",
+                        "confidence": round(confidence, 4),
+                    })
+
+        # 3. Semantic type matches (같은 타입 쌍끼리만 비교)
+        for type_key, entries in type_index.items():
+            for i, (table_a, col_a, prof_a) in enumerate(entries):
+                for table_b, col_b, prof_b in entries[i + 1:]:
+                    if table_a == table_b:
+                        continue
+                    pair_key = (table_a, col_a, table_b, col_b)
+                    if pair_key in seen:
+                        continue
+                    seen.add(pair_key)
+
+                    confidence = 0.4 + 0.1  # semantic_type match bonus
+                    if prof_a.inferred_type == prof_b.inferred_type:
+                        confidence += 0.1
+
+                    if confidence >= 0.4:
+                        mappings.append({
+                            "table_a": table_a,
+                            "column_a": col_a,
+                            "table_b": table_b,
+                            "column_b": col_b,
+                            "mapping_type": "semantic",
+                            "confidence": round(confidence, 4),
+                        })
+
         mappings.sort(key=lambda x: x["confidence"], reverse=True)
         return mappings
 
