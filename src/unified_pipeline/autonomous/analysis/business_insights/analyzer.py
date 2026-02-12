@@ -2079,11 +2079,11 @@ class BusinessInsightsAnalyzer:
                     else:
                         feature_candidates.append((col, unique_ratio))
 
-        # feature 컬럼 우선, 나머지 KPI 컬럼으로 채움
+        # v27.4.1: feature 컬럼 전체 분석 + KPI는 상위 5개까지
         feature_candidates.sort(key=lambda x: -x[1])
         kpi_candidates.sort(key=lambda x: -x[1])
-        continuous_candidates = feature_candidates + kpi_candidates
-        for cont_col, _ in continuous_candidates[:8]:
+        continuous_candidates = feature_candidates + kpi_candidates[:5]
+        for cont_col, _ in continuous_candidates:
             self._analyze_numeric_buckets(table_name, rows, cont_col, target_kpis, system)
 
     def _is_numeric_string(self, val: str) -> bool:
@@ -2114,6 +2114,7 @@ class BusinessInsightsAnalyzer:
     ):
         """v27.0: 카테고리 컬럼 당 모든 KPI gap을 수집, top 3만 하나의 인사이트로 통합."""
         significant_gaps = []
+        non_effect_kpis = []  # v27.4.1: gap < 1.2x인 KPI 추적
         tested_kpi_count = 0
         max_observed_ratio = 1.0
 
@@ -2144,6 +2145,10 @@ class BusinessInsightsAnalyzer:
             tested_kpi_count += 1
             ratio = max_mean / min_mean
             max_observed_ratio = max(max_observed_ratio, ratio)
+
+            if ratio < 1.2:
+                # v27.4.1: 거의 동일한 KPI 추적 (null finding)
+                non_effect_kpis.append((kpi_col, ratio))
 
             if ratio < 2.0:
                 continue
@@ -2189,11 +2194,19 @@ class BusinessInsightsAnalyzer:
             )
 
         max_ratio = top_gaps[0][1]
+
+        # v27.4.1: non-effect KPI 보고 (gap 있는데 특정 KPI는 영향 없음 → null finding)
+        non_effect_note = ""
+        if non_effect_kpis and len(non_effect_kpis) >= 1:
+            ne_names = [f"{k}({r:.2f}x)" for k, r in non_effect_kpis[:5]]
+            non_effect_note = f" Notable non-effects: {', '.join(ne_names)} show no meaningful variation by {cat_col}."
+
         insight = self._create_insight(
             title=f"Segment Performance: {cat_col} ({len(significant_gaps)} KPI gaps)",
             description=(
                 f"{cat_col} shows significant performance gaps across {len(significant_gaps)} KPIs. "
                 f"Top gaps: {'; '.join(gap_details)}"
+                f"{non_effect_note}"
             ),
             insight_type=InsightType.KPI,
             severity=InsightSeverity.HIGH if max_ratio >= 5.0 else InsightSeverity.MEDIUM,
