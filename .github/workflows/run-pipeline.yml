@@ -29,6 +29,7 @@ on:
           - airport_silo
           - marketing_silo
           - marketing_silo_v2
+          - beauty_ecommerce
           # === Custom path ===
           - custom
       custom_path:
