@@ -2079,10 +2079,10 @@ class BusinessInsightsAnalyzer:
                     else:
                         feature_candidates.append((col, unique_ratio))
 
-        # v27.4.1: feature 컬럼 전체 분석 + KPI는 상위 5개까지
+        # v27.4.2: feature 컬럼 전체 + KPI 전체 분석 (duration 포함 보장)
         feature_candidates.sort(key=lambda x: -x[1])
         kpi_candidates.sort(key=lambda x: -x[1])
-        continuous_candidates = feature_candidates + kpi_candidates[:5]
+        continuous_candidates = feature_candidates + kpi_candidates
         for cont_col, _ in continuous_candidates:
             self._analyze_numeric_buckets(table_name, rows, cont_col, target_kpis, system)
 
@@ -2095,14 +2095,29 @@ class BusinessInsightsAnalyzer:
             return False
 
     @staticmethod
-    def _trimmed_mean(vals: list, trim_pct: float = 0.05) -> float:
-        """Trimmed mean — 상하 trim_pct% 제거 후 평균. 극단값 내성."""
-        if len(vals) < 20:
+    def _robust_mean(vals: list) -> float:
+        """v27.4.2: CV 기반 적응적 평균.
+        - CV > 10 (극단 분포: engagement_rate 12M%): median 사용
+        - CV > 5 (높은 분산): 1% trimmed mean
+        - otherwise: 일반 mean (합법적 스큐 보존: view_count 등)
+        """
+        if len(vals) < 5:
             return statistics.mean(vals)
-        sorted_vals = sorted(vals)
-        trim_n = max(1, int(len(sorted_vals) * trim_pct))
-        trimmed = sorted_vals[trim_n:-trim_n]
-        return statistics.mean(trimmed) if trimmed else statistics.mean(vals)
+        mean_val = statistics.mean(vals)
+        if mean_val == 0:
+            return 0.0
+        stdev = statistics.stdev(vals) if len(vals) > 1 else 0
+        cv = abs(stdev / mean_val) if mean_val != 0 else 0
+
+        if cv > 10:
+            return statistics.median(vals)
+        elif cv > 5 and len(vals) >= 20:
+            sorted_vals = sorted(vals)
+            trim_n = max(1, int(len(sorted_vals) * 0.01))
+            trimmed = sorted_vals[trim_n:-trim_n]
+            return statistics.mean(trimmed) if trimmed else mean_val
+        else:
+            return mean_val
 
     def _compare_segments_consolidated(
         self,
@@ -2133,7 +2148,7 @@ class BusinessInsightsAnalyzer:
             # v27.4: trimmed mean으로 극단값 내성 확보 (engagement_rate 12M% 같은 outlier 방지)
             group_stats = {}
             for grp, vals in valid_groups.items():
-                group_stats[grp] = {"n": len(vals), "mean": self._trimmed_mean(vals)}
+                group_stats[grp] = {"n": len(vals), "mean": self._robust_mean(vals)}
 
             means = [s["mean"] for s in group_stats.values()]
             max_mean = max(means)
@@ -2471,7 +2486,7 @@ class BusinessInsightsAnalyzer:
                     and isinstance(row.get(kpi_col), (int, float))
                 ]
                 if len(vals) >= 10:
-                    bucket_stats[bname] = {"n": len(vals), "mean": self._trimmed_mean(vals)}
+                    bucket_stats[bname] = {"n": len(vals), "mean": self._robust_mean(vals)}
 
             if len(bucket_stats) < 3:
                 continue
