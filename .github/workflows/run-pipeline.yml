@@ -28,6 +28,7 @@ on:
           - hr_silo
           - airport_silo
           - marketing_silo
+          - marketing_silo_v2
           # === Custom path ===
           - custom
       custom_path:
