@@ -2059,25 +2059,31 @@ class BusinessInsightsAnalyzer:
             self._compare_segments_consolidated(table_name, rows, cat_col, target_kpis, system)
 
         # --- 5. 연속형 숫자 컬럼 버킷 분석 (분위수 기반) ---
-        # 카테고리가 아닌 연속형 컬럼 중 고유값 비율 높은 상위 3개를 버킷 분석
-        # KPI 컬럼도 버킷 대상에 포함 (segment 분석과 다른 차원의 분석)
-        continuous_candidates = []
+        # v27.4: KPI 컬럼이 아닌 feature 컬럼 우선 + 후보 8개로 확대
+        kpi_set = set(target_kpis)
+        feature_candidates = []
+        kpi_candidates = []
         for col in sample_row.keys():
             if not col or not self._is_business_metric_column(col):
                 continue
             if self._should_skip_segment_col(col):
                 continue
-            # 카테고리 컬럼과 중복 제거
             if any(col == cc[0] for cc in categorical_cols):
                 continue
             vals = [row.get(col) for row in rows if row.get(col) is not None and isinstance(row.get(col), (int, float))]
             if len(vals) >= total_rows * 0.5:
                 unique_ratio = len(set(vals)) / len(vals)
-                if unique_ratio > 0.1:  # 충분히 연속적인 컬럼
-                    continuous_candidates.append((col, unique_ratio))
+                if unique_ratio > 0.1:
+                    if col in kpi_set:
+                        kpi_candidates.append((col, unique_ratio))
+                    else:
+                        feature_candidates.append((col, unique_ratio))
 
-        continuous_candidates.sort(key=lambda x: -x[1])
-        for cont_col, _ in continuous_candidates[:3]:
+        # feature 컬럼 우선, 나머지 KPI 컬럼으로 채움
+        feature_candidates.sort(key=lambda x: -x[1])
+        kpi_candidates.sort(key=lambda x: -x[1])
+        continuous_candidates = feature_candidates + kpi_candidates
+        for cont_col, _ in continuous_candidates[:8]:
             self._analyze_numeric_buckets(table_name, rows, cont_col, target_kpis, system)
 
     def _is_numeric_string(self, val: str) -> bool:
@@ -2087,6 +2093,16 @@ class BusinessInsightsAnalyzer:
             return True
         except (ValueError, TypeError):
             return False
+
+    @staticmethod
+    def _trimmed_mean(vals: list, trim_pct: float = 0.05) -> float:
+        """Trimmed mean — 상하 trim_pct% 제거 후 평균. 극단값 내성."""
+        if len(vals) < 20:
+            return statistics.mean(vals)
+        sorted_vals = sorted(vals)
+        trim_n = max(1, int(len(sorted_vals) * trim_pct))
+        trimmed = sorted_vals[trim_n:-trim_n]
+        return statistics.mean(trimmed) if trimmed else statistics.mean(vals)
 
     def _compare_segments_consolidated(
         self,
@@ -2113,9 +2129,10 @@ class BusinessInsightsAnalyzer:
             if len(valid_groups) < 2:
                 continue
 
+            # v27.4: trimmed mean으로 극단값 내성 확보 (engagement_rate 12M% 같은 outlier 방지)
             group_stats = {}
             for grp, vals in valid_groups.items():
-                group_stats[grp] = {"n": len(vals), "mean": statistics.mean(vals)}
+                group_stats[grp] = {"n": len(vals), "mean": self._trimmed_mean(vals)}
 
             means = [s["mean"] for s in group_stats.values()]
             max_mean = max(means)
@@ -2425,8 +2442,11 @@ class BusinessInsightsAnalyzer:
             return
 
         # v27.0: 모든 KPI를 한번에 분석하여 통합 인사이트 생성 (카테시안 곱 제거)
+        # v27.4: bucket_col 자기 자신을 KPI로 측정하는 순환 분석 제거
         significant_kpis = []
         for kpi_col in kpi_cols:
+            if kpi_col == bucket_col:
+                continue
             bucket_stats = {}
             for bname, (lo, hi) in buckets.items():
                 vals = [
@@ -2438,7 +2458,7 @@ class BusinessInsightsAnalyzer:
                     and isinstance(row.get(kpi_col), (int, float))
                 ]
                 if len(vals) >= 10:
-                    bucket_stats[bname] = {"n": len(vals), "mean": statistics.mean(vals)}
+                    bucket_stats[bname] = {"n": len(vals), "mean": self._trimmed_mean(vals)}
 
             if len(bucket_stats) < 3:
                 continue
