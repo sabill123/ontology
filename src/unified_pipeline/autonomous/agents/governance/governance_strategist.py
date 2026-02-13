@@ -804,7 +804,7 @@ Respond ONLY with valid JSON."""
                 else:
                     # Judge 검증 실패 시: approve → schedule_review로 변경
                     final_decision_type = "schedule_review"
-                    final_confidence = min(proposed_confidence, 0.6)  # confidence 제한
+                    final_confidence = max(0.0, min(proposed_confidence, 0.6))  # confidence 제한 [0, 0.6]
                     final_reasoning = (
                         f"[Judge Override] Embedded LLM Judge 검증 실패 ({judge_score}%). "
                         f"원래 결정: {proposed_decision}. "
@@ -829,7 +829,7 @@ Respond ONLY with valid JSON."""
                     if debate_verdict == "approve" and final_decision_type != "approve":
                         # Council이 승인하면 승인으로 변경
                         final_decision_type = "approve"
-                        final_confidence = max(final_confidence, debate_confidence)
+                        final_confidence = max(0.0, min(1.0, max(final_confidence, debate_confidence)))
                         final_reasoning = (
                             f"[v11.0 Council Consensus] 4개 에이전트 Council 토론에서 승인 합의. "
                             f"근거 블록: {len(evidence_debate.get('cited_evidence', []))}개 참조. "
@@ -838,7 +838,7 @@ Respond ONLY with valid JSON."""
                     elif debate_verdict == "reject" and final_decision_type == "approve":
                         # Council이 거부하면 schedule_review로 변경
                         final_decision_type = "schedule_review"
-                        final_confidence = min(final_confidence, 0.6)
+                        final_confidence = max(0.0, min(final_confidence, 0.6))
                         final_reasoning = (
                             f"[v11.0 Council Override] 4개 에이전트 Council 토론에서 거부 합의. "
                             f"근거 블록: {len(evidence_debate.get('cited_evidence', []))}개 참조. "

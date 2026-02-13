@@ -239,6 +239,18 @@ UNIFIED_AGENT_CONFIGS = {
         ],
         weight=1.1,
     ),
+    "data_analyst": UnifiedAgentConfig(
+        name="Data Analyst",
+        role="data_analyst",
+        stage="discovery",
+        model_type=ModelType.HIGH_CONTEXT,  # v22.1: 전체 CSV 데이터 입력 → 대용량 컨텍스트 모델
+        temperature=0.2,
+        expertise_keywords=[
+            "data", "analysis", "statistics", "distribution",
+            "quality", "profiling", "summary", "pattern"
+        ],
+        weight=1.0,
+    ),
 
     # Stage 2: Refinement
     "ontology_architect": UnifiedAgentConfig(

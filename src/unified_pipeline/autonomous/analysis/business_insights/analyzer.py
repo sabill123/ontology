@@ -2393,10 +2393,12 @@ class BusinessInsightsAnalyzer:
         if len(ml_anomalies) > 5:
             ml_anomalies.sort(key=lambda x: -(x.percentage or 0))
             keep = set(id(i) for i in ml_anomalies[:5])
+            dropped = len(ml_anomalies) - 5
             self.insights = [
                 i for i in self.insights
                 if not i.title.startswith("ML Anomalies Detected:") or id(i) in keep
             ]
+            logger.info(f"[v27.10] ML Anomaly 인사이트 {dropped}개 제거 (상위 5개만 유지)")
 
         # 2. 같은 컬럼에 대한 positive/negative 방향 모순 감지
         column_directions = defaultdict(list)
@@ -2417,6 +2419,8 @@ class BusinessInsightsAnalyzer:
                     "title": insight.title,
                 })
 
+        # v27.10: O(n²) → O(n) dict lookup으로 contradiction 감지
+        insight_by_id = {i.insight_id: i for i in self.insights}
         for col, entries in column_directions.items():
             directions = set(e["direction"] for e in entries)
             if len(directions) > 1:
@@ -2425,13 +2429,13 @@ class BusinessInsightsAnalyzer:
                     + "; ".join(e["title"] for e in entries)
                 )
                 for entry in entries:
-                    for insight in self.insights:
-                        if insight.insight_id == entry["insight_id"]:
-                            insight.description += contradiction_note
-                            if "Validate with controlled experiments" not in (insight.recommendations or []):
-                                insight.recommendations.append(
-                                    "Validate with controlled experiments — conflicting signals detected"
-                                )
+                    insight = insight_by_id.get(entry["insight_id"])
+                    if insight:
+                        insight.description += contradiction_note
+                        if "Validate with controlled experiments" not in (insight.recommendations or []):
+                            insight.recommendations.append(
+                                "Validate with controlled experiments — conflicting signals detected"
+                            )
 
     def _analyze_numeric_buckets(
         self,

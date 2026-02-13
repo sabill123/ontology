@@ -1721,7 +1721,7 @@ JSON만 출력하세요."""
             numeric_cols = self.get_numeric_columns(df)
             # 주요 상관 쌍에 대해 교란변수 체크
             for i, col_a in enumerate(numeric_cols[:8]):
-                for col_b in numeric_cols[i+1:8]:
+                for col_b in numeric_cols[i+1:]:
                     try:
                         from scipy import stats
                         mask = df[[col_a, col_b]].notna().all(axis=1)
@@ -1734,8 +1734,8 @@ JSON만 출력하세요."""
                             )
                             if confounders:
                                 self._confounding_results.extend(confounders)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Confounding analysis failed for {col_a} vs {col_b}: {e}")
 
         if self._confounding_results:
             logger.info(f"[v26.0] Found {len(self._confounding_results)} confounding relationships")

@@ -709,14 +709,17 @@ class AgentOrchestrator:
         # v27.8: pending asyncio tasks도 카운팅 (create_task 후 아직 WORKING이 아닌 에이전트 반영)
         active_count = len([a for a in self._agents.values() if a.state != AgentState.IDLE])
         pending_count = len(self._agent_tasks)
-        return max(active_count, pending_count) < self.config.max_concurrent_agents
+        # v27.10: active + pending 합산 (max는 겹침 가정이지만 실제로는 독립 카운트)
+        return (active_count + pending_count) < self.config.max_concurrent_agents
 
     def _available_slots(self) -> int:
         """사용 가능한 에이전트 슬롯 수"""
         # v27.8: pending asyncio tasks도 카운팅 (race condition 방지)
         active_count = len([a for a in self._agents.values() if a.state != AgentState.IDLE])
         pending_count = len(self._agent_tasks)
-        used = max(active_count, pending_count)
+        # v27.10: active + pending 합산 (max는 동시에 active이면서 pending인 에이전트를 이중 카운팅 안 하지만,
+        # create_task 직후 아직 WORKING이 아닌 에이전트는 pending에만 있으므로 합산이 정확)
+        used = active_count + pending_count
         return max(0, self.config.max_concurrent_agents - used)
 
     # === 콜백 ===

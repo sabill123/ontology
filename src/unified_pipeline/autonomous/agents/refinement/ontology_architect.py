@@ -306,7 +306,7 @@ Respond ONLY with valid JSON."""
             # v27.1: LLM 결과가 아닌 원본 인덱스에서 속성 복원
             original_attrs = _attr_index.get(cid, [])
             llm_attrs = c.get("definition", {}).get("extracted_attributes", [])
-            final_attrs = original_attrs if original_attrs else llm_attrs
+            final_attrs = original_attrs if original_attrs is not None else llm_attrs
 
             concept = OntologyConcept(
                 concept_id=cid,
@@ -1916,137 +1916,7 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
 
         return virtual_entities
 
-    # === v17.1: LLM-Powered Concept Analysis ===
-
-    async def _llm_deep_concept_analysis(
-        self,
-        concepts: List[Dict[str, Any]],
-        context: "SharedContext",
-    ) -> List[Dict[str, Any]]:
-        """
-        v17.1: LLM 심층 개념 분석 - 개념 정의 및 비즈니스 의미 강화
-
-        알고리즘 추출 후 LLM으로 각 개념의:
-        1. 비즈니스 정의 (business_definition) 추가
-        2. 관련 도메인 개념 (related_concepts) 식별
-        3. 데이터 품질 지표 (quality_indicators) 평가
-        4. 잠재적 사용 사례 (use_cases) 도출
-
-        Args:
-            concepts: 알고리즘으로 추출된 개념들
-            context: SharedContext
-
-        Returns:
-            LLM으로 강화된 개념 리스트
-        """
-        if not concepts:
-            return concepts
-
-        domain = context.get_industry() or "general"
-
-        # 테이블 컨텍스트 구성
-        table_summary = {}
-        for table_name, table_info in list(context.tables.items())[:15]:
-            if hasattr(table_info, 'columns'):
-                cols = [c.get("name", str(c)) if isinstance(c, dict) else str(c)
-                        for c in table_info.columns[:10]]
-                table_summary[table_name] = {
-                    "columns": cols,
-                    "row_count": getattr(table_info, 'row_count', 0),
-                }
-
-        # 배치 처리 (20개씩)
-        batch_size = 20
-        enriched_concepts = []
-
-        for i in range(0, len(concepts), batch_size):
-            batch = concepts[i:i + batch_size]
-
-            # Object Types만 심층 분석 (Properties는 간략히)
-            object_types = [c for c in batch if c.get("concept_type") == "object_type"]
-            other_concepts = [c for c in batch if c.get("concept_type") != "object_type"]
-
-            if object_types:
-                prompt = f"""You are an expert ontologist specializing in the {domain} domain.
-
-## Task
-Perform DEEP ANALYSIS of these ontology concepts extracted from enterprise data.
-Add business context, identify related concepts, and assess data quality indicators.
-
-## Domain Context
-- Industry: {domain}
-- Available Tables: {json.dumps(list(table_summary.keys()), indent=2)}
-
-## Concepts to Analyze
-{json.dumps(object_types, indent=2, ensure_ascii=False, default=str)}
-
-## Analysis Requirements
-For EACH concept, add:
-
-1. **business_definition**: A precise 2-3 sentence business definition explaining:
-   - What this entity represents in the {domain} domain
-   - Its role in business processes
-   - Why it matters for analytics/operations
-
-2. **related_concepts**: List of 2-4 concepts this entity likely relates to
-   Format: ["ConceptA", "ConceptB", ...]
-
-3. **quality_indicators**: Key data quality metrics to monitor
-   Format: {{"completeness": "description", "uniqueness": "description", "timeliness": "description"}}
-
-4. **use_cases**: 2-3 specific business use cases
-   Format: ["Use case 1", "Use case 2", ...]
-
-5. **semantic_tags**: Domain-specific tags for classification
-   Format: ["tag1", "tag2", ...]
-
-## Output Format
-Return ONLY a JSON array. Preserve ALL original fields and ADD the new analysis fields.
-
-```json
-[
-  {{
-    "concept_id": "<original>",
-    "concept_type": "<original>",
-    "name": "<original>",
-    "description": "<original or enhanced>",
-    "source_tables": [<original>],
-    "source_evidence": {{<original>}},
-    "confidence": <original>,
-    "definition": {{<original>}},
-    "business_definition": "<new: detailed business definition>",
-    "related_concepts": ["<new: related concept names>"],
-    "quality_indicators": {{"<new: quality metrics>"}},
-    "use_cases": ["<new: business use cases>"],
-    "semantic_tags": ["<new: domain tags>"]
-  }}
-]
-```"""
-
-                try:
-                    response = await self.call_llm(prompt, max_tokens=4000)
-                    enriched_batch = parse_llm_json(response, default=[])
-
-                    if enriched_batch and isinstance(enriched_batch, list):
-                        # 원본 필드 보존
-                        for j, enriched in enumerate(enriched_batch):
-                            if j < len(object_types):
-                                original = object_types[j]
-                                for key in ["concept_id", "concept_type", "name", "source_tables",
-                                          "source_evidence", "confidence", "definition"]:
-                                    if key not in enriched and key in original:
-                                        enriched[key] = original[key]
-                        enriched_concepts.extend(enriched_batch)
-                    else:
-                        enriched_concepts.extend(object_types)
-                except Exception as e:
-                    logger.warning(f"LLM deep analysis batch failed: {e}")
-                    enriched_concepts.extend(object_types)
-
-            # Properties 등은 원본 유지
-            enriched_concepts.extend(other_concepts)
-
-        return enriched_concepts
+    # v27.10: _llm_deep_concept_analysis 삭제 — v27.9에서 호출 제거, 출력이 OntologyConcept에 없어 완전 폐기됨
 
     async def _llm_infer_semantic_relationships(
         self,
