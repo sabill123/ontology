@@ -17,6 +17,7 @@ v9.5 변경사항:
 import json
 import logging
 import concurrent.futures
+import threading
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
@@ -188,6 +189,7 @@ class EmbeddedPhase3LLMJudge:
         self.llm_client = llm_client
         self.domain_context = domain_context
         self.evaluation_history = []
+        self._history_lock = threading.Lock()  # v27.7: 병렬 평가 시 스레드 안전성
         self.logger = logging.getLogger(__name__)
 
     def set_domain_context(self, domain_context):
@@ -688,7 +690,7 @@ JSON 형식으로 응답:
         decision: Dict[str, Any],
         result: Dict[str, Any]
     ) -> None:
-        """평가 기록"""
+        """평가 기록 — v27.7: threading.Lock으로 병렬 안전"""
         evaluation = {
             "type": "governance",
             "insight_id": insight.get("insight_id"),
@@ -696,7 +698,8 @@ JSON 형식으로 응답:
             "evaluation": result,
             "timestamp": datetime.now().isoformat()
         }
-        self.evaluation_history.append(evaluation)
+        with self._history_lock:
+            self.evaluation_history.append(evaluation)
 
 
 class EmbeddedPhase3GovernanceOrchestrator:
