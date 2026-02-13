@@ -1010,7 +1010,7 @@ Respond ONLY with valid JSON."""
             )
 
         # === v17.1: What-If Analyzer 통합 - 승인된 결정의 영향도 시뮬레이션 ===
-        # v27.7: asyncio.gather로 병렬 실행
+        # v27.7: create_scenario + simulate 올바른 API 사용, asyncio.gather 병렬 실행
         whatif_results = {"scenarios_analyzed": 0, "total_impact_score": 0.0}
         try:
             whatif_analyzer = self.get_v17_service("whatif_analyzer")
@@ -1018,18 +1018,15 @@ Respond ONLY with valid JSON."""
                 approved_decisions = [d for d in governance_decisions if d.decision_type == "approve"]
 
                 async def _analyze_whatif(decision):
-                    scenario = {
-                        "concept_id": decision.concept_id,
-                        "change_type": "add_concept",
-                        "confidence": decision.confidence,
-                        "source_tables": getattr(decision, 'source_tables', []),
-                    }
-                    impact_result = await asyncio.to_thread(
-                        whatif_analyzer.analyze_impact,
-                        scenario=scenario,
-                        context=context,
+                    # v27.7: 올바른 API — create_scenario() + simulate()
+                    scenario = whatif_analyzer.create_scenario(
+                        name=f"add_concept_{decision.concept_id}",
+                        changes={"concept": {"add": decision.concept_id}},
+                        description=f"Impact of adding approved concept {decision.concept_id}",
+                        num_simulations=50,
                     )
-                    return decision, impact_result
+                    sim_result = await whatif_analyzer.simulate(scenario)
+                    return decision, sim_result
 
                 whatif_tasks = await asyncio.gather(
                     *[_analyze_whatif(d) for d in approved_decisions[:5]],
@@ -1039,21 +1036,27 @@ Respond ONLY with valid JSON."""
                     if isinstance(r, Exception):
                         logger.debug(f"[v17.1] What-If single analysis failed: {r}")
                         continue
-                    decision, impact_result = r
-                    if impact_result:
+                    decision, sim_result = r
+                    if sim_result and sim_result.success:
                         whatif_results["scenarios_analyzed"] += 1
-                        whatif_results["total_impact_score"] += impact_result.get("impact_score", 0)
+                        whatif_results["total_impact_score"] += sim_result.risk_score
+                        # 영향받는 엔티티: impacts에서 추출
+                        affected = [imp.target for imp in sim_result.impacts[:10]]
+                        risk_level = "high" if sim_result.risk_score > 0.7 else "medium" if sim_result.risk_score > 0.3 else "low"
                         decision.agent_opinions["whatif_analysis"] = {
-                            "impact_score": impact_result.get("impact_score", 0),
-                            "affected_entities": impact_result.get("affected_entities", []),
-                            "risk_level": impact_result.get("risk_level", "unknown"),
+                            "impact_score": sim_result.risk_score,
+                            "opportunity_score": sim_result.opportunity_score,
+                            "affected_entities": affected,
+                            "risk_level": risk_level,
+                            "num_simulations": sim_result.num_iterations,
+                            "recommendations": sim_result.recommendations[:3],
                         }
 
                 if whatif_results["scenarios_analyzed"] > 0:
                     avg_impact = whatif_results["total_impact_score"] / whatif_results["scenarios_analyzed"]
                     logger.info(
                         f"[v17.1] What-If Analysis: {whatif_results['scenarios_analyzed']} scenarios, "
-                        f"avg impact={avg_impact:.2f}"
+                        f"avg risk={avg_impact:.2f}"
                     )
         except Exception as e:
             logger.debug(f"[v17.1] What-If Analysis skipped: {e}")
@@ -1104,27 +1107,32 @@ Respond ONLY with valid JSON."""
             logger.debug(traceback.format_exc())
 
         # === v22.0: decision_explainer로 거버넌스 결정 설명 생성 ===
-        # v27.7: asyncio.gather로 병렬 실행
+        # v27.7: explain_decision() 올바른 API 사용, asyncio.gather 병렬 실행
         decision_explanations = []
         try:
             decision_explainer = self.get_v17_service("decision_explainer")
             if decision_explainer and governance_decisions:
                 async def _explain_decision(decision):
-                    explanation = await decision_explainer.explain(
-                        decision_type="governance",
-                        decision_data={
-                            "concept_id": decision.concept_id,
-                            "decision": decision.decision_type,
-                            "confidence": decision.confidence,
-                            "reasoning": decision.reasoning[:200] if decision.reasoning else "",
-                        },
-                        context={"phase": "governance", "agent": self.agent_name},
+                    # v27.7: 올바른 API — explain_decision(decision_id)
+                    explanation = await decision_explainer.explain_decision(
+                        decision_id=decision.concept_id,
+                        include_counterfactuals=False,
                     )
                     if explanation:
                         return {
                             "concept_id": decision.concept_id,
-                            "explanation": explanation.get("summary", ""),
-                            "factors": explanation.get("key_factors", []),
+                            "explanation": explanation.summary,
+                            "narrative": explanation.narrative[:300] if explanation.narrative else "",
+                            "confidence": explanation.confidence,
+                            "factors": [
+                                {
+                                    "feature": attr.feature,
+                                    "attribution": attr.attribution,
+                                    "rank": attr.importance_rank,
+                                }
+                                for attr in (explanation.feature_attributions or [])[:5]
+                            ],
+                            "reasoning_chain": explanation.reasoning_chain[:5],
                         }
                     return None
 
