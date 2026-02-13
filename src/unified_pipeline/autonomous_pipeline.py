@@ -552,7 +552,8 @@ class AutonomousPipelineOrchestrator:
                 logger.warning(f"Semantic indexing failed: {e}")
 
         # 4. 데이터 품질 체크 및 자동 수정
-        if auto_remediate and self.services.remediation_engine:
+        # v27.8: 멀티테이블 데이터셋에서 OOM 방지 — 테이블 3개 이하만 auto-remediate
+        if auto_remediate and self.services.remediation_engine and len(tables_data) <= 3:
             try:
                 for table_name in tables_data.keys():
                     result = await self.services.remediation_engine.remediate(
@@ -569,6 +570,8 @@ class AutonomousPipelineOrchestrator:
                         }
             except Exception as e:
                 logger.warning(f"Auto-remediation failed: {e}")
+        elif auto_remediate and len(tables_data) > 3:
+            logger.info(f"[v27.8] Skipping auto-remediation for {len(tables_data)} tables (OOM prevention, threshold=3)")
 
         yield {
             "type": "v17_pre_pipeline_complete",

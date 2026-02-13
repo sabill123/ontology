@@ -424,7 +424,7 @@ REFINEMENT_TODO_TEMPLATES = [
         "task_type": "semantic_validation",
         "required_agent_type": "semantic_validator",
         "description": "Validate semantic consistency",
-        "dependencies": ["quality_assessment"],
+        "dependencies": ["conflict_resolution"],  # v27.8: Quality Judge와 병렬 실행 (둘 다 ontology_concepts만 읽음)
     },
 ]
 
@@ -447,13 +447,13 @@ GOVERNANCE_TODO_TEMPLATES = [
         "task_type": "risk_assessment",
         "required_agent_type": "risk_assessor",
         "description": "Assess risks of proposed changes",
-        "dependencies": ["action_prioritization"],
+        "dependencies": ["governance_strategy"],  # v27.8: Action Prioritizer와 병렬 실행 (action_backlog 없어도 동작)
     },
     {
         "name": "Policy Generation",
         "task_type": "policy_generation",
         "required_agent_type": "policy_generator",
         "description": "Generate governance policies",
-        "dependencies": ["risk_assessment"],
+        "dependencies": ["risk_assessment", "action_prioritization"],  # v27.8: 둘 다 완료 후 실행
     },
 ]

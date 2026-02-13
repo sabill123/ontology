@@ -706,13 +706,18 @@ class AgentOrchestrator:
 
     def _can_spawn_agent(self) -> bool:
         """새 에이전트 생성 가능 여부"""
+        # v27.8: pending asyncio tasks도 카운팅 (create_task 후 아직 WORKING이 아닌 에이전트 반영)
         active_count = len([a for a in self._agents.values() if a.state != AgentState.IDLE])
-        return active_count < self.config.max_concurrent_agents
+        pending_count = len(self._agent_tasks)
+        return max(active_count, pending_count) < self.config.max_concurrent_agents
 
     def _available_slots(self) -> int:
         """사용 가능한 에이전트 슬롯 수"""
+        # v27.8: pending asyncio tasks도 카운팅 (race condition 방지)
         active_count = len([a for a in self._agents.values() if a.state != AgentState.IDLE])
-        return max(0, self.config.max_concurrent_agents - active_count)
+        pending_count = len(self._agent_tasks)
+        used = max(active_count, pending_count)
+        return max(0, self.config.max_concurrent_agents - used)
 
     # === 콜백 ===
 

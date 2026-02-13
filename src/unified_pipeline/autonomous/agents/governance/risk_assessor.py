@@ -442,6 +442,8 @@ Respond ONLY with valid JSON."""
         # 1단계: 알고리즘 기반 리스크 평가
         algorithmic_risks = {}
         all_risks = []
+        # v27.8: 리스크 평가 결과 캐시 (What-If, Counterfactual에서 재사용)
+        _risk_cache: Dict[str, list] = {}
 
         for concept in context.ontology_concepts:
             concept_dict = {
@@ -454,6 +456,7 @@ Respond ONLY with valid JSON."""
             }
 
             risks = self.risk_assessor.assess_concept_risk(concept_dict)
+            _risk_cache[concept.concept_id] = risks
             risk_data = [
                 {
                     "category": r.category,
@@ -581,12 +584,9 @@ Respond ONLY with valid JSON."""
             whatif_analyzer = self.get_v17_service("whatif_analyzer")
             if whatif_analyzer and all_risks:
                 # 고위험 개념들에 대한 What-If 시나리오 분석
+                # v27.8: 캐시된 리스크 평가 결과 사용 (중복 assess_concept_risk 호출 제거)
                 high_risk_concepts = [c for c in context.ontology_concepts if
-                    any(r.risk_level in ["high", "critical"] for r in self.risk_assessor.assess_concept_risk({
-                        "concept_id": c.concept_id, "concept_type": c.concept_type,
-                        "name": c.name, "confidence": c.confidence,
-                        "source_evidence": c.source_evidence, "source_tables": c.source_tables,
-                    }))]
+                    any(r.risk_level in ["high", "critical"] for r in _risk_cache.get(c.concept_id, []))]
 
                 for concept in high_risk_concepts[:5]:  # 상위 5개 고위험 개념
                     scenario = {
@@ -613,17 +613,11 @@ Respond ONLY with valid JSON."""
             # v6.1 개선: 반사실적 분석 대상 확장
             # - 모든 리스크 레벨 포함 (high, critical, medium, low)
             # - 최소 2개 개념 보장 (기능 검증용)
+            # v27.8: 캐시된 리스크 평가 결과 사용 (중복 assess_concept_risk 호출 제거)
             analysis_concepts = []
             for c in context.ontology_concepts[:10]:
-                risks = self.risk_assessor.assess_concept_risk({
-                    "concept_id": c.concept_id,
-                    "concept_type": c.concept_type,
-                    "name": c.name,
-                    "confidence": c.confidence,
-                    "source_evidence": c.source_evidence,
-                    "source_tables": c.source_tables,
-                })
-                if any(r.risk_level in ["high", "critical", "medium", "low"] for r in risks):
+                cached_risks = _risk_cache.get(c.concept_id, [])
+                if any(r.risk_level in ["high", "critical", "medium", "low"] for r in cached_risks):
                     analysis_concepts.append(c)
 
             # 최소 2개 후보 보장 (반사실 분석 기능 활성화)
