@@ -669,8 +669,13 @@ class SharedContext:
             # v6.1: Phase 3 Advanced Features
             "debate_results": self.debate_results,
             "counterfactual_analysis": self.counterfactual_analysis,
-            # v11.0: Evidence Chain
+            # v11.0: Evidence Chain (블록체인 스타일 근거 관리)
             "evidence_chain_summary": self.get_evidence_summary(),
+            "evidence_chain_blocks": (
+                [b.to_dict() for b in self.evidence_chain.blocks.values()]
+                if self.evidence_chain and hasattr(self.evidence_chain, 'blocks')
+                else []
+            ),
             "evidence_based_debate_results": self.evidence_based_debate_results,
             # v22.0: TDA Signatures (이전에 누락됨)
             "tda_signatures": self.tda_signatures,
