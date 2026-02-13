@@ -7,6 +7,7 @@ Governance Strategist Autonomous Agent (v11.0 - Evidence Chain & BFT Debate)
 - 모든 거버넌스 결정에 근거 블록 ID 참조
 """
 
+import asyncio
 import json
 import logging
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
@@ -507,14 +508,16 @@ Respond ONLY with valid JSON."""
             logger.info(f"Enhanced Validation: {len(enhanced_validation_results)} concepts validated")
 
         # === v4.5: Embedded LLM Judge 평가 ===
+        # v27.7: asyncio.gather로 병렬 평가 (per-concept 독립적)
         embedded_evaluations = {}
         self._report_progress(0.45, "Running Embedded LLM Judge (multi-criteria evaluation)")
         try:
-            for concept in context.ontology_concepts:
+            # v27.7: 병렬 실행을 위한 코루틴 준비
+            sem = asyncio.Semaphore(5)  # 동시 5개 LLM 호출 제한
+
+            async def _evaluate_concept(concept):
                 concept_id = concept.concept_id
                 algo_decision = algorithmic_decisions.get(concept_id, {})
-
-                # 인사이트 형식 생성
                 insight_data = {
                     "insight_id": concept_id,
                     "confidence": concept.confidence,
@@ -522,29 +525,34 @@ Respond ONLY with valid JSON."""
                     "explanation": concept.description or concept.name,
                     "source_signatures": concept.source_tables,
                 }
-
-                # 결정 형식 생성 (v8.3: enhanced_validation 포함)
                 enhanced_val = enhanced_validation_results.get(concept_id, {}) if ENHANCED_VALIDATOR_AVAILABLE else {}
                 decision_data = {
                     "decision_id": f"decision_{concept_id}",
                     "decision_type": algo_decision.get("decision_type", "pending"),
                     "confidence": algo_decision.get("confidence", 0.5),
                     "reasoning": algo_decision.get("reasoning", ""),
-                    "enhanced_validation": enhanced_val,  # v8.3: 경량 검증 지원
+                    "enhanced_validation": enhanced_val,
                 }
+                async with sem:
+                    evaluation = await asyncio.to_thread(
+                        self.embedded_llm_judge.evaluate_governance_decision,
+                        insight_data,
+                        decision_data,
+                        [],
+                    )
+                return concept_id, evaluation
 
-                # Embedded LLM Judge 평가 (규칙 기반)
-                # v18.0: asyncio.to_thread로 블로킹 호출 방지
-                import asyncio
-                evaluation = await asyncio.to_thread(
-                    self.embedded_llm_judge.evaluate_governance_decision,
-                    insight_data,
-                    decision_data,
-                    [],  # agent_opinions
-                )
-                embedded_evaluations[concept_id] = evaluation
+            results = await asyncio.gather(
+                *[_evaluate_concept(c) for c in context.ontology_concepts],
+                return_exceptions=True,
+            )
+            for r in results:
+                if isinstance(r, Exception):
+                    logger.warning(f"Embedded LLM Judge single concept failed: {r}")
+                else:
+                    embedded_evaluations[r[0]] = r[1]
 
-            logger.info(f"Embedded LLM Judge evaluated {len(embedded_evaluations)} decisions")
+            logger.info(f"Embedded LLM Judge evaluated {len(embedded_evaluations)} decisions (v27.7 parallel)")
         except Exception as e:
             logger.warning(f"Embedded LLM Judge failed: {e}")
 
@@ -1002,32 +1010,39 @@ Respond ONLY with valid JSON."""
             )
 
         # === v17.1: What-If Analyzer 통합 - 승인된 결정의 영향도 시뮬레이션 ===
+        # v27.7: asyncio.gather로 병렬 실행
         whatif_results = {"scenarios_analyzed": 0, "total_impact_score": 0.0}
         try:
             whatif_analyzer = self.get_v17_service("whatif_analyzer")
             if whatif_analyzer:
                 approved_decisions = [d for d in governance_decisions if d.decision_type == "approve"]
 
-                for decision in approved_decisions[:5]:  # 상위 5개만 분석
-                    # 시나리오 정의: 해당 개념이 온톨로지에 추가될 경우의 영향
+                async def _analyze_whatif(decision):
                     scenario = {
                         "concept_id": decision.concept_id,
                         "change_type": "add_concept",
                         "confidence": decision.confidence,
                         "source_tables": getattr(decision, 'source_tables', []),
                     }
-
-                    # What-If 분석 실행
-                    impact_result = whatif_analyzer.analyze_impact(
+                    impact_result = await asyncio.to_thread(
+                        whatif_analyzer.analyze_impact,
                         scenario=scenario,
                         context=context,
                     )
+                    return decision, impact_result
 
+                whatif_tasks = await asyncio.gather(
+                    *[_analyze_whatif(d) for d in approved_decisions[:5]],
+                    return_exceptions=True,
+                )
+                for r in whatif_tasks:
+                    if isinstance(r, Exception):
+                        logger.debug(f"[v17.1] What-If single analysis failed: {r}")
+                        continue
+                    decision, impact_result = r
                     if impact_result:
                         whatif_results["scenarios_analyzed"] += 1
                         whatif_results["total_impact_score"] += impact_result.get("impact_score", 0)
-
-                        # 결정에 영향 분석 결과 추가
                         decision.agent_opinions["whatif_analysis"] = {
                             "impact_score": impact_result.get("impact_score", 0),
                             "affected_entities": impact_result.get("affected_entities", []),
@@ -1089,11 +1104,12 @@ Respond ONLY with valid JSON."""
             logger.debug(traceback.format_exc())
 
         # === v22.0: decision_explainer로 거버넌스 결정 설명 생성 ===
+        # v27.7: asyncio.gather로 병렬 실행
         decision_explanations = []
         try:
             decision_explainer = self.get_v17_service("decision_explainer")
             if decision_explainer and governance_decisions:
-                for decision in governance_decisions[:5]:  # 상위 5개 결정만
+                async def _explain_decision(decision):
                     explanation = await decision_explainer.explain(
                         decision_type="governance",
                         decision_data={
@@ -1105,13 +1121,24 @@ Respond ONLY with valid JSON."""
                         context={"phase": "governance", "agent": self.agent_name},
                     )
                     if explanation:
-                        decision_explanations.append({
+                        return {
                             "concept_id": decision.concept_id,
                             "explanation": explanation.get("summary", ""),
                             "factors": explanation.get("key_factors", []),
-                        })
+                        }
+                    return None
+
+                explain_results = await asyncio.gather(
+                    *[_explain_decision(d) for d in governance_decisions[:5]],
+                    return_exceptions=True,
+                )
+                for r in explain_results:
+                    if isinstance(r, Exception):
+                        logger.debug(f"[v22.0] DecisionExplainer single failed: {r}")
+                    elif r is not None:
+                        decision_explanations.append(r)
                 if decision_explanations:
-                    logger.info(f"[v22.0] DecisionExplainer generated {len(decision_explanations)} explanations")
+                    logger.info(f"[v22.0] DecisionExplainer generated {len(decision_explanations)} explanations (v27.7 parallel)")
         except Exception as e:
             logger.debug(f"[v22.0] DecisionExplainer skipped: {e}")
 
@@ -1356,20 +1383,19 @@ Respond ONLY with valid JSON."""
         concepts_with_decisions: List[Dict[str, Any]],
         context: "SharedContext",
     ) -> Dict[str, Dict[str, Any]]:
-        """LLM을 통한 결정 검토"""
+        """LLM을 통한 결정 검토 — v27.7: 배치 병렬 실행"""
         if not concepts_with_decisions:
             return {}
 
         # 배치 처리 - v6.0: LLM 호출 최적화 (10→30)
         batch_size = 30
         all_reviews = {}
+        domain = context.get_industry()
 
-        for i in range(0, len(concepts_with_decisions), batch_size):
-            batch = concepts_with_decisions[i:i + batch_size]
-
+        async def _review_batch(batch):
             instruction = f"""Review these algorithmic governance decisions.
 
-Domain: {context.get_industry()}
+Domain: {domain}
 
 Concepts with Algorithmic Decisions:
 {json.dumps(batch, indent=2, ensure_ascii=False, default=str)}
@@ -1404,11 +1430,23 @@ Return JSON:
   ]
 }}
 ```"""
-
             response = await self.call_llm(instruction, max_tokens=4000)
-            batch_reviews = parse_llm_json(response, key="reviewed_decisions", default=[])
+            return parse_llm_json(response, key="reviewed_decisions", default=[])
 
-            for review in batch_reviews:
+        # v27.7: 모든 배치를 병렬 실행
+        batches = [
+            concepts_with_decisions[i:i + batch_size]
+            for i in range(0, len(concepts_with_decisions), batch_size)
+        ]
+        batch_results = await asyncio.gather(
+            *[_review_batch(b) for b in batches],
+            return_exceptions=True,
+        )
+        for r in batch_results:
+            if isinstance(r, Exception):
+                logger.warning(f"LLM review batch failed: {r}")
+                continue
+            for review in r:
                 concept_id = review.get("concept_id")
                 if concept_id:
                     all_reviews[concept_id] = review

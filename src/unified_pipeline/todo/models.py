@@ -359,14 +359,14 @@ DISCOVERY_TODO_TEMPLATES = [
         "task_type": "schema_analysis",
         "required_agent_type": "schema_analyst",
         "description": "Analyze schema structures and identify potential mappings",
-        "dependencies": ["tda_analysis"],
+        "dependencies": ["data_understanding"],  # v27.7: tda→data (schema는 TDA 결과 불필요, 병렬 실행)
     },
     {
         "name": "Value Overlap Analysis",
         "task_type": "value_matching",
         "required_agent_type": "value_matcher",
         "description": "Detect value overlaps between tables",
-        "dependencies": ["schema_analysis"],
+        "dependencies": ["data_understanding"],  # v27.7: schema→data (value_matcher는 자체 FK 탐지, 병렬 실행)
     },
     {
         "name": "Homeomorphism Detection",
