@@ -455,7 +455,7 @@ Relationships (for context):
 
 For each concept, validate:
 1. Name accuracy against domain standards
-2. Definition consistency with healthcare terminology
+2. Definition consistency with {context.get_industry()} domain terminology
 3. Relationship semantic validity
 4. Constraint appropriateness
 
@@ -472,7 +472,7 @@ Return JSON:
       "suggestions": ["suggestion1"],
       "overall_valid": <bool>,
       "confidence": <float 0-1>,
-      "domain_standards_matched": ["ICD-10", "SNOMED CT"]
+      "domain_standards_matched": ["relevant domain standards"]
     }}
   ],
   "relationship_validations": [

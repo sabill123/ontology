@@ -508,14 +508,12 @@ Respond ONLY with valid JSON."""
             logger.info(f"Enhanced Validation: {len(enhanced_validation_results)} concepts validated")
 
         # === v4.5: Embedded LLM Judge 평가 ===
-        # v27.7: asyncio.gather로 병렬 평가 (per-concept 독립적)
+        # v27.9: LLM domain adjustment 제거 → rule-based only (O(1) per concept, LLM 없음)
+        # veto gate 기능 유지: rule-based 4-criteria 도메인 임계값 평가
         embedded_evaluations = {}
-        self._report_progress(0.45, "Running Embedded LLM Judge (multi-criteria evaluation)")
+        self._report_progress(0.45, "Running Embedded Rule-Based Judge (v27.9)")
         try:
-            # v27.7: 병렬 실행을 위한 코루틴 준비
-            sem = asyncio.Semaphore(5)  # 동시 5개 LLM 호출 제한
-
-            async def _evaluate_concept(concept):
+            for concept in context.ontology_concepts:
                 concept_id = concept.concept_id
                 algo_decision = algorithmic_decisions.get(concept_id, {})
                 insight_data = {
@@ -533,28 +531,17 @@ Respond ONLY with valid JSON."""
                     "reasoning": algo_decision.get("reasoning", ""),
                     "enhanced_validation": enhanced_val,
                 }
-                async with sem:
-                    evaluation = await asyncio.to_thread(
-                        self.embedded_llm_judge.evaluate_governance_decision,
-                        insight_data,
-                        decision_data,
-                        [],
+                try:
+                    evaluation = self.embedded_llm_judge.evaluate_governance_decision(
+                        insight_data, decision_data, [],
                     )
-                return concept_id, evaluation
+                    embedded_evaluations[concept_id] = evaluation
+                except Exception as e:
+                    logger.warning(f"Rule-based Judge failed for {concept_id}: {e}")
 
-            results = await asyncio.gather(
-                *[_evaluate_concept(c) for c in context.ontology_concepts],
-                return_exceptions=True,
-            )
-            for r in results:
-                if isinstance(r, Exception):
-                    logger.warning(f"Embedded LLM Judge single concept failed: {r}")
-                else:
-                    embedded_evaluations[r[0]] = r[1]
-
-            logger.info(f"Embedded LLM Judge evaluated {len(embedded_evaluations)} decisions (v27.7 parallel)")
+            logger.info(f"Rule-based Judge evaluated {len(embedded_evaluations)} decisions (v27.9 no-LLM)")
         except Exception as e:
-            logger.warning(f"Embedded LLM Judge failed: {e}")
+            logger.warning(f"Rule-based Judge failed: {e}")
 
         # === v11.0: Evidence-Based Council Debate ===
         debate_results = {}

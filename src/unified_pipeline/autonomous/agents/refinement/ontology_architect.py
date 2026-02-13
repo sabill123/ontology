@@ -128,13 +128,9 @@ Respond ONLY with valid JSON."""
 
         self._report_progress(0.20, f"Extracted {len(extracted_concepts)} raw concepts")
 
-        # === v17.1: LLM 심층 개념 분석 (새로 추가) ===
-        self._report_progress(0.22, "Running LLM Deep Concept Analysis (v17.1)")
-        try:
-            extracted_concepts = await self._llm_deep_concept_analysis(extracted_concepts, context)
-            logger.info(f"[v17.1] LLM deep analysis enriched {len(extracted_concepts)} concepts")
-        except Exception as e:
-            logger.warning(f"LLM deep concept analysis failed: {e}")
+        # v27.9: _llm_deep_concept_analysis 제거 — 출력 필드(business_definition, use_cases,
+        # semantic_tags)가 OntologyConcept에 존재하지 않아 결과가 완전히 폐기됨.
+        # _enhance_concepts_with_llm()이 동일한 LLM enrichment를 수행하므로 중복 제거.
 
         # 2단계: 계층 관계 추론 (알고리즘)
         hierarchy = self._infer_hierarchy(extracted_concepts, context)
@@ -1125,6 +1121,16 @@ Respond ONLY with valid JSON."""
                     "type": m.get("mapping_type", m.get("type", "unknown")),
                 })
 
+        # v27.9: domain context를 루프 밖에서 1회 직렬화 (배치 간 중복 제거)
+        domain_context_str = (
+            f"- Industry: {domain}\n"
+            f"- Available tables and sample columns: {json.dumps(table_context, indent=2, default=str)}\n"
+            f"- Concept hierarchy: {json.dumps(hierarchy, indent=2, default=str)}\n"
+            f"- TDA topological signatures: {json.dumps(tda_summary, indent=2, default=str)}\n"
+            f"- Schema analysis: {json.dumps(schema_summary, indent=2, default=str)}"
+        )
+        cross_mappings_str = f"- Cross-table mappings: {json.dumps(cross_mappings_summary, indent=2, default=str)}"
+
         for i in range(0, len(concepts), batch_size):
             batch = concepts[i:i + batch_size]
 
@@ -1132,12 +1138,8 @@ Respond ONLY with valid JSON."""
 Enhance these ontology concepts with professional, domain-specific descriptions.
 
 ## Domain Context
-- Industry: {domain}
-- Available tables and sample columns: {json.dumps(table_context, indent=2, default=str)}
-- Concept hierarchy: {json.dumps(hierarchy, indent=2, default=str)}
-- TDA topological signatures: {json.dumps(tda_summary, indent=2, default=str)}
-- Schema analysis: {json.dumps(schema_summary, indent=2, default=str)}
-- Cross-table mappings: {json.dumps(cross_mappings_summary, indent=2, default=str)}
+{domain_context_str}
+{cross_mappings_str}
 
 ## Concepts to Enhance
 {json.dumps(batch, indent=2, ensure_ascii=False, default=str)}

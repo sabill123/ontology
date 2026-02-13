@@ -430,9 +430,14 @@ class EnhancedFKDetector:
                         if not from_values or not to_values:
                             continue
 
-                        # 양방향 Containment 계산
-                        inclusion_from_to = self._compute_inclusion(from_values, to_values)
-                        inclusion_to_from = self._compute_inclusion(to_values, from_values)
+                        # v27.9: 양방향 Containment를 정규화 1회로 계산 (중복 set 생성 제거)
+                        from_set = set(str(v).strip().lower() for v in from_values if v is not None)
+                        to_set = set(str(v).strip().lower() for v in to_values if v is not None)
+                        if not from_set or not to_set:
+                            continue
+                        matched = from_set & to_set
+                        inclusion_from_to = len(matched) / len(from_set)
+                        inclusion_to_from = len(matched) / len(to_set)
 
                         # v7.6: 축약어 확장 후 시맨틱 유사도 계산
                         from_base = self._extract_base_name(from_col_name)
@@ -442,6 +447,9 @@ class EnhancedFKDetector:
 
                         # 확장 후 같으면 시맨틱 매칭
                         semantic_match = (from_expanded == to_expanded)
+
+                        # v27.9: 이미 계산된 from_set/to_set/matched 재사용
+                        sample_matches = list(matched)[:10]
 
                         # Containment 95%+ 또는 시맨틱 매칭이면 FK 후보로
                         if inclusion_from_to >= min_containment or (semantic_match and inclusion_from_to >= 0.8):
@@ -453,14 +461,14 @@ class EnhancedFKDetector:
                                 to_column=to_col_name,
                                 name_similarity=1.0 if semantic_match else self._levenshtein_similarity(from_expanded, to_expanded),
                                 value_inclusion=inclusion_from_to,
-                                cardinality_ratio=len(set(to_values)) / len(set(from_values)) if len(set(from_values)) > 0 else 0,
+                                cardinality_ratio=len(to_set) / len(from_set) if from_set else 0,
                                 type_compatibility=1.0,
                             )
                             candidate.fk_score = self._compute_final_score(candidate)
                             candidate.confidence = self._determine_confidence(candidate)
-                            candidate.sample_matches = list(set(from_values) & set(to_values))[:10]
+                            candidate.sample_matches = sample_matches
                             candidate.total_count = len(from_values)
-                            candidate.unmatched_count = len(set(from_values) - set(to_values))
+                            candidate.unmatched_count = len(from_set - to_set)
 
                             self.candidates.append(candidate)
                             existing_pairs.add((from_table, from_col_name, to_table, to_col_name))
@@ -480,14 +488,14 @@ class EnhancedFKDetector:
                                     to_column=from_col_name,
                                     name_similarity=1.0 if semantic_match else self._levenshtein_similarity(from_expanded, to_expanded),
                                     value_inclusion=inclusion_to_from,
-                                    cardinality_ratio=len(set(from_values)) / len(set(to_values)) if len(set(to_values)) > 0 else 0,
+                                    cardinality_ratio=len(from_set) / len(to_set) if to_set else 0,
                                     type_compatibility=1.0,
                                 )
                                 candidate.fk_score = self._compute_final_score(candidate)
                                 candidate.confidence = self._determine_confidence(candidate)
-                                candidate.sample_matches = list(set(from_values) & set(to_values))[:10]
+                                candidate.sample_matches = sample_matches
                                 candidate.total_count = len(to_values)
-                                candidate.unmatched_count = len(set(to_values) - set(from_values))
+                                candidate.unmatched_count = len(to_set - from_set)
 
                                 self.candidates.append(candidate)
                                 existing_pairs.add((to_table, to_col_name, from_table, from_col_name))

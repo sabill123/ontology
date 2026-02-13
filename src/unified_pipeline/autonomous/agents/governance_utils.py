@@ -232,18 +232,12 @@ class EmbeddedPhase3LLMJudge:
         # 1단계: 도메인별 임계값 적용한 Rule-based 점수 계산
         rule_result = self._domain_aware_rule_evaluation(insight, decision, agent_opinions, thresholds)
 
-        # 2단계: LLM 보정 (llm_client가 있을 때만)
-        if self.llm_client:
-            try:
-                final_result = self._llm_domain_adjustment(rule_result, insight, decision, thresholds)
-                final_result["evaluation_method"] = "hybrid_llm_domain"
-            except Exception as e:
-                self.logger.warning(f"LLM adjustment failed, using rule-based: {e}")
-                final_result = rule_result
-                final_result["evaluation_method"] = "rule_based_fallback"
-        else:
-            final_result = rule_result
-            final_result["evaluation_method"] = "rule_based_domain"
+        # v27.9: LLM domain adjustment 제거 — per-concept LLM 호출이 N회 발생하여
+        # 100 concepts 기준 100회 LLM 호출. _llm_review_decisions() 배치(4회)가
+        # 동일한 비즈니스 컨텍스트 검증을 수행하므로 중복.
+        # Rule-based 평가만 유지하여 veto gate 기능 보존.
+        final_result = rule_result
+        final_result["evaluation_method"] = "rule_based_domain"
 
         # 도메인 정보 추가
         final_result["domain_info"] = {

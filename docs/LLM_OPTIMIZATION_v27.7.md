@@ -2,7 +2,7 @@
 
 > **Version**: v27.7
 > **Date**: 2026-02-12
-> **Status**: Deployed
+> **Status**: Deployed & Verified
 > **Prerequisite**: v27.6 (분석 모듈 벡터화)
 
 ---
@@ -316,17 +316,57 @@ graph TD
 | Explainer 병렬 | **완전 동일** | 각 decision은 독립적으로 설명 생성 |
 | Phase 1 의존성 완화 | **완전 동일** | 에이전트 간 데이터 의존성 없음 확인 완료 |
 
-**결론**: Ground Truth 10/10 결과에 영향 없음
+**결론**: Ground Truth 10/10 결과에 영향 없음 — **CI 검증 완료 (2026-02-13)**
 
 ---
 
-## 예상 성능 개선
+## CI 검증 결과 (q2cut, 2026-02-13)
 
-| 데이터셋 | v27.6 | v27.7 예상 | 개선 |
-|---------|-------|-----------|------|
-| q2cut (1 table, 35 concepts) | ~35m | ~28m | ~1.3x |
-| beauty_ecommerce (10 tables, ~80 concepts) | >6h (timeout) | ~2-3h | >2x |
-| marketing_silo_v2 (15 tables, ~100+ concepts) | >6h (timeout) | ~3-4h | >1.5x |
+### Run 정보
+- **Run ID**: 21972206090
+- **Commit**: `4a067e6` (v27.7 LLM 병렬화)
+- **실행시간**: 1,771.1초 (**~29.5분**)
+- **결과**: SUCCESS
+
+### v27.6 (baseline) vs v27.7 (LLM 병렬화) 비교
+
+| 지표 | v27.6 | v27.7 | 변화 | 비고 |
+|------|-------|-------|------|------|
+| **Ground Truth** | **10/10** | **10/10** | 유지 | 핵심 — 유실 없음 |
+| **실행시간** | **2,076.6s (~34.6m)** | **1,771.1s (~29.5m)** | **-14.7%** | Phase 1 병렬 + Gov 병렬 |
+| Entities (unified) | 1 (fallback) | 10 | +9 | 정상 엔티티 생성 |
+| Concepts (object_type) | 20 | 25 | +5 | LLM 비결정성 |
+| Relationships (link_type) | 11 | 10 | -1 | LLM 비결정성 |
+| Business insights | 60 | 60 | 동일 | |
+| Evidence blocks | 204 | 216 | +12 | |
+| Evidence chain valid | true | true | 유지 | 무결성 확인 |
+| Governance decisions | 35 | 35 | 동일 | |
+| Todos completed | 16/16 | 17/17 | +1 | |
+
+### Ground Truth I1-I10 상세 검증
+
+| ID | 카테고리 | 상태 | 매칭 위치 |
+|----|---------|------|----------|
+| I1 | Platform Performance Gap | FOUND | Insight #13: Segment Performance: platform |
+| I2 | Creator Tier vs Performance | FOUND | Insight #15: Segment Performance: creator_tier |
+| I3 | Duration Sweet Spot | FOUND | Insight #40: duration Sweet Spot |
+| I4 | Content Type Neutrality | FOUND | Insight #18: Segment Performance: content_type |
+| I5 | BGM Impact | FOUND | Insight #31: Segment Performance: has_bgm |
+| I6 | Viral Score Drivers | FOUND | Insight #42+: Top Drivers correlations |
+| I7 | Editing Style | FOUND | Insight #19: Segment Performance: editing_style |
+| I8 | Hashtag Paradox | FOUND | Insight #51: Negative Correlation: hashtag_count |
+| I9 | Language Distribution | FOUND | Insight #57: Distribution: transcription_language |
+| I10 | Duplicate Analysis Pattern | FOUND | Insight #52: Duplicate Pattern: video_id |
+
+---
+
+## 성능 개선 결과
+
+| 데이터셋 | v27.6 | v27.7 실측/예상 | 개선 |
+|---------|-------|----------------|------|
+| q2cut (1 table, 35 concepts) | ~35m | **~29.5m (실측)** | **1.18x** |
+| beauty_ecommerce (10 tables, ~80 concepts) | >6h (timeout) | ~2-3h (예상) | >2x |
+| marketing_silo_v2 (15 tables, ~100+ concepts) | >6h (timeout) | ~3-4h (예상) | >1.5x |
 
 주요 개선 요소:
 - Governance LLM 병렬화: 4.5x (35 concepts 기준)
@@ -340,6 +380,7 @@ graph TD
 | 파일 | 변경 | 변경량 |
 |------|------|--------|
 | `agents/governance/governance_strategist.py` | Judge/WhatIf/Explainer/Review 병렬화 | ~80 lines |
+| `agents/governance_utils.py` | EmbeddedPhase3LLMJudge threading.Lock | ~5 lines |
 | `todo/models.py` | Phase 1 의존성 완화 | 2 lines |
 
 ---
@@ -388,10 +429,10 @@ for r in results:
 
 ## 다음 단계
 
-- [ ] q2cut CI 실행 → GT 10/10 유지 확인
+- [x] q2cut CI 실행 → **GT 10/10 유지 확인, 29.5분 (14.7% 개선)**
 - [ ] beauty_ecommerce CI 실행 → 타임아웃 해결 확인
 - [ ] marketing_silo_v2 CI 실행 → 타임아웃 해결 확인
-- [ ] 실측 결과로 이 문서 업데이트
+- [ ] 대형 데이터셋 실측 결과로 이 문서 업데이트
 
 ---
 
