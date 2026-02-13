@@ -414,8 +414,8 @@ class BusinessInsightsAnalyzer:
 
                                     if exp_date and act_date and act_date > exp_date:
                                         delayed_count += 1
-                            except:
-                                pass
+                            except (ValueError, TypeError, KeyError):
+                                pass  # 날짜 파싱 실패는 정상 (비날짜 컬럼)
 
                     if delayed_count >= 100 and total_with_dates > 0:
                         percentage = (delayed_count / total_with_dates) * 100
@@ -750,7 +750,7 @@ class BusinessInsightsAnalyzer:
         for fmt in formats:
             try:
                 return datetime.strptime(date_str[:19], fmt)
-            except:
+            except (ValueError, TypeError):
                 continue
 
         return None

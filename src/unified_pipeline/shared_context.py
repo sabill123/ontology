@@ -599,12 +599,12 @@ class SharedContext:
             seen.add(obj_id)
 
             if hasattr(obj, '__dict__') and not isinstance(obj, type):
-                return {k: safe_dict(v, seen.copy()) for k, v in obj.__dict__.items()
+                return {k: safe_dict(v, seen) for k, v in obj.__dict__.items()
                         if not k.startswith('_')}
             elif isinstance(obj, list):
-                return [safe_dict(item, seen.copy()) for item in obj]
+                return [safe_dict(item, seen) for item in obj]
             elif isinstance(obj, dict):
-                return {k: safe_dict(v, seen.copy()) for k, v in obj.items()}
+                return {k: safe_dict(v, seen) for k, v in obj.items()}
             elif isinstance(obj, Enum):
                 return obj.value
             elif isinstance(obj, (str, int, float, bool, type(None))):

@@ -745,6 +745,8 @@ Respond ONLY with valid JSON."""
         self._report_progress(0.8, "Creating governance decision objects")
 
         # 3단계: GovernanceDecision 객체 생성
+        # v27.11: O(n²) → O(1) concept lookup index
+        _concept_index = {c.concept_id: c for c in context.ontology_concepts}
         governance_decisions = []
         for concept_id, algo_decision in algorithmic_decisions.items():
             # LLM 보강 결과 병합
@@ -900,15 +902,15 @@ Respond ONLY with valid JSON."""
             governance_decisions.append(decision)
 
             # v27.0: governance decision → concept.status 동기화
-            for concept in context.ontology_concepts:
-                if concept.concept_id == concept_id:
-                    if final_decision_type == "approve":
-                        concept.status = "approved"
-                    elif final_decision_type == "reject":
-                        concept.status = "rejected"
-                    elif final_decision_type == "schedule_review":
-                        concept.status = "provisional"
-                    break
+            # v27.11: O(1) lookup via _concept_index (built before loop)
+            _concept = _concept_index.get(concept_id)
+            if _concept:
+                if final_decision_type == "approve":
+                    _concept.status = "approved"
+                elif final_decision_type == "reject":
+                    _concept.status = "rejected"
+                elif final_decision_type == "schedule_review":
+                    _concept.status = "provisional"
 
             # v11.0: 거버넌스 결정을 Evidence로 기록
             if EVIDENCE_CHAIN_AVAILABLE and evidence_debate:

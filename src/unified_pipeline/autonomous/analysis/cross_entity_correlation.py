@@ -656,13 +656,16 @@ class CrossEntityCorrelationAnalyzer:
                 if min_rows < 10 or min_rows / max(len(df_a), len(df_b), 1) < 0.8:
                     continue
 
+                # v27.11: numpy 배열 캐싱으로 reset_index 중복 제거
+                cached_a = {c: df_a[c].iloc[:min_rows].values for c in cols_a[:10]}
+                cached_b = {c: df_b[c].iloc[:min_rows].values for c in cols_b[:10]}
                 for col_a in cols_a[:10]:
                     for col_b in cols_b[:10]:
                         if col_a == col_b:
                             continue
 
-                        series_a = df_a[col_a].iloc[:min_rows].reset_index(drop=True)
-                        series_b = df_b[col_b].iloc[:min_rows].reset_index(drop=True)
+                        series_a = pd.Series(cached_a[col_a])
+                        series_b = pd.Series(cached_b[col_b])
 
                         corr, p_value, sample_size = self.compute_correlation(series_a, series_b)
 

@@ -28,6 +28,11 @@ from ..exceptions import PhaseContractViolation
 
 logger = logging.getLogger(__name__)
 
+# v27.11: 오케스트레이터 루프 상수 (이전: 하드코딩된 매직넘버)
+MAX_IDLE_LOOPS = 500        # idle 상태 연속 반복 시 타임아웃 (500 × 0.1s = 50s)
+MAX_TOTAL_LOOPS = 2000      # 전체 루프 최대 반복 (안전장치)
+LOOP_SLEEP_SECONDS = 0.1    # 루프 sleep 간격
+
 
 @dataclass
 class OrchestratorConfig:
@@ -368,11 +373,11 @@ class AgentOrchestrator:
         if self.consensus_engine:
             self.consensus.register_agents(phase)
 
-        # 작업 루프
+        # 작업 루프 (v27.11: 매직넘버 → 모듈 상수)
         loop_count = 0
-        max_idle_loops = 500
+        max_idle_loops = MAX_IDLE_LOOPS
         idle_loop_count = 0
-        max_total_loops = 2000
+        max_total_loops = MAX_TOTAL_LOOPS
         consensus_completed_todos: set = set()
         while not self.todo_manager.is_phase_complete(phase):
             loop_count += 1
@@ -748,6 +753,14 @@ class AgentOrchestrator:
 
         try:
             # 1. 온톨로지 개념 ↔ 거버넌스 결정 연결
+            # v27.11: O(n²) → O(n) — action_backlog을 concept별 인덱스로 구축
+            actions_by_concept: Dict[str, list] = {}
+            for action in ctx.action_backlog:
+                if isinstance(action, dict):
+                    ac = action.get("target_concept", action.get("concept_id", ""))
+                    if ac:
+                        actions_by_concept.setdefault(ac, []).append(action)
+
             for decision in ctx.governance_decisions:
                 concept_id = decision.concept_id
                 decision_id = decision.decision_id
@@ -758,15 +771,12 @@ class AgentOrchestrator:
                     relation_type="has_governance_decision"
                 )
 
-                for action in ctx.action_backlog:
-                    if isinstance(action, dict):
-                        action_concept = action.get("target_concept", action.get("concept_id", ""))
-                        if action_concept == concept_id:
-                            ctx.link_components(
-                                source_id=decision_id,
-                                target_id=action.get("action_id", ""),
-                                relation_type="recommends_action"
-                            )
+                for action in actions_by_concept.get(concept_id, []):
+                    ctx.link_components(
+                        source_id=decision_id,
+                        target_id=action.get("action_id", ""),
+                        relation_type="recommends_action"
+                    )
 
             logger.info(f"[v17.1] Linked {len(ctx.component_references)} component references")
 

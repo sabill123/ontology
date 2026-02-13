@@ -553,7 +553,7 @@ Respond ONLY with valid JSON."""
             for table_name in entity.source_tables:
                 table_info = context.tables.get(table_name)
                 if table_info and hasattr(table_info, 'columns'):
-                    for col in table_info.columns[:15]:  # 테이블당 최대 15개 속성
+                    for col in table_info.columns[:30]:  # v27.11: 15→30 (넓은 테이블 커버리지 확대)
                         col_name = col.get("name", "") if isinstance(col, dict) else str(col)
                         col_type = col.get("type", "string") if isinstance(col, dict) else "string"
 
@@ -619,7 +619,7 @@ Respond ONLY with valid JSON."""
             })
 
             # 속성들도 Property로 추출
-            for attr in entity.unified_attributes[:20]:
+            for attr in entity.unified_attributes[:30]:  # v27.11: 20→30
                 if isinstance(attr, dict):
                     attr_name = attr.get("name", attr.get("column", "unknown"))
                     attr_info = attr

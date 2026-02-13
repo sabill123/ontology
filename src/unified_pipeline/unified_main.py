@@ -705,27 +705,32 @@ class OntologyPlatform:
             # 도메인 추론
             domain = self._infer_domain(table_name, df)
 
-            # 컬럼 정보 추출
+            # 컬럼 정보 추출 (v27.11: 캐싱으로 중복 연산 제거)
             columns = []
+            null_mask = df.isnull()  # 1회만 계산
             for col in df.columns:
                 try:
+                    col_series = df[col]
+                    col_null = null_mask[col]
+                    non_null = col_series[~col_null]
+
                     # dict/list 타입은 nunique 계산 불가
-                    sample_val = df[col].dropna().iloc[0] if len(df[col].dropna()) > 0 else None
+                    sample_val = non_null.iloc[0] if len(non_null) > 0 else None
                     is_complex_type = isinstance(sample_val, (dict, list))
 
                     if is_complex_type:
                         unique_count = -1  # 복잡 타입
                         sample_values = []
                     else:
-                        unique_count = int(df[col].nunique())
-                        sample_values = df[col].dropna().head(5).tolist()
+                        unique_count = int(col_series.nunique())
+                        sample_values = non_null.head(5).tolist()
 
                     col_info = {
                         "name": col,
-                        "type": str(df[col].dtype),
-                        "nullable": bool(df[col].isnull().any()),
+                        "type": str(col_series.dtype),
+                        "nullable": bool(col_null.any()),
                         "unique_count": unique_count,
-                        "null_count": int(df[col].isnull().sum()),
+                        "null_count": int(col_null.sum()),
                         "sample_values": sample_values,
                     }
                     columns.append(col_info)

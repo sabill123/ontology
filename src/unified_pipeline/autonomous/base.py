@@ -1188,8 +1188,8 @@ class AutonomousAgent(ABC, EnhancedAgentMixin):
                             confidence=0.7,
                             topics=[self.phase, self.agent_type, todo.name.lower().replace(" ", "_")],
                         )
-                    except Exception:
-                        pass  # best-effort auto-record
+                    except Exception as e:
+                        logger.warning(f"[v27.11] Auto-record evidence failed for {self.agent_id}: {e}")
 
                 if self._evidence_recorded_for_current_task:
                     result.terminate_mode = AgentTerminateMode.GOAL.value

@@ -294,7 +294,7 @@ Respond with JSON only, no additional text."""
             context.get_industry() if hasattr(context, 'get_industry') else "general",
         ]
 
-        return hashlib.md5("|".join(key_parts).encode()).hexdigest()[:8]
+        return hashlib.md5("|".join(key_parts).encode()).hexdigest()
 
     def _parse_llm_response(self, response: str) -> Dict[str, Any]:
         """LLM 응답 파싱"""

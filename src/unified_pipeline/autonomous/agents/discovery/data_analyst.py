@@ -224,8 +224,8 @@ Respond with ONLY valid JSON matching this schema."""
                             "max": str(parsed.max()),
                             "span_days": int((parsed.max() - parsed.min()).days),
                         }
-                except Exception:
-                    pass
+                except (ValueError, TypeError, OverflowError):
+                    pass  # 비날짜 컬럼 — 정상 스킵
 
         return stats
 

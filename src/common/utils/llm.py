@@ -116,50 +116,68 @@ def chat_completion(
     prompt_tokens = 0
     completion_tokens = 0
 
-    try:
-        kwargs = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-        }
-        # v25.0: seed 파라미터로 재현성 보장
-        if seed is not None:
-            kwargs["seed"] = seed
-        # max_tokens intentionally omitted — let the model use its default limit
+    # v27.11: retry with exponential backoff (max 3 attempts)
+    max_retries = 3
+    last_error = None
 
-        # Terminal logging for debugging
-        print(f"[LLM] Calling {model} (agent: {log_agent_name})...")
+    for attempt in range(max_retries):
+        try:
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+            }
+            # v25.0: seed 파라미터로 재현성 보장
+            if seed is not None:
+                kwargs["seed"] = seed
+            # max_tokens intentionally omitted — let the model use its default limit
 
-        response = client.chat.completions.create(**kwargs)
-        response_content = response.choices[0].message.content or ""
+            # Terminal logging for debugging
+            retry_suffix = f" (retry {attempt})" if attempt > 0 else ""
+            print(f"[LLM] Calling {model} (agent: {log_agent_name}){retry_suffix}...")
 
-        # Terminal logging for response
-        print(f"[LLM] Response received: {len(response_content)} chars in {(time.time() - start_time):.2f}s")
+            response = client.chat.completions.create(**kwargs)
+            response_content = response.choices[0].message.content or ""
 
-        # 토큰 사용량 추출
-        if hasattr(response, "usage") and response.usage:
-            prompt_tokens = response.usage.prompt_tokens or 0
-            completion_tokens = response.usage.completion_tokens or 0
+            # Terminal logging for response
+            print(f"[LLM] Response received: {len(response_content)} chars in {(time.time() - start_time):.2f}s")
 
-    except Exception as e:
-        success = False
-        error_msg = str(e)
-        print(f"[LLM] ERROR: {e}")
-        raise RuntimeError(f"LLM request failed: {e}")
-    finally:
-        # JobLogger에 기록
-        latency_ms = (time.time() - start_time) * 1000
-        _log_llm_call(
-            agent_name=log_agent_name,
-            model=model,
-            messages=messages,
-            response=response_content,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            latency_ms=latency_ms,
-            success=success,
-            error=error_msg,
-        )
+            # 토큰 사용량 추출
+            if hasattr(response, "usage") and response.usage:
+                prompt_tokens = response.usage.prompt_tokens or 0
+                completion_tokens = response.usage.completion_tokens or 0
+
+            success = True
+            break  # 성공 시 루프 탈출
+
+        except Exception as e:
+            last_error = e
+            error_msg = str(e)
+            # 마지막 시도가 아니면 재시도
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # 1s, 2s
+                print(f"[LLM] Attempt {attempt + 1} failed: {e}. Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                success = False
+                print(f"[LLM] ERROR after {max_retries} attempts: {e}")
+
+    # JobLogger에 기록
+    latency_ms = (time.time() - start_time) * 1000
+    _log_llm_call(
+        agent_name=log_agent_name,
+        model=model,
+        messages=messages,
+        response=response_content,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        latency_ms=latency_ms,
+        success=success,
+        error=error_msg,
+    )
+
+    if not success:
+        raise RuntimeError(f"LLM request failed after {max_retries} attempts: {last_error}")
 
     return response_content
 

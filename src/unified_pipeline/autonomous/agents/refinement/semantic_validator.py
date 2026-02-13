@@ -350,17 +350,16 @@ Respond ONLY with valid JSON."""
 
         self._report_progress(0.8, "Applying validation results")
 
-        # 3단계: 검증 결과 적용
+        # 3단계: 검증 결과 적용 (v27.11: O(n²) → O(1) concept lookup)
+        concept_index = {c.concept_id: c for c in context.ontology_concepts}
         for validation in all_validations:
             if not validation.get("overall_valid", True):
                 concept_id = validation.get("concept_id")
-                for concept in context.ontology_concepts:
-                    if concept.concept_id == concept_id:
-                        concept.agent_assessments["semantic_validator"] = validation
-                        # 검증 실패 시 상태 변경
-                        if concept.status == "approved":
-                            concept.status = "provisional"
-                        break
+                concept = concept_index.get(concept_id)
+                if concept:
+                    concept.agent_assessments["semantic_validator"] = validation
+                    if concept.status == "approved":
+                        concept.status = "provisional"
 
         self._report_progress(0.95, "Finalizing semantic validation")
 
