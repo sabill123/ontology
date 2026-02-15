@@ -722,7 +722,16 @@ class OntologyPlatform:
                         unique_count = -1  # 복잡 타입
                         sample_values = []
                     else:
-                        unique_count = int(col_series.nunique())
+                        # v27.12: 고카디널리티 컬럼 최적화 (ID 등)
+                        # 샘플 100개로 유니크 비율 체크 → >95%면 전체 계산 스킵
+                        if len(non_null) > 100:
+                            sample_unique_ratio = non_null.head(100).nunique() / 100
+                            if sample_unique_ratio > 0.95:
+                                unique_count = len(non_null)  # 거의 유니크로 추정
+                            else:
+                                unique_count = int(col_series.nunique())
+                        else:
+                            unique_count = int(col_series.nunique())
                         sample_values = non_null.head(5).tolist()
 
                     col_info = {
@@ -752,8 +761,10 @@ class OntologyPlatform:
             # Foreign Key 추론
             foreign_keys = self._infer_foreign_keys(table_name, df, columns)
 
-            # 전체 데이터 사용 (v15.0: 샘플링 로직 완전 제거, 항상 전체 데이터)
-            sample_data = df.where(pd.notnull(df), None).to_dict('records')
+            # v27.12: 메모리 최적화 - sample_data는 최대 1000행으로 제한
+            MAX_SAMPLE_ROWS = 1000
+            df_sample = df.head(MAX_SAMPLE_ROWS) if len(df) > MAX_SAMPLE_ROWS else df
+            sample_data = df_sample.where(pd.notnull(df_sample), None).to_dict('records')
 
             tables_data[table_name] = {
                 "source": str(table_name),
