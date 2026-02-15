@@ -51,6 +51,7 @@ on:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 720  # v27.12: 12시간 (beauty/marketing 대용량 데이터셋 대응)
 
     steps:
       - name: Checkout repository
