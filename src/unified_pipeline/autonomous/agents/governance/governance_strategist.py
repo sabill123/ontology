@@ -204,72 +204,69 @@ Respond ONLY with valid JSON."""
         concepts_by_status = {"approved": [], "provisional": [], "rejected": [], "pending": []}
         algorithmic_decisions = {}
 
-        for concept in context.ontology_concepts:
-            status = concept.status or "pending"
-            concept_dict = {
-                "concept_id": concept.concept_id,
-                "concept_type": concept.concept_type,
-                "name": concept.name,
-                "confidence": concept.confidence,
-                "status": status,
-                "source_evidence": concept.source_evidence,
-                "source_tables": concept.source_tables,
-            }
-            concepts_by_status.get(status, concepts_by_status["pending"]).append(concept_dict)
-
-            # 결정 매트릭스 적용
-            decision = self.decision_matrix.make_decision(
-                concept_dict,
-                concept.agent_assessments,
-            )
-            algorithmic_decisions[concept.concept_id] = {
-                "decision_type": decision.decision_type,
-                "confidence": decision.confidence,
-                "reasoning": decision.reasoning,
-                "business_value": decision.business_value,
-                "risk_level": decision.risk_level,
-                "quality_score": decision.quality_score,
-                "evidence_strength": decision.evidence_strength,
-            }
-
-        self._report_progress(0.30, f"Computed {len(algorithmic_decisions)} algorithmic decisions")
-
-        # === v4.6: ProcessAnalyzer 분석 ===
+        # v28.0: Loop 1 + Loop 2 단일 패스 병합 (독립 루프 → 1x concept 스캔)
         process_analyses = {}
-        self._report_progress(0.35, "Running ProcessAnalyzer (business process context)")
         try:
             for concept in context.ontology_concepts:
-                concept_id = concept.concept_id
+                # --- Loop 1: 알고리즘 기반 결정 ---
+                status = concept.status or "pending"
+                concept_dict = {
+                    "concept_id": concept.concept_id,
+                    "concept_type": concept.concept_type,
+                    "name": concept.name,
+                    "confidence": concept.confidence,
+                    "status": status,
+                    "source_evidence": concept.source_evidence,
+                    "source_tables": concept.source_tables,
+                }
+                concepts_by_status.get(status, concepts_by_status["pending"]).append(concept_dict)
 
-                # OntologyConcept의 definition에서 properties와 relationships 추출
+                decision = self.decision_matrix.make_decision(
+                    concept_dict,
+                    concept.agent_assessments,
+                )
+                algorithmic_decisions[concept.concept_id] = {
+                    "decision_type": decision.decision_type,
+                    "confidence": decision.confidence,
+                    "reasoning": decision.reasoning,
+                    "business_value": decision.business_value,
+                    "risk_level": decision.risk_level,
+                    "quality_score": decision.quality_score,
+                    "evidence_strength": decision.evidence_strength,
+                }
+
+                # --- Loop 2 (v4.6): ProcessAnalyzer 분석 ---
+                concept_id = concept.concept_id
                 definition = concept.definition or {}
                 properties = definition.get("properties", [])
                 relationships = definition.get("relationships", [])
 
-                # 프로세스 컨텍스트 분석
                 process_context = self.process_analyzer.identify_process_context(
                     entity_name=concept.name,
                     description=concept.description or "",
                     properties=[p.get("name", "") if isinstance(p, dict) else str(p) for p in properties],
                     source_tables=concept.source_tables,
                 )
-
-                # 통합 복잡도 평가
                 integration_assessment = self.process_analyzer.assess_integration_complexity(
                     source_tables=concept.source_tables,
                     related_entities=[r.get("to", "") if isinstance(r, dict) else str(r) for r in relationships],
                     has_external_sources=False,
                 )
-
                 process_analyses[concept_id] = {
                     "process_context": process_context.to_dict(),
                     "integration_assessment": integration_assessment.to_dict(),
                     "automation_score": process_context.confidence * 100,
                 }
 
-            logger.info(f"ProcessAnalyzer analyzed {len(process_analyses)} concepts")
+            logger.info(
+                f"Single-pass: {len(algorithmic_decisions)} algo decisions + "
+                f"{len(process_analyses)} process analyses"
+            )
         except Exception as e:
-            logger.warning(f"ProcessAnalyzer failed: {e}")
+            logger.warning(f"Single-pass Loop 1+2 failed: {e}")
+            # fallback: algo decisions already may be partially filled
+
+        self._report_progress(0.35, f"Computed {len(algorithmic_decisions)} decisions + {len(process_analyses)} process analyses")
 
         # === v17.1: Phase 2 데이터 통합 (causal_relationships, palantir_insights) ===
         phase2_enrichment = {}
@@ -592,20 +589,43 @@ Respond ONLY with valid JSON."""
                         if len(debate_candidates) >= 2:
                             break
 
+            # v28.0: Evidence 역인덱스 사전 구축 — O(candidates × evidence_blocks) → O(evidence_blocks) + O(1)
+            # 기존: 각 concept마다 전체 evidence_blocks 선형 스캔 (O(n²))
+            # 변경: 테이블명/키워드별 역인덱스로 O(1) 조회
+            _ev_by_table: dict = {}
+            _ev_by_keyword: dict = {}
+            _all_evidence = (phase1_evidence or []) + (phase2_evidence or [])
+            for _ev in _all_evidence:
+                for _tbl in _ev.get("data_references", []):
+                    if _tbl not in _ev_by_table:
+                        _ev_by_table[_tbl] = []
+                    _ev_by_table[_tbl].append(_ev)
+                for _word in _ev.get("finding", "").lower().split():
+                    if len(_word) > 4:
+                        if _word not in _ev_by_keyword:
+                            _ev_by_keyword[_word] = []
+                        _ev_by_keyword[_word].append(_ev)
+
             for concept in debate_candidates:  # v27.1: 하드코딩 한도 제거 — 전체 후보 debate
                 algo_decision = algorithmic_decisions.get(concept.concept_id, {})
 
                 # === v11.0: Evidence-Based Debate Protocol ===
                 if EVIDENCE_CHAIN_AVAILABLE and self.debate_protocol and evidence_chain:
                     try:
-                        # 해당 개념과 관련된 근거 찾기
+                        # v28.0: O(1) index lookup — 기존 O(evidence_blocks) 선형 스캔 제거
                         concept_evidence = []
-                        for ev in (phase1_evidence + phase2_evidence):
-                            # 테이블명이나 개념명이 관련된 근거 수집
-                            if any(t in ev.get("data_references", []) for t in concept.source_tables):
-                                concept_evidence.append(ev)
-                            elif concept.name.lower() in ev.get("finding", "").lower():
-                                concept_evidence.append(ev)
+                        _seen_block_ids = set()
+                        for _tbl in (concept.source_tables or []):
+                            for _ev in _ev_by_table.get(_tbl, []):
+                                if _ev.get("block_id") not in _seen_block_ids:
+                                    concept_evidence.append(_ev)
+                                    _seen_block_ids.add(_ev.get("block_id"))
+                        for _word in concept.name.lower().split():
+                            if len(_word) > 4:
+                                for _ev in _ev_by_keyword.get(_word, []):
+                                    if _ev.get("block_id") not in _seen_block_ids:
+                                        concept_evidence.append(_ev)
+                                        _seen_block_ids.add(_ev.get("block_id"))
 
                         # 관련 근거 블록 ID 수집
                         supporting_block_ids = [ev["block_id"] for ev in concept_evidence[:30]]  # v25.2: 10→30

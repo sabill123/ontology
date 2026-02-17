@@ -761,9 +761,44 @@ class OntologyPlatform:
             # Foreign Key 추론
             foreign_keys = self._infer_foreign_keys(table_name, df, columns)
 
-            # v27.12: 메모리 최적화 - sample_data는 최대 1000행으로 제한
+            # v28.0: Stratified Sampling — 카테고리 분포 보존 (Palantir 방식)
+            # 기존: df.head(1000) 무작위 선두 1000행 → 카테고리 편향 가능
+            # 변경: 카테고리 비율 보존 + 이상치 필수 포함 → 정확도 유지
             MAX_SAMPLE_ROWS = 1000
-            df_sample = df.head(MAX_SAMPLE_ROWS) if len(df) > MAX_SAMPLE_ROWS else df
+            if len(df) <= MAX_SAMPLE_ROWS:
+                df_sample = df
+            else:
+                try:
+                    # Step 1: 이상치 인덱스 수집 (수치형 컬럼 상하위 0.5%)
+                    outlier_idx = set()
+                    for _ocol in df.select_dtypes(include=['number']).columns[:5]:
+                        _ovals = df[_ocol].dropna()
+                        if len(_ovals) > 100:
+                            _ql, _qh = _ovals.quantile(0.005), _ovals.quantile(0.995)
+                            outlier_idx.update(df[(_ocol < _ql) | (_ocol > _qh) if False else df[_ocol].between(_ql, _qh) == False].index.tolist())
+                    # Step 2: 카테고리 컬럼 기준 stratified sample
+                    _cat_col = None
+                    for _cc in df.columns:
+                        _nu = df[_cc].nunique()
+                        if 2 <= _nu <= 50 and df[_cc].count() > len(df) * 0.5:
+                            _cat_col = _cc
+                            break
+                    if _cat_col:
+                        df_sample = (
+                            df.groupby(_cat_col, group_keys=False)
+                            .apply(lambda g: g.sample(
+                                min(len(g), max(5, int(MAX_SAMPLE_ROWS * len(g) / len(df)))),
+                                random_state=42
+                            ))
+                        ).head(MAX_SAMPLE_ROWS)
+                    else:
+                        df_sample = df.sample(MAX_SAMPLE_ROWS, random_state=42)
+                    # Step 3: 이상치 병합 (누락분만)
+                    _missing = list(outlier_idx - set(df_sample.index))
+                    if _missing:
+                        df_sample = pd.concat([df_sample, df.loc[_missing[:50]]])
+                except Exception:
+                    df_sample = df.head(MAX_SAMPLE_ROWS)
             sample_data = df_sample.where(pd.notnull(df_sample), None).to_dict('records')
 
             tables_data[table_name] = {
