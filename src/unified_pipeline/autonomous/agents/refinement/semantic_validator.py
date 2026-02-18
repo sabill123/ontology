@@ -8,6 +8,7 @@ Semantic Validator Autonomous Agent (v3.0)
 - LLM을 통한 도메인 지식 기반 검증
 """
 
+import asyncio
 import json
 import logging
 from typing import Any, Dict, List, TYPE_CHECKING
@@ -339,14 +340,13 @@ Respond ONLY with valid JSON."""
             for c in concepts_to_validate
         ]
 
-        # 배치 처리 - v6.0: LLM 호출 최적화 (10→30)
+        # v28.2: asyncio.gather() — 배치 병렬 실행 (순차 → 동시)
         batch_size = 30
-        all_validations = []
-
-        for i in range(0, len(concepts_data), batch_size):
-            batch = concepts_data[i:i + batch_size]
-            validations = await self._llm_semantic_validation(batch, context)
-            all_validations.extend(validations)
+        batches = [concepts_data[i:i + batch_size] for i in range(0, len(concepts_data), batch_size)]
+        batch_results = await asyncio.gather(
+            *[self._llm_semantic_validation(batch, context) for batch in batches]
+        )
+        all_validations = [v for result in batch_results for v in result]
 
         self._report_progress(0.8, "Applying validation results")
 

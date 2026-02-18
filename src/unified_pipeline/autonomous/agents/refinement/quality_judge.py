@@ -9,6 +9,7 @@ Quality Judge Autonomous Agent (v5.0 - Enhanced Validation)
 - LLM을 통한 정성적 판단 및 피드백
 """
 
+import asyncio
 import json
 import logging
 from typing import Any, Dict, List, TYPE_CHECKING
@@ -275,19 +276,19 @@ Respond ONLY with valid JSON."""
         # 2단계: LLM을 통한 정성적 검토
         self._report_progress(0.5, "Requesting LLM quality review")
 
-        # 배치 처리 (한 번에 30개씩) - v6.0: LLM 호출 최적화
+        # v28.2: asyncio.gather() — 배치 병렬 실행 (순차 → 동시)
         batch_size = 30
-        all_assessments = []
+        batches = [concepts_data[i:i + batch_size] for i in range(0, len(concepts_data), batch_size)]
 
-        for i in range(0, len(concepts_data), batch_size):
-            batch = concepts_data[i:i + batch_size]
+        async def _review_batch(batch):
             batch_scores = {
                 c["concept_id"]: algorithmic_scores.get(c["concept_id"], {})
                 for c in batch
             }
+            return await self._llm_quality_review(batch, batch_scores)
 
-            assessments = await self._llm_quality_review(batch, batch_scores)
-            all_assessments.extend(assessments)
+        batch_results = await asyncio.gather(*[_review_batch(b) for b in batches])
+        all_assessments = [a for result in batch_results for a in result]
 
         self._report_progress(0.8, "Applying assessment results")
 

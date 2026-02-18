@@ -9,6 +9,7 @@ Ontology Architect Autonomous Agent (v7.5.1 - Enhanced FK Integration)
 - LLM을 통한 설명 보강 및 검증
 """
 
+import asyncio
 import json
 import logging
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
@@ -1131,10 +1132,12 @@ Respond ONLY with valid JSON."""
         )
         cross_mappings_str = f"- Cross-table mappings: {json.dumps(cross_mappings_summary, indent=2, default=str)}"
 
-        for i in range(0, len(concepts), batch_size):
-            batch = concepts[i:i + batch_size]
+        # v28.2: 모든 배치를 asyncio.gather()로 동시 실행 (순차 → 병렬)
+        # 각 배치는 독립적 — SharedContext 공유 없음, 결과 순서만 보존
+        batches = [concepts[i:i + batch_size] for i in range(0, len(concepts), batch_size)]
 
-            instruction = f"""You are an expert ontologist specializing in {domain} domain.
+        def _build_instruction(batch):
+            return f"""You are an expert ontologist specializing in {domain} domain.
 Enhance these ontology concepts with professional, domain-specific descriptions.
 
 ## Domain Context
@@ -1182,42 +1185,42 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
 ]
 ```"""
 
+        async def _enhance_batch(batch):
+            instruction = _build_instruction(batch)
             try:
                 response = await self.call_llm(instruction, max_tokens=4000)
                 batch_enhanced = parse_llm_json(response, default=[])
-
                 if batch_enhanced and isinstance(batch_enhanced, list):
-                    # v5.1: 각 개념에 원본 정보가 누락되면 보완
                     for j, enhanced_concept in enumerate(batch_enhanced):
                         if j < len(batch):
                             original = batch[j]
-                            # 필수 필드 보존
                             for key in ["concept_id", "concept_type", "source_tables", "source_evidence", "confidence"]:
                                 if key not in enhanced_concept and key in original:
                                     enhanced_concept[key] = original[key]
-                            # v27.0: definition.extracted_attributes 보존
                             orig_attrs = original.get("definition", {}).get("extracted_attributes", [])
                             if orig_attrs:
                                 enh_def = enhanced_concept.setdefault("definition", {})
                                 if not enh_def.get("extracted_attributes"):
                                     enh_def["extracted_attributes"] = orig_attrs
-                            # 설명이 여전히 템플릿 형태면 원본 개선
                             desc = enhanced_concept.get("description", "")
                             if desc.startswith("Entity representing") or len(desc) < 30:
                                 enhanced_concept["description"] = self._generate_fallback_description(
                                     enhanced_concept, domain
                                 )
-                    enhanced.extend(batch_enhanced)
+                    return batch_enhanced
                 else:
-                    # LLM 실패 시 알고리즘 기반 개선
                     for concept in batch:
                         concept["description"] = self._generate_fallback_description(concept, domain)
-                    enhanced.extend(batch)
+                    return batch
             except Exception as e:
-                logger.warning(f"LLM enhancement batch {i} failed: {e}")
+                logger.warning(f"LLM enhancement batch failed: {e}")
                 for concept in batch:
                     concept["description"] = self._generate_fallback_description(concept, domain)
-                enhanced.extend(batch)
+                return batch
+
+        batch_results = await asyncio.gather(*[_enhance_batch(b) for b in batches])
+        for result in batch_results:
+            enhanced.extend(result)
 
         return enhanced if enhanced else concepts
 
