@@ -761,10 +761,13 @@ class OntologyPlatform:
             # Foreign Key 추론
             foreign_keys = self._infer_foreign_keys(table_name, df, columns)
 
-            # v28.0: Stratified Sampling — 카테고리 분포 보존 (Palantir 방식)
-            # 기존: df.head(1000) 무작위 선두 1000행 → 카테고리 편향 가능
-            # 변경: 카테고리 비율 보존 + 이상치 필수 포함 → 정확도 유지
-            MAX_SAMPLE_ROWS = 1000
+            # v28.1: Adaptive Stratified Sampling
+            # 컬럼 수가 많을수록 행 수를 줄여 LLM 토큰 예산을 일정하게 유지
+            # 공식: MAX_ROWS = clamp(TOKEN_BUDGET / n_cols, 100, 1000)
+            # 모든 컬럼은 유지 — 컬럼 삭제 없음 (데이터 누락 방지)
+            TOKEN_BUDGET = 50_000  # ≒ 일정한 셀 수 유지
+            n_cols = len(df.columns)
+            MAX_SAMPLE_ROWS = max(100, min(1000, TOKEN_BUDGET // max(n_cols, 1)))
             if len(df) <= MAX_SAMPLE_ROWS:
                 df_sample = df
             else:
