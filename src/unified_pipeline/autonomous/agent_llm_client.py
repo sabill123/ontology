@@ -67,7 +67,7 @@ class AgentLLMClient:
             return "{}"
 
         # v28.6: max_tokens를 모델별 최대 output 한도로 자동 설정 (비용 무관, 품질 우선)
-        from ...model_config import get_model_spec
+        from ..model_config import get_model_spec
         model_output_max = get_model_spec(model).get("output_max", 32_000)
         effective_max_tokens = model_output_max
 
