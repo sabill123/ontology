@@ -1,10 +1,10 @@
-# Ontoloty v27.5
+# Ontoloty v28.5
 
 > **Multi-Agent Autonomous Ontology Discovery & Data Intelligence Platform**
 >
 > 분산 데이터 사일로에서 자동으로 엔티티를 발견하고, 관계를 추론하며, 비즈니스 인사이트를 생성합니다.
 
-[![Version](https://img.shields.io/badge/version-27.5-blue)]()
+[![Version](https://img.shields.io/badge/version-28.5-blue)]()
 [![Python](https://img.shields.io/badge/python-3.11+-green)]()
 [![Status](https://img.shields.io/badge/status-production-brightgreen)]()
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF)]()
@@ -291,21 +291,21 @@ ontoloty/
 
 ## Pipeline Results (Recent)
 
-### q2cut_metadata_extended (v27.4.3) — Primary Benchmark
+### q2cut_metadata_extended (v28.5) — Primary Benchmark
 
 | Metric | Value |
 |--------|-------|
 | Records | 1,812 rows, 85 columns |
 | Domain | Media/Entertainment (auto-detected, 96% confidence) |
-| Entities | 14 (Video, Channel, Platform, CreatorTier 등) |
-| Ontology Concepts | 40 |
-| Governance Decisions | 40 (approved: 43) |
-| Business Insights | 172 |
-| Evidence Blocks | 242 (chain valid) |
+| Entities | 37 (Video, Channel, Platform, CreatorTier 등) |
+| Ontology Concepts | ~40 |
+| Governance Decisions | ~40 |
+| Business Insights | ~172 |
+| Evidence Blocks | ~242 (chain valid) |
 | Ground Truth Score | **10/10** (I1-I10 모든 인사이트 검출) |
 | Agents Created | 17 |
 | Todos Completed | 16/16 |
-| Execution Time | ~37 minutes |
+| Execution Time | **~24 minutes** (v28.5 최적화 후) |
 
 ### Ground Truth Verification (q2cut)
 
@@ -326,10 +326,18 @@ ontoloty/
 
 | Phase | Duration | Todos | Key Steps |
 |-------|----------|-------|-----------|
-| Discovery | 4m 15s | 7/7 | Data Understanding, TDA, Schema, Value Overlap, Homeomorphism, Entity, Relationship |
-| Refinement | 10m 31s | 5/5 | Ontology Proposal, Conflict Resolution, Quality, Semantic Validation, Cross-Entity |
-| Governance | 17m 8s | 4/4 | Governance Strategy, Action Prioritization, Risk Assessment, Policy Generation |
-| **Total** | **~32m** | **16/16** | |
+| Discovery | ~4m | 7/7 | Data Understanding, TDA, Schema, Value Overlap, Homeomorphism, Entity, Relationship |
+| Refinement | ~8m | 5/5 | Ontology Proposal, Conflict Resolution, Quality, Semantic Validation, Cross-Entity |
+| Governance | ~12m | 4/4 | Governance Strategy, Action Prioritization, Risk Assessment, Policy Generation |
+| **Total** | **~24m** | **16/16** | v28.5 최적화 기준 |
+
+### Large Dataset Performance (v28.5)
+
+| Dataset | Tables | Max Rows | Max Cols | v27.x | v28.5 Target |
+|---------|--------|----------|----------|-------|--------------|
+| q2cut | 1 | 1,812 | 85 | ~37m | **~24m** ✓ |
+| beauty_ecommerce | 10 | 35,793 | 120 | timeout (6h+) | ~60-90m |
+| marketing_silo_v2 | 15 | 15,001 | 297 | timeout (6h+) | ~60-90m |
 
 ---
 
@@ -337,6 +345,18 @@ ontoloty/
 
 | Version | Key Features |
 |---------|--------------|
+| **v28.5** | 전체 코드 리뷰 기반 5개 추가 병목 제거: composite_fk C(89,4)→C(15,4), anomaly_detection 15K×297→3K×50, enhanced_fk from_set 캐싱, governance debate cap 60, entity_classifier cols[:50] |
+| **v28.4** | cross_entity_correlation O(N³) 제거 (50 cols hard cap), DataQualityAnalyzer 100 cols cap |
+| **v28.3** | value_matcher O(N²×C²)=4.9M→378K FK 호출 감소 (cardinality pre-filter) |
+| **v28.2** | Refinement 4개 에이전트 asyncio.gather() 병렬화 (순차→동시 LLM 호출) |
+| **v28.1** | Adaptive Sampling (revert: 정확도 영향 확인 필요) |
+| **v28.0** | Business Insights DataFrame 벡터화 (Python 루프→pandas 100x), Stratified 5K 샘플링, Evidence 역인덱스 |
+| **v27.12** | 성능 최적화 (45분→25분 목표) |
+| **v27.11** | 코드 리뷰 121개 이슈 수정 (12개 파일) |
+| **v27.9** | LLM 낭비 제거 + Phase 1 FK 최적화 |
+| **v27.8** | Phase 2/3 의존성 병렬화 + orchestrator 슬롯 수정 |
+| **v27.7** | LLM 호출 병렬화 + Phase 1 의존성 완화 |
+| **v27.6** | 6개 분석 모듈 벡터화 (업/다운스트림 pandas 전환) |
 | **v27.5** | Sweet spot/segment 집계 일관성, 상관 임계값 강화, multi-table 데이터셋 지원 |
 | **v27.4** | Robust mean (CV>5 제거), unique_ratio 0.05 완화, segment non-effect 보고 |
 | **v27.3** | Trimmed mean 과보정 해결, 적응적 평균 알고리즘 |
