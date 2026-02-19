@@ -297,7 +297,9 @@ Respond with structured JSON matching this schema."""
                 continue
 
             col_analysis = []
-            for col_name in columns:
+            # v28.5: 루프 전 50 cap — 297 cols × 15K rows = 4.5M ops/table 방지
+            # column_profiles 결과도 [:50] cap이므로 이후 컬럼 계산은 낭비
+            for col_name in columns[:50]:
                 values = [r.get(col_name) for r in table_data if r.get(col_name) is not None]
                 unique_count = len(set(str(v) for v in values))
                 total_count = len(values)
