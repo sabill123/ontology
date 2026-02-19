@@ -66,6 +66,11 @@ class AgentLLMClient:
             logger.debug(f"LLM client not available, returning empty response for {agent.agent_type}")
             return "{}"
 
+        # v28.6: max_tokens를 모델별 최대 output 한도로 자동 설정 (비용 무관, 품질 우선)
+        from ...model_config import get_model_spec
+        model_output_max = get_model_spec(model).get("output_max", 32_000)
+        effective_max_tokens = model_output_max
+
         try:
             from ...common.utils.llm import chat_completion, set_llm_thinking_context
 
@@ -93,7 +98,7 @@ class AgentLLMClient:
                     {"role": "system", "content": agent.get_full_system_prompt()},
                     {"role": "user", "content": final_prompt},
                 ],
-                max_tokens=max_tokens,
+                max_tokens=effective_max_tokens,
                 temperature=temperature,
                 client=agent.llm_client,
                 seed=seed,

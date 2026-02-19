@@ -1651,7 +1651,7 @@ Return ONLY a JSON array. Each object must preserve original concept_id, concept
                     "confidence": e.confidence,
                 })
 
-        # v22.1: 전체 데이터 로드 (샘플링 금지)
+        # v22.1: 전체 데이터 로드 (샘플링 금지) | v28.6: 캐시 재사용
         real_data = context.get_all_full_data()
 
         # 2. CausalImpactAnalyzer로 실제 데이터 기반 인과 분석

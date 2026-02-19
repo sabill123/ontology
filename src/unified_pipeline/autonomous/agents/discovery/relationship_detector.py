@@ -170,6 +170,7 @@ Respond with structured JSON matching this schema."""
         }
 
         # v22.1: 전체 데이터 로드 (Enhanced FK Detection용, 샘플링 금지)
+        # v28.6: table_registry 캐시로 중복 CSV 로딩 제거
         sample_data = context.get_all_full_data()
 
         # FK 정보 수집
@@ -556,6 +557,7 @@ Respond with JSON:
             if column_semantics:
                 logger.info(f"[v14.0] Using LLM-analyzed column_semantics in Discovery: {len(column_semantics)} columns")
 
+            # v28.6: 전체 데이터 사용 (캐시 재사용으로 CSV 중복 읽기 없음)
             if sample_data:
                 raw_insights = insights_analyzer.analyze(
                     tables=tables_for_insights,

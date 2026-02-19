@@ -312,7 +312,7 @@ Respond ONLY with valid JSON."""
 
         kpi_results = {}
         try:
-            # v22.1: 전체 데이터 로드 (샘플링 금지)
+            # v22.1: 전체 데이터 로드 (샘플링 금지) | v28.6: 캐시 재사용
             sample_data = context.get_all_full_data()
 
             if sample_data:
@@ -348,7 +348,7 @@ Respond ONLY with valid JSON."""
 
         forecast_results = {}
         try:
-            # v22.1: 전체 데이터 로드 (샘플링 금지)
+            # v22.1: 전체 데이터 로드 (샘플링 금지) | v28.6: 캐시 재사용
             sample_data = context.get_all_full_data()
 
             if sample_data and isinstance(sample_data, dict):

@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from enum import Enum
 
-from ...model_config import get_service_model
+from ...model_config import get_service_model, get_model_spec
 
 import numpy as np
 
@@ -1191,11 +1191,12 @@ class CrossEntityCorrelationAnalyzer:
 JSON만 출력하세요. 다른 텍스트는 포함하지 마세요."""
 
         try:
+            _m_ce_s1 = get_service_model("cross_entity_scenario")
             response = await self.llm_client.chat.completions.create(
-                model=get_service_model("cross_entity_scenario"),
+                model=_m_ce_s1,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
-                max_tokens=4000,
+                max_tokens=get_model_spec(_m_ce_s1).get("output_max", 65_535),
             )
 
             content = response.choices[0].message.content.strip()
@@ -1470,11 +1471,12 @@ JSON만 출력하세요. 다른 텍스트는 포함하지 마세요."""
 JSON만 출력하세요."""
 
         try:
+            _m_ce_i1 = get_service_model("cross_entity_interpret")
             response = await self.llm_client.chat.completions.create(
-                model=get_service_model("cross_entity_interpret"),
+                model=_m_ce_i1,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
-                max_tokens=4000,
+                max_tokens=get_model_spec(_m_ce_i1).get("output_max", 65_535),
             )
 
             content = response.choices[0].message.content.strip()
@@ -1876,11 +1878,12 @@ JSON만 출력하세요."""
 JSON만 출력하세요."""
 
         try:
+            _m_ce_s2 = get_service_model("cross_entity_scenario")
             response = self.llm_client.chat.completions.create(
-                model=get_service_model("cross_entity_scenario"),
+                model=_m_ce_s2,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
-                max_tokens=4000,
+                max_tokens=get_model_spec(_m_ce_s2).get("output_max", 65_535),
             )
 
             content = response.choices[0].message.content.strip()
@@ -2037,11 +2040,12 @@ JSON만 출력하세요."""
 뻔하지 않은, 실제로 유용한 인사이트만 생성하세요. JSON만 출력하세요."""
 
         try:
+            _m_ce_i2 = get_service_model("cross_entity_interpret")
             response = self.llm_client.chat.completions.create(
-                model=get_service_model("cross_entity_interpret"),
+                model=_m_ce_i2,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
-                max_tokens=4000,
+                max_tokens=get_model_spec(_m_ce_i2).get("output_max", 65_535),
             )
 
             content = response.choices[0].message.content.strip()

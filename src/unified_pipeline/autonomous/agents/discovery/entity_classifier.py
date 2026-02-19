@@ -205,7 +205,7 @@ Respond with structured JSON matching this schema."""
             name: {"columns": info.columns, "row_count": info.row_count}
             for name, info in context.tables.items()
         }
-        # v22.1: 전체 데이터 로드 (샘플링 금지)
+        # v22.1: 전체 데이터 로드 (샘플링 금지) | v28.6: 캐시 재사용
         sample_data = context.get_all_full_data()
 
         extracted_entities = []

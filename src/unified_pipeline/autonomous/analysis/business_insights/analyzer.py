@@ -3052,12 +3052,12 @@ Respond ONLY with valid JSON array."""
 
         try:
             # v18.2: Letsur AI Gateway 모델 사용 (하드코딩 제거)
-            from src.unified_pipeline.model_config import get_model, ModelType
+            from src.unified_pipeline.model_config import get_model, ModelType, get_model_spec
             llm_model = get_model(ModelType.BALANCED)
             response = self.llm_client.chat.completions.create(
                 model=llm_model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=8000,
+                max_tokens=get_model_spec(llm_model).get("output_max", 32_000),
                 temperature=0.3,
             )
 

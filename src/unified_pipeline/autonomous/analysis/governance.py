@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 from enum import Enum
 
+from ...model_config import get_model_spec
+
 if TYPE_CHECKING:
     from ...shared_context import SharedContext
 
@@ -177,10 +179,11 @@ Consider:
 
 Respond with JSON only, no additional text."""
 
+        _gov_model = getattr(self, 'model_name', 'gpt-5.2')
         response = self.llm_client.chat.completions.create(
-            model=getattr(self, 'model_name', 'gpt-5.1'),
+            model=_gov_model,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=500,
+            max_tokens=get_model_spec(_gov_model).get("output_max", 128_000),
         )
         response = response.choices[0].message.content
 

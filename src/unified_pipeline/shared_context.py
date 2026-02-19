@@ -833,6 +833,14 @@ class SharedContext:
         """
         return self._table_registry.get_all_full_data()
 
+    def get_analysis_data(self, table_name: str, max_rows: int = 5000) -> List[Dict[str, Any]]:
+        """v28.6: 분석용 stratified sample 데이터 반환 (전체 행 <= max_rows이면 전체)."""
+        return self._table_registry.get_analysis_data(table_name, max_rows)
+
+    def get_all_analysis_data(self, max_rows: int = 5000) -> Dict[str, List[Dict[str, Any]]]:
+        """v28.6: 모든 테이블의 분석용 샘플 데이터 반환."""
+        return self._table_registry.get_all_analysis_data(max_rows)
+
     # === v14.0: Phase 간 검증 게이트 ===
 
     def validate_phase1_output(self) -> Dict[str, Any]:

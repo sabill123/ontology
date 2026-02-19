@@ -16,7 +16,7 @@ from datetime import datetime
 import json
 import logging
 
-from ..model_config import get_service_model
+from ..model_config import get_service_model, get_model_spec
 
 from .domain_context import (
     DomainContext,
@@ -586,7 +586,7 @@ Respond ONLY with valid JSON:
             response = self.llm_client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=1000,
+                max_tokens=get_model_spec(self.model).get("output_max", 32_000),
                 response_format={"type": "json_object"}
             )
 

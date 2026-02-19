@@ -307,7 +307,7 @@ Respond ONLY with valid JSON."""
                 name: {"columns": info.columns, "row_count": info.row_count}
                 for name, info in context.tables.items()
             }
-            # v22.1: 전체 데이터 로드 (샘플링 금지)
+            # v22.1: 전체 데이터 로드 (샘플링 금지) | v28.6: 캐시 재사용
             sample_data = context.get_all_full_data()
 
             logger.info(f"[RiskAssessor] Tables for insights: {len(tables_for_insights)}, Full data tables: {len(sample_data)}")
@@ -502,7 +502,7 @@ Respond ONLY with valid JSON."""
 
         anomaly_results = {}
         try:
-            # v22.1: 전체 데이터 로드 (캐시 히트 — registry 캐시로 중복 IO 없음)
+            # v22.1: 전체 데이터 로드 (샘플링 금지) | v28.6: 캐시 재사용
             sample_data = context.get_all_full_data()
             if sample_data:
                 anomalies = self.anomaly_detector.detect_anomalies(sample_data)
