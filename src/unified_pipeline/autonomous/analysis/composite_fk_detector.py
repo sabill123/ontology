@@ -140,6 +140,8 @@ class CompositeFKDetector:
             id_columns = [c for c in columns if self._is_key_column(c)]
 
             if len(id_columns) >= 2:
+                # v28.5: cap 적용 — C(89,4)=2.6M → C(15,4)=1,365 (1,900x 감소)
+                id_columns = id_columns[:15]
                 # 2-4개 조합 생성
                 composites = []
                 for size in range(2, min(len(id_columns), self.MAX_COMPOSITE_SIZE) + 1):
@@ -169,9 +171,12 @@ class CompositeFKDetector:
                 to_composites = table_composite_keys.get(to_table, [])
                 to_data = sample_data.get(to_table, [])
 
+                # v28.5: cross-table composites cap — O(C₁²×C₂²) 방지
+                from_composites = from_composites[:30]
+                to_composites_capped = to_composites[:30]
                 # 복합키 쌍 비교
                 for from_combo, from_uniq in from_composites:
-                    for to_combo, to_uniq in to_composites:
+                    for to_combo, to_uniq in to_composites_capped:
                         # 컬럼 수가 같아야 함
                         if len(from_combo) != len(to_combo):
                             continue

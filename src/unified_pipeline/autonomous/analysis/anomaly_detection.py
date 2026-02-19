@@ -753,8 +753,12 @@ class AnomalyDetector:
                 continue
 
             # row dict 형식을 list[list] 형식으로 변환
-            columns = list(rows[0].keys())
-            data = [[row.get(col) for col in columns] for row in rows]
+            # v28.5: 대용량 테이블(15K rows, 297 cols) cap — ML 학습 비용 제어
+            _MAX_ANOMALY_ROWS = 3000
+            _MAX_ANOMALY_COLS = 50
+            columns = list(rows[0].keys())[:_MAX_ANOMALY_COLS]
+            rows_capped = rows[:_MAX_ANOMALY_ROWS]
+            data = [[row.get(col) for col in columns] for row in rows_capped]
 
             # 컬럼 정보 생성 (타입 추론)
             column_info = {}

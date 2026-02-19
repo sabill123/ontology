@@ -413,6 +413,15 @@ class EnhancedFKDetector:
                     if not self._is_id_like_column(from_col_name):
                         continue
 
+                    # v28.5: from_set을 to_col 루프 밖에서 1회만 계산 (캐시)
+                    # 기존: to_col 수만큼 from_values + from_set 중복 계산
+                    from_values = self._get_column_values(from_data, from_col_name)
+                    if not from_values:
+                        continue
+                    from_set = set(str(v).strip().lower() for v in from_values if v is not None)
+                    if not from_set:
+                        continue
+
                     for to_col in to_cols:
                         to_col_name = to_col.get("name", "")
 
@@ -423,15 +432,12 @@ class EnhancedFKDetector:
                         if (from_table, from_col_name, to_table, to_col_name) in existing_pairs:
                             continue
 
-                        # 값 추출
-                        from_values = self._get_column_values(from_data, from_col_name)
+                        # 값 추출 (to_values만 to_col 루프 내 계산)
                         to_values = self._get_column_values(to_data, to_col_name)
 
-                        if not from_values or not to_values:
+                        if not to_values:
                             continue
 
-                        # v27.9: 양방향 Containment를 정규화 1회로 계산 (중복 set 생성 제거)
-                        from_set = set(str(v).strip().lower() for v in from_values if v is not None)
                         to_set = set(str(v).strip().lower() for v in to_values if v is not None)
                         if not from_set or not to_set:
                             continue

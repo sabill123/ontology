@@ -606,7 +606,12 @@ Respond ONLY with valid JSON."""
                             _ev_by_keyword[_word] = []
                         _ev_by_keyword[_word].append(_ev)
 
-            for concept in debate_candidates:  # v27.1: 하드코딩 한도 제거 — 전체 후보 debate
+            # v28.5: debate_candidates cap — 무제한 순차 LLM 호출 방지
+            # 신뢰도 낮은 것 우선 정렬 후 상위 60개만 debate (나머지는 알고리즘 결정)
+            debate_candidates.sort(key=lambda c: algorithmic_decisions.get(c.concept_id, {}).get("confidence", 1.0))
+            debate_candidates = debate_candidates[:60]
+
+            for concept in debate_candidates:
                 algo_decision = algorithmic_decisions.get(concept.concept_id, {})
 
                 # === v11.0: Evidence-Based Debate Protocol ===
