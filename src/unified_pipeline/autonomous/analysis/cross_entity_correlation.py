@@ -197,12 +197,18 @@ class CrossEntityCorrelationAnalyzer:
                     "unique_ratio": float(series.nunique() / len(series)) if len(series) > 0 else 0,
                 }
 
+    # v28.4: O(N²/N³) 폭발 방지 상수
+    _NUMERIC_COLS_HARD_CAP = 50   # _detect_math/_detect_duplicate: C(50,2)=1,225/table
+    _DERIVED_COLS_CAP = 20        # _detect_derived: 20×C(20,2)=3,800/table — O(N³) 함수
+
     def get_numeric_columns(self, df: Any) -> List[str]:
-        """숫자형 컬럼 목록 반환"""
+        """숫자형 컬럼 목록 반환 (v28.4: hard cap 추가 — O(N²/N³) 폭발 방지)"""
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         filtered = [c for c in numeric_cols if not c.lower().endswith('_id')
                    and 'id' not in c.lower().split('_')]
-        return filtered if filtered else numeric_cols[:10]
+        result = filtered if filtered else numeric_cols
+        # v28.4: marketing처럼 200+ 수치 컬럼 테이블에서 O(N²/N³) 폭발 방지
+        return result[:self._NUMERIC_COLS_HARD_CAP]
 
     # ============================================================
     # v12.0: 데이터 품질 및 수학적 제약조건 감지
@@ -320,6 +326,9 @@ class CrossEntityCorrelationAnalyzer:
 
         derived = []
         numeric_cols = self.get_numeric_columns(df)
+        # v28.4: O(N³) 함수 — get_numeric_columns 50 cap 위에 추가 20 cap 적용
+        # 20×C(20,2) = 3,800 /table vs 기존 200×C(200,2) = 3.98M/table (1,000x 감소)
+        numeric_cols = numeric_cols[:self._DERIVED_COLS_CAP]
 
         if len(numeric_cols) < 3:
             return derived

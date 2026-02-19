@@ -412,8 +412,11 @@ Respond with ONLY valid JSON matching this schema."""
                     df = pd.read_csv(table_info["path"])
                 if df is None:
                     continue
+                # v28.4: 대용량 테이블(297 cols)에서 메모리 폭발 방지 — 100 cols 캡
+                # DataQualityAnalyzer는 타입/통계 분석 목적 → 상위 100 cols로 충분
+                cols_for_quality = list(df.columns[:100])
                 tables_for_analysis[table_name] = {
-                    col: df[col].dropna().tolist() for col in df.columns
+                    col: df[col].dropna().tolist() for col in cols_for_quality
                 }
 
             quality_analyzer = DataQualityAnalyzer()
