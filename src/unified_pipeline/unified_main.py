@@ -36,7 +36,6 @@ Usage:
 import asyncio
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 from datetime import datetime

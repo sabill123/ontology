@@ -18,8 +18,6 @@ from ...analysis import (
     parse_llm_json,
     # v3.2: 프로세스 분석 (ProcessArchitect 기능 통합)
     ProcessAnalyzer,
-    ProcessContext,
-    IntegrationComplexity,
     # === v6.1: Structured Debate ===
     StructuredDebateEngine,
     create_debate_summary,
@@ -38,22 +36,13 @@ except ImportError:
 
 # === v4.5: Embedded Phase 3 Agent Council from utils ===
 from ..governance_utils import (
-    EmbeddedPhase3AgentRole,
-    EMBEDDED_PHASE3_AGENT_CONFIG,
-    EmbeddedEvaluationCriterion,
-    EmbeddedPhase3EvaluationCriteria,
     EmbeddedPhase3LLMJudge,
-    EmbeddedPhase3GovernanceOrchestrator,
-    LEGACY_PHASE3_AVAILABLE,
 )
 
 # === v5.0: Enhanced Validation System ===
 try:
     from ...analysis.enhanced_validator import (
-        EnhancedValidator,
-        StatisticalValidator,
         DempsterShaferFusion,
-        ConfidenceCalibrator,
         KnowledgeGraphQualityValidator,
         BFTConsensus,
         AgentVote,
@@ -65,8 +54,8 @@ except ImportError:
 
 # === v11.0: Evidence Chain & BFT Debate Protocol ===
 try:
-    from ...evidence_chain import EvidenceChain, EvidenceRegistry, EvidenceType
-    from ...debate_protocol import DebateProtocol, CouncilAgent, VoteDecision
+    from ...evidence_chain import EvidenceRegistry
+    from ...debate_protocol import DebateProtocol, VoteDecision
     EVIDENCE_CHAIN_AVAILABLE = True
 except ImportError:
     EVIDENCE_CHAIN_AVAILABLE = False

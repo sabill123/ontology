@@ -10,7 +10,6 @@ import logging
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
 
 import pandas as pd
-import numpy as np
 
 from ...base import AutonomousAgent
 from ...analysis import (

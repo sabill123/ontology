@@ -14,7 +14,6 @@ v9.5 변경사항:
 - 산업별 평가 기준 차별화 (healthcare 엄격, marketing 유연 등)
 """
 
-import json
 import logging
 import concurrent.futures
 import threading
