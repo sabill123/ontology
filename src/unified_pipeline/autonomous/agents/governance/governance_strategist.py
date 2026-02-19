@@ -679,7 +679,7 @@ Respond ONLY with valid JSON."""
                                 for v in final_votes
                             ],
                         }
-                        logger.info(
+                        logger.debug(
                             f"v11.0 Evidence-Based Debate for {concept.concept_id}: "
                             f"verdict={debate_result.final_decision.value}, "
                             f"consensus={debate_result.consensus_reached}, "
@@ -687,7 +687,7 @@ Respond ONLY with valid JSON."""
                         )
                         continue  # Evidence-based debate 성공 시 legacy skip
                     except Exception as e:
-                        logger.warning(f"v11.0 Evidence-Based Debate failed for {concept.concept_id}: {e}")
+                        logger.debug(f"v11.0 Evidence-Based Debate failed for {concept.concept_id}: {e}")
                         # Fallback to legacy debate
 
                 # === Fallback: v6.1 Legacy Structured Debate ===
@@ -721,7 +721,7 @@ Respond ONLY with valid JSON."""
                 )
 
                 debate_results[concept.concept_id] = create_debate_summary(outcome)
-                logger.info(f"Legacy Debate for {concept.concept_id}: verdict={outcome.verdict.value}, confidence={outcome.confidence:.2f}")
+                logger.debug(f"Legacy Debate for {concept.concept_id}: verdict={outcome.verdict.value}, confidence={outcome.confidence:.2f}")
 
             logger.info(
                 f"Council Debate completed: {len(evidence_based_debate_results)} evidence-based, "
@@ -791,7 +791,7 @@ Respond ONLY with valid JSON."""
                 # BFT 합의율이 낮거나 DS 충돌이 높으면 신뢰도 하향
                 if bft_agreement < 0.5 or ds_conflict > 0.5:
                     proposed_confidence = min(proposed_confidence, calibrated_conf * 0.8)
-                    logger.info(f"Enhanced Validation adjusted confidence for {concept_id}: "
+                    logger.debug(f"Enhanced Validation adjusted confidence for {concept_id}: "
                                f"BFT={bft_agreement:.2f}, DS_conflict={ds_conflict:.2f}")
                 else:
                     # 검증 통과시 calibrated confidence 사용
@@ -816,7 +816,7 @@ Respond ONLY with valid JSON."""
                         f"BFT={enhanced_val.get('bft_agreement', 0):.0%}). "
                         f"사유: {llm_enhancement.get('reasoning', algo_decision['reasoning'])}"
                     )
-                    logger.info(f"v9.1 Enhanced override for {concept_id}: keeping {proposed_decision} despite judge failure")
+                    logger.debug(f"v9.1 Enhanced override for {concept_id}: keeping {proposed_decision} despite judge failure")
                 else:
                     # Judge 검증 실패 시: approve → schedule_review로 변경
                     final_decision_type = "schedule_review"
@@ -826,7 +826,7 @@ Respond ONLY with valid JSON."""
                         f"원래 결정: {proposed_decision}. "
                         f"사유: {llm_enhancement.get('reasoning', algo_decision['reasoning'])}"
                     )
-                    logger.info(f"Judge override for {concept_id}: {proposed_decision} → {final_decision_type}")
+                    logger.debug(f"Judge override for {concept_id}: {proposed_decision} → {final_decision_type}")
             else:
                 final_decision_type = proposed_decision
                 final_confidence = proposed_confidence
@@ -861,7 +861,7 @@ Respond ONLY with valid JSON."""
                             f"원래 사유: {final_reasoning[:200]}"
                         )
 
-                logger.info(
+                logger.debug(
                     f"v11.0 Decision updated for {concept_id}: "
                     f"verdict={debate_verdict}, consensus={consensus_reached}, "
                     f"final_type={final_decision_type}"

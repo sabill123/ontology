@@ -346,6 +346,10 @@ class AgentOrchestrator:
     async def _run_phase(self, phase: str) -> AsyncGenerator[Dict[str, Any], None]:
         """단일 Phase 실행 (v15.0 - EMC 트리거 포함)"""
         phase_start = time.time()
+        phase_display = {"discovery": "Phase 1: Discovery", "refinement": "Phase 2: Refinement", "governance": "Phase 3: Governance"}.get(phase, f"Phase: {phase}")
+        logger.info(f"{'='*60}")
+        logger.info(f"  START  {phase_display}")
+        logger.info(f"{'='*60}")
 
         # v15.0: EMC - Phase 시작 전 컨텍스트 압축 검사
         if self.shared_context.should_consolidate():
@@ -522,6 +526,9 @@ class AgentOrchestrator:
         # Phase 완료
         phase_time = time.time() - phase_start
         phase_stats = self.todo_manager.get_phase_stats(phase)
+        logger.info(f"{'='*60}")
+        logger.info(f"  END    {phase_display} — {phase_time/60:.1f}m")
+        logger.info(f"{'='*60}")
 
         self.event_emitter.phase_completed(
             phase=phase,

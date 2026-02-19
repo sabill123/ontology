@@ -112,52 +112,6 @@ class TableRegistry:
         self._full_data_cache[table_name] = result
         return result
 
-    def get_analysis_data(self, table_name: str, max_rows: int = 5000) -> List[Dict[str, Any]]:
-        """
-        v28.6: Business Insights / 통계 분석용 stratified sample 반환.
-
-        전체 행이 max_rows 이하이면 전체 반환 (q2cut 1813행 → 변화 없음).
-        초과하면 카테고리 비율 보존 stratified sample 반환.
-        """
-        full_data = self.get_full_data(table_name)
-        if len(full_data) <= max_rows:
-            return full_data
-
-        try:
-            import pandas as pd
-            df = pd.DataFrame(full_data)
-
-            # 가장 낮은 카디널리티(2-50) 카테고리 컬럼 기준 stratified sample
-            cat_col = None
-            for col in df.columns:
-                n_unique = df[col].nunique()
-                if 2 <= n_unique <= 50 and df[col].count() > len(df) * 0.5:
-                    cat_col = col
-                    break
-
-            if cat_col:
-                sampled = (
-                    df.groupby(cat_col, group_keys=False)
-                    .apply(lambda g: g.sample(
-                        min(len(g), max(5, int(max_rows * len(g) / len(df)))),
-                        random_state=42,
-                    ))
-                ).head(max_rows)
-            else:
-                sampled = df.sample(max_rows, random_state=42)
-
-            return sampled.where(pd.notnull(sampled), None).to_dict("records")
-        except Exception:
-            return full_data[:max_rows]
-
-    def get_all_analysis_data(self, max_rows: int = 5000) -> Dict[str, List[Dict[str, Any]]]:
-        """v28.6: 모든 테이블의 분석용 샘플 데이터 반환."""
-        return {
-            table_name: self.get_analysis_data(table_name, max_rows)
-            for table_name in self.tables
-            if self.get_analysis_data(table_name, max_rows)
-        }
-
     def get_all_full_data(self) -> Dict[str, List[Dict[str, Any]]]:
         """v22.1: Full data for every table."""
         result: Dict[str, List[Dict[str, Any]]] = {}

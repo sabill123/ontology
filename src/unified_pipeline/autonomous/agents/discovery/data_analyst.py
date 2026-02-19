@@ -309,6 +309,8 @@ Respond with ONLY valid JSON matching this schema."""
         all_data = {}
         data_dir = context.get_data_directory()
 
+        load_failures = []
+        sample_data_fallbacks = []
         for table_name, table_info in context.tables.items():
             # 1차: data_directory에서 CSV 찾기
             if data_dir:
@@ -325,12 +327,11 @@ Respond with ONLY valid JSON matching this schema."""
                                 "row_count": len(df),
                                 "columns": list(df.columns),
                                 "data": df.to_csv(index=False),
-                                "_df": df,  # v27.6: DataFrame 캐시 (이중 읽기 제거)
+                                "_df": df,
                             }
-                            logger.info(f"[v22.1] Loaded full data from data_dir: {table_name} ({len(df)} rows)")
                             break
                         except Exception as e:
-                            logger.warning(f"Failed to load {path}: {e}")
+                            load_failures.append(f"{table_name}: {e}")
 
             # 2차: table_info.source 경로에서 직접 로드
             if table_name not in all_data:
@@ -343,11 +344,10 @@ Respond with ONLY valid JSON matching this schema."""
                             "row_count": len(df),
                             "columns": list(df.columns),
                             "data": df.to_csv(index=False),
-                            "_df": df,  # v27.6: DataFrame 캐시
+                            "_df": df,
                         }
-                        logger.info(f"[v22.1] Loaded full data from source: {source_path} ({len(df)} rows)")
                     except Exception as e:
-                        logger.warning(f"[v22.1] Failed to load source {source_path}: {e}")
+                        load_failures.append(f"{table_name}(src): {e}")
 
             # 3차: sample_data에서 전체 DataFrame 복원 (마지막 수단)
             if table_name not in all_data and table_info.sample_data:
@@ -357,16 +357,23 @@ Respond with ONLY valid JSON matching this schema."""
                     "row_count": len(df),
                     "columns": list(df.columns),
                     "data": df.to_csv(index=False),
-                    "_df": df,  # v27.6: DataFrame 캐시
+                    "_df": df,
                 }
                 actual_total = getattr(table_info, "row_count", len(df))
                 if actual_total > len(df):
-                    logger.warning(
-                        f"[v22.1] Using sample_data for {table_name}: {len(df)} rows "
-                        f"(total={actual_total}). Full CSV not accessible."
-                    )
-                else:
-                    logger.info(f"[v22.1] Loaded from sample_data: {table_name} ({len(df)} rows)")
+                    sample_data_fallbacks.append(f"{table_name}({len(df)}/{actual_total})")
+
+        # 로딩 결과 요약 (per-table 대신 단일 라인)
+        total_rows = sum(d["row_count"] for d in all_data.values())
+        table_summary = ", ".join(f"{t}({all_data[t]['row_count']})" for t in sorted(all_data))
+        logger.info(
+            f"[DataLoad] {len(all_data)}/{len(context.tables)} tables loaded | "
+            f"total_rows={total_rows:,} | {table_summary}"
+        )
+        if load_failures:
+            logger.warning(f"[DataLoad] {len(load_failures)} load failures: {'; '.join(load_failures)}")
+        if sample_data_fallbacks:
+            logger.warning(f"[DataLoad] sample_data fallback (partial rows): {', '.join(sample_data_fallbacks)}")
 
         if not all_data:
             logger.error("No data available for analysis from any source")
@@ -381,22 +388,25 @@ Respond with ONLY valid JSON matching this schema."""
         precomputed_stats_section = ""
         try:
             for table_name in all_data:
-                # v27.6: 캐시된 DataFrame 사용 (이중 CSV 읽기 제거)
                 df_full = all_data[table_name].get("_df")
                 if df_full is None and all_data[table_name].get("path"):
                     df_full = pd.read_csv(all_data[table_name]["path"])
                 if df_full is None:
                     continue
                 precomputed_stats[table_name] = self._compute_pandas_stats(df_full, table_name)
-                logger.info(f"[v22.1] Pre-computed stats for {table_name}: "
-                           f"{len(precomputed_stats[table_name].get('numeric_aggregates', {}))} numeric cols, "
-                           f"{len(precomputed_stats[table_name].get('categorical_distributions', {}))} categorical cols")
             # 주 테이블의 통계를 프롬프트 섹션으로 변환
             primary_table_name = max(all_data.keys(), key=lambda k: all_data[k]["row_count"])
             if primary_table_name in precomputed_stats:
                 precomputed_stats_section = "\n" + self._format_stats_for_prompt(precomputed_stats[primary_table_name])
+            total_num = sum(len(s.get("numeric_aggregates", {})) for s in precomputed_stats.values())
+            total_cat = sum(len(s.get("categorical_distributions", {})) for s in precomputed_stats.values())
+            logger.info(
+                f"[Stats] {len(precomputed_stats)} tables | "
+                f"numeric_cols={total_num}, categorical_cols={total_cat} | "
+                f"primary_table={primary_table_name}"
+            )
         except Exception as e:
-            logger.warning(f"[v22.1] Pre-computed stats failed: {e}")
+            logger.warning(f"[Stats] Pre-computed stats failed: {e}")
 
         self._report_progress(0.25, "Running Data Quality Analysis (v7.0)")
 
