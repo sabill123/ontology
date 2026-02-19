@@ -463,9 +463,15 @@ class BusinessInsightsAnalyzer:
         sample_row = rows[0]
 
         # 리스크 관련 컬럼 찾기
+        # v28.8: "tier" 단독 매칭 제거 — viral_tier, quality_tier 등은 risk 컬럼이 아님
+        # risk/priority/danger/alert/severity 패턴만 매칭 (performance tier 오탐 방지)
+        _RISK_COL_PATTERNS = {"risk", "danger", "alert", "severity", "priority", "threat"}
         risk_columns = [
             col for col in sample_row.keys()
-            if col and ("risk" in col.lower() or "rating" in col.lower() or "tier" in col.lower())
+            if col and any(
+                pat in col.lower().replace("-", "_").split("_")
+                for pat in _RISK_COL_PATTERNS
+            )
         ]
 
         total_rows = len(rows)
@@ -959,16 +965,44 @@ class BusinessInsightsAnalyzer:
                 if result.anomaly_count > 0 and result.anomaly_ratio > 0.01:
                     severity = InsightSeverity.HIGH if result.anomaly_ratio > 0.05 else InsightSeverity.MEDIUM
 
-                    # 이상치 샘플 추출
+                    # v28.8: IQR upper bound 명시 — LLM이 sample_values의 최솟값을 임계값으로
+                    # 오해하는 문제 수정. IQR upper fence를 정확한 분리 기준으로 제공.
+                    try:
+                        import statistics as _stat
+                        sorted_vals = sorted(values)
+                        n = len(sorted_vals)
+                        q1 = sorted_vals[n // 4]
+                        q3 = sorted_vals[(3 * n) // 4]
+                        iqr = q3 - q1
+                        iqr_upper = q3 + 1.5 * iqr
+                        iqr_lower = q1 - 1.5 * iqr
+                        p99 = sorted_vals[int(n * 0.99)]
+                        threshold_desc = (
+                            f"IQR upper fence={iqr_upper:,.1f} "
+                            f"(Q1={q1:,.1f}, Q3={q3:,.1f}, IQR={iqr:,.1f}), "
+                            f"p99={p99:,.1f}"
+                        )
+                    except Exception:
+                        iqr_upper = None
+                        threshold_desc = "(threshold: IQR-based)"
+
+                    # 이상치 샘플 추출 (참고용 — 최솟값이 임계값이 아님을 명시)
                     anomaly_samples = []
                     if hasattr(result, 'anomaly_indices'):
-                        for idx in result.anomaly_indices[:10]:
+                        for idx in result.anomaly_indices[:5]:
                             if 0 <= idx < len(values):
                                 anomaly_samples.append(values[idx])
 
+                    anomaly_desc = (
+                        f"Detected {result.anomaly_count:,} anomalies ({result.anomaly_ratio:.1%}) "
+                        f"using {result.method} ensemble. "
+                        f"Detection boundary: {threshold_desc}. "
+                        f"Sample anomalous values (NOT threshold): {anomaly_samples[:3]}"
+                    )
+
                     insight = self._create_insight(
                         title=f"ML Anomalies Detected: {col}",
-                        description=f"Detected {result.anomaly_count:,} anomalies ({result.anomaly_ratio:.1%}) using {result.method} ensemble",
+                        description=anomaly_desc,
                         insight_type=InsightType.ANOMALY,
                         severity=severity,
                         source_table=table_name,
@@ -979,6 +1013,7 @@ class BusinessInsightsAnalyzer:
                         count=result.anomaly_count,
                         percentage=result.anomaly_ratio * 100,
                         sample_values=anomaly_samples,
+                        benchmark=iqr_upper,
                         recommendations=[
                             "Review flagged records for data quality",
                             "Investigate business logic causing outliers",
@@ -1977,13 +2012,16 @@ class BusinessInsightsAnalyzer:
     # === v26.1: 카테고리별 세그먼트 성과 분석 ===
 
     # 세그먼트 분석 시 제외할 컬럼 — 토큰 정확 매칭 (underscore 구분)
+    # v28.8: "name" 토큰 제거 — platform_name, creator_name 같은 유효 카테고리 컬럼 포함
+    # "key" 토큰 제거 — cardinality 필터(unique_count > 50)가 고유 키를 이미 제외함
+    # 진짜 자유 텍스트 컬럼만 토큰으로 제외 (id, uuid, url, 긴 텍스트 필드)
     _SEGMENT_SKIP_TOKENS = {
-        "id", "key", "uuid", "url", "title", "description",
-        "name", "text", "suggestion", "factor",
+        "id", "uuid", "url", "title", "description",
+        "text", "content", "body", "suggestion", "factor", "comment",
     }
-    # 컬럼명 정확 매칭 (전체 이름)
+    # 컬럼명 정확 매칭 (전체 이름) — 도메인 무관한 기술적 컬럼
     _SEGMENT_SKIP_EXACT = {
-        "s3_key", "username", "channel_name", "hashtags",
+        "s3_key", "username", "hashtags", "api_key",
     }
 
     def _should_skip_segment_col(self, col: str) -> bool:
@@ -2090,9 +2128,23 @@ class BusinessInsightsAnalyzer:
             return
 
         # --- 3. KPI 선택: 모든 비즈니스 숫자 컬럼 사용 (최대 15개) ---
-        # CV 기반 제한은 view_count 같은 핵심 KPI를 누락시킴.
-        # _is_business_metric_column 필터가 이미 ID/키 컬럼을 제외하므로 전부 사용.
-        target_kpis = numeric_kpi_cols[:15]
+        # v28.8: 0-value 오염 필터 — base 메트릭이 0인 행이 30% 초과인 파생 컬럼 제외
+        # 예: follower_count=0인 행 60%+ → views_per_follower 신뢰 불가 → 분석 제외
+        df_for_zero = getattr(self, '_current_df', None)
+        reliable_kpi_cols = []
+        for col in numeric_kpi_cols:
+            if df_for_zero is not None and col in df_for_zero.columns:
+                non_null = df_for_zero[col].dropna()
+                if len(non_null) > 0:
+                    zero_ratio = (non_null == 0).mean()
+                    if zero_ratio > 0.30:
+                        logger.debug(
+                            f"[SegmentAnalysis] KPI '{col}' excluded: "
+                            f"zero_ratio={zero_ratio:.1%} > 30% (unreliable derived metric)"
+                        )
+                        continue
+            reliable_kpi_cols.append(col)
+        target_kpis = reliable_kpi_cols[:15]
 
         # --- 4. v27.0: 세그먼트별 통합 분석 (카테고리별 top 3 gap 통합) ---
         for cat_col, cardinality, unique_vals in categorical_cols:
@@ -2113,7 +2165,19 @@ class BusinessInsightsAnalyzer:
             vals = [row.get(col) for row in rows if row.get(col) is not None and isinstance(row.get(col), (int, float))]
             if len(vals) >= total_rows * 0.5:
                 unique_ratio = len(set(vals)) / len(vals)
-                if unique_ratio > 0.05:  # v27.4.3: 0.1→0.05 (duration=0.097 탈락 방지)
+                # v28.8: 시맨틱 중요 피처 컬럼은 unique_ratio 기준 완화 (도메인 무관)
+                # duration/age/price/days 등 측정값 컬럼은 unique_ratio 낮아도 버킷 분석 의미 있음
+                _CONTINUOUS_FEATURE_TOKENS = {
+                    "duration", "age", "days", "hours", "minutes", "seconds",
+                    "price", "cost", "amount", "salary", "revenue", "value",
+                    "weight", "height", "length", "size", "distance", "score",
+                }
+                col_tokens = set(col.lower().replace("-", "_").split("_"))
+                is_continuous_feature = bool(col_tokens & _CONTINUOUS_FEATURE_TOKENS)
+                # 일반 컬럼: unique_ratio > 0.03 (충분한 연속성)
+                # 시맨틱 측정 컬럼: unique_ratio > 0.01 (이진/삼진 척도 제외만)
+                threshold = 0.01 if is_continuous_feature else 0.03
+                if unique_ratio > threshold:
                     if col in kpi_set:
                         kpi_candidates.append((col, unique_ratio))
                     else:
@@ -3298,17 +3362,33 @@ Group-level analysis (numeric by category):
                     recs = impact.get("recommendations", [])
                     group_comps = impact.get("group_comparisons", [])
 
+                    # v28.8: ATE 방향 시맨틱 — 컬럼명으로 단위/방향 주석 추가
+                    # "days_since", "age_*", "elapsed" 등은 숫자가 클수록 오래됨/경과됨을 의미
+                    _ELAPSED_TIME_TOKENS = {
+                        "days_since", "hours_since", "minutes_since",
+                        "age_in", "age", "elapsed", "tenure",
+                    }
+
+                    def _ate_direction_note(col_name: str) -> str:
+                        """컬럼명 기반 ATE 방향 시맨틱 주석 (도메인 무관)"""
+                        col_lower = col_name.lower()
+                        if any(t in col_lower for t in _ELAPSED_TIME_TOKENS):
+                            return " [higher=older/more elapsed: positive ATE means treated group is older/longer]"
+                        return ""
+
                     effect_lines = []
                     for te in effects[:8]:
                         strat = te.get("stratified_analysis")
                         gc = te.get("group_comparison", {})
                         g1 = gc.get("group_1", {})
                         g0 = gc.get("group_0", {})
+                        treat_col = te.get("treatment", te.get("type", "?"))
+                        direction_note = _ate_direction_note(str(treat_col))
 
                         if strat:
                             conf = strat.get("confounder", "?")
                             effect_lines.append(
-                                f"  - {te.get('type', '?')}: "
+                                f"  - {te.get('type', '?')}{direction_note}: "
                                 f"Naive ATE={te.get('naive_ate', 0):+.1f} "
                                 f"({g1.get('label','?')}={g1.get('mean',0):.1f} vs {g0.get('label','?')}={g0.get('mean',0):.1f}), "
                                 f"Adjusted ATE={te.get('estimate', 0):+.1f} "
@@ -3325,7 +3405,7 @@ Group-level analysis (numeric by category):
                                 )
                         else:
                             effect_lines.append(
-                                f"  - {te.get('type', '?')}: "
+                                f"  - {te.get('type', '?')}{direction_note}: "
                                 f"ATE={te.get('estimate', 0):+.1f}, "
                                 f"p={te.get('p_value', 1):.4f}, "
                                 f"sig={'YES' if te.get('significant') else 'no'}"
