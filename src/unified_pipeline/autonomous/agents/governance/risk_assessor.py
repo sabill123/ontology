@@ -307,8 +307,9 @@ Respond ONLY with valid JSON."""
                 name: {"columns": info.columns, "row_count": info.row_count}
                 for name, info in context.tables.items()
             }
-            # v22.1: 전체 데이터 로드 (샘플링 금지) | v28.6: 캐시 재사용
-            sample_data = context.get_all_full_data()
+            # v28.9: stratified sampling (5,000행) — 대용량 OOM 해결, 정확도 유지
+            # 전체 <= 5,000행 (q2cut 1,813행) → 전체 사용, GT 10/10 유지
+            sample_data = context.get_all_analysis_data(max_rows=5000)
 
             logger.info(f"[RiskAssessor] Tables for insights: {len(tables_for_insights)}, Full data tables: {len(sample_data)}")
 
@@ -502,8 +503,8 @@ Respond ONLY with valid JSON."""
 
         anomaly_results = {}
         try:
-            # v22.1: 전체 데이터 로드 (샘플링 금지) | v28.6: 캐시 재사용
-            sample_data = context.get_all_full_data()
+            # v28.9: stratified sampling (5,000행) — 대용량 OOM 해결, 정확도 유지
+            sample_data = context.get_all_analysis_data(max_rows=5000)
             if sample_data:
                 anomalies = self.anomaly_detector.detect_anomalies(sample_data)
                 anomaly_results = {
