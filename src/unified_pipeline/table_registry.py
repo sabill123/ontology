@@ -87,7 +87,8 @@ class TableRegistry:
             try:
                 import pandas as pd
                 df = pd.read_csv(source_path)
-                result = df.where(pd.notnull(df), None).to_dict("records")
+                # v28.10: pandas NA/nullable dtypes → Python native types 변환
+                result = df.replace({pd.NA: None}).astype('object').to_dict("records")
             except Exception:
                 pass
 
@@ -99,7 +100,8 @@ class TableRegistry:
                     try:
                         import pandas as pd
                         df = pd.read_csv(path)
-                        result = df.where(pd.notnull(df), None).to_dict("records")
+                        # v28.10: pandas NA/nullable dtypes → Python native types 변환
+                        result = df.replace({pd.NA: None}).astype('object').to_dict("records")
                         break
                     except Exception:
                         pass
