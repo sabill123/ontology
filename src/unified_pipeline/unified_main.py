@@ -511,7 +511,7 @@ class OntologyPlatform:
         # 1차 시도: skiprows로 주석 건너뛰고 읽기
         if skip_rows > 0:
             try:
-                df = pd.read_csv(path, encoding=encoding, skiprows=skip_rows, on_bad_lines='skip', dtype_backend="numpy")
+                df = pd.read_csv(path, encoding=encoding, skiprows=skip_rows, on_bad_lines='skip')
                 if len(df) > 0 and len(df.columns) > 1:  # 최소 2개 이상 컬럼
                     df = self._flatten_columns(df)
                     logger.info(f"CSV loaded with skiprows={skip_rows}: {path.name}")
@@ -521,7 +521,7 @@ class OntologyPlatform:
 
         # 2차 시도: 기본 읽기
         try:
-            df = pd.read_csv(path, encoding=encoding, dtype_backend="numpy")
+            df = pd.read_csv(path, encoding=encoding)
             if len(df) > 0 and len(df.columns) > 1:
                 return df
         except Exception:
@@ -529,7 +529,7 @@ class OntologyPlatform:
 
         # 3차 시도: comment='#' 사용
         try:
-            df = pd.read_csv(path, encoding=encoding, comment='#', dtype_backend="numpy")
+            df = pd.read_csv(path, encoding=encoding, comment='#')
             if len(df) > 0 and len(df.columns) > 1:
                 logger.info(f"CSV loaded with comment='#': {path.name}")
                 return df
@@ -538,7 +538,7 @@ class OntologyPlatform:
 
         # 4차 시도: on_bad_lines='skip'으로 불규칙한 행 무시
         try:
-            df = pd.read_csv(path, encoding=encoding, on_bad_lines='skip', dtype_backend="numpy")
+            df = pd.read_csv(path, encoding=encoding, on_bad_lines='skip')
             if len(df) > 0 and len(df.columns) > 1:
                 logger.info(f"CSV loaded with on_bad_lines='skip': {path.name}")
                 return df
@@ -552,7 +552,7 @@ class OntologyPlatform:
                 encoding=encoding,
                 skiprows=skip_rows,
                 on_bad_lines='skip'
-            , dtype_backend="numpy")
+            )
             if len(df) > 0:
                 df = self._flatten_columns(df)
                 logger.info(f"CSV loaded with combined strategy: {path.name}")

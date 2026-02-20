@@ -86,7 +86,7 @@ class TableRegistry:
         if source_path and os.path.exists(source_path) and source_path.endswith(".csv"):
             try:
                 import pandas as pd
-                df = pd.read_csv(source_path, dtype_backend="numpy")
+                df = pd.read_csv(source_path)
                 # v28.11: nullable dtypes 근본 제거 (이중 방어선)
                 df = self._remove_nullable_dtypes(df)
                 result = df.to_dict("records")
@@ -100,7 +100,7 @@ class TableRegistry:
                 if os.path.exists(path):
                     try:
                         import pandas as pd
-                        df = pd.read_csv(path, dtype_backend="numpy")
+                        df = pd.read_csv(path)
                         # v28.11: nullable dtypes 근본 제거 (이중 방어선)
                         df = self._remove_nullable_dtypes(df)
                         result = df.to_dict("records")
