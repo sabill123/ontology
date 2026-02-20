@@ -475,16 +475,22 @@ class OntologyPlatform:
             suffix = path.suffix.lower()
 
             if suffix == '.csv':
-                return self._read_csv_smart(path)
+                df = self._read_csv_smart(path)
             elif suffix == '.json':
-                return pd.read_json(path, encoding=self.config.encoding)
+                df = pd.read_json(path, encoding=self.config.encoding)
             elif suffix == '.parquet':
-                return pd.read_parquet(path)
+                df = pd.read_parquet(path)
             elif suffix in ('.xlsx', '.xls'):
-                return pd.read_excel(path)
+                df = pd.read_excel(path)
             else:
                 logger.warning(f"Unsupported file type: {suffix}")
                 return None
+
+            # v28.11: nullable dtypes 근본 제거 + Phase 1 전처리
+            if df is not None:
+                df = self._preprocess_dataframe(df, path.stem)
+
+            return df
 
         except Exception as e:
             logger.error(f"Failed to read file {path}: {e}")
@@ -555,6 +561,125 @@ class OntologyPlatform:
             logger.warning(f"All CSV read strategies failed for {path.name}: {e}")
 
         return None
+
+    def _preprocess_dataframe(self, df: pd.DataFrame, table_name: str) -> pd.DataFrame:
+        """
+        v28.11: DataFrame 전처리 — nullable dtypes 제거 + Phase 1 데이터 검증/수정
+
+        목적:
+        1. pandas nullable dtypes (Int64, Float64, pd.NA) 제거 → 'numerator' 에러 근본 해결
+        2. engagement_rate 재계산 (> 100% 오류 수정)
+        3. Negative values 제거
+        4. Hard rules 적용
+
+        Args:
+            df: 원본 DataFrame
+            table_name: 테이블 이름 (로깅용)
+
+        Returns:
+            전처리된 DataFrame
+        """
+        import numpy as np
+
+        original_rows = len(df)
+        changes_log = []
+
+        # ======================================================================
+        # Stage 1: nullable dtypes 제거 (v28.11 핵심 수정)
+        # ======================================================================
+        # pandas nullable dtypes (Int64, Float64, pd.NA) → standard dtypes (int64, float64, None)
+        for col in df.columns:
+            dtype_str = str(df[col].dtype)
+
+            # Int64 → float64 (NaN 보존을 위해)
+            if dtype_str in ('Int8', 'Int16', 'Int32', 'Int64', 'UInt8', 'UInt16', 'UInt32', 'UInt64'):
+                df[col] = df[col].astype('float64')
+                changes_log.append(f"  {col}: {dtype_str} → float64")
+
+            # Float64 → float64
+            elif dtype_str in ('Float32', 'Float64'):
+                df[col] = df[col].astype('float64')
+                changes_log.append(f"  {col}: {dtype_str} → float64")
+
+            # boolean → float64 (0/1)
+            elif dtype_str == 'boolean':
+                df[col] = df[col].astype('float64')
+                changes_log.append(f"  {col}: boolean → float64")
+
+            # string → object
+            elif dtype_str == 'string':
+                df[col] = df[col].astype('object')
+                changes_log.append(f"  {col}: string → object")
+
+        # pd.NA → None, np.nan 유지
+        df = df.replace({pd.NA: None})
+
+        # ======================================================================
+        # Stage 2: Hard Rules — Auto Correction (Phase 1)
+        # ======================================================================
+
+        # Rule 1: engagement_rate > 100% → 재계산
+        # 원인: like_rate (%) + comment_rate (%) 잘못된 합산
+        # 수정: (likes + comments) / views * 100
+        if 'engagement_rate' in df.columns:
+            # engagement_rate가 100 초과인 행 찾기
+            invalid_mask = df['engagement_rate'] > 100
+            invalid_count = invalid_mask.sum()
+
+            if invalid_count > 0:
+                # 재계산 가능한지 확인 (likes, comments, views 컬럼 존재)
+                can_recalc = all(col in df.columns for col in ['likes', 'comments', 'views'])
+
+                if can_recalc:
+                    # 올바른 engagement_rate 재계산
+                    df.loc[invalid_mask, 'engagement_rate'] = (
+                        (df.loc[invalid_mask, 'likes'] + df.loc[invalid_mask, 'comments'])
+                        / df.loc[invalid_mask, 'views'] * 100
+                    )
+                    changes_log.append(f"  ✓ engagement_rate > 100% 재계산: {invalid_count}행")
+                else:
+                    # 재계산 불가능 → 100으로 cap
+                    df.loc[invalid_mask, 'engagement_rate'] = 100.0
+                    changes_log.append(f"  ⚠ engagement_rate > 100% → 100 cap: {invalid_count}행 (재계산 불가)")
+
+        # Rule 2: Negative values → NaN 처리 (수치형 컬럼만)
+        numeric_cols = df.select_dtypes(include=['number']).columns
+        for col in numeric_cols:
+            # 의미상 음수가 불가능한 컬럼들 (counts, rates, duration 등)
+            if any(keyword in col.lower() for keyword in ['count', 'views', 'likes', 'comment', 'duration', 'rate', 'score', 'length']):
+                negative_mask = df[col] < 0
+                negative_count = negative_mask.sum()
+                if negative_count > 0:
+                    df.loc[negative_mask, col] = np.nan
+                    changes_log.append(f"  ✓ {col} 음수 → NaN: {negative_count}행")
+
+        # Rule 3: views=0인데 engagement > 0 → engagement=0 (봇 조작 가능성)
+        if 'views' in df.columns and 'engagement_rate' in df.columns:
+            suspicious_mask = (df['views'] == 0) & (df['engagement_rate'] > 0)
+            suspicious_count = suspicious_mask.sum()
+            if suspicious_count > 0:
+                df.loc[suspicious_mask, 'engagement_rate'] = 0.0
+                changes_log.append(f"  ⚠ views=0 but engagement>0 → 0: {suspicious_count}행 (봇 조작 의심)")
+
+        # ======================================================================
+        # Stage 3: Extreme Outliers — Statistical Validation (선택적)
+        # ======================================================================
+        # TODO (Phase 2): LLM semantic judgment로 "봇" vs "바이럴" 구분
+        # - High views + zero engagement → SUSPICIOUS (LLM 판단)
+        # - High views + high engagement → VIRAL (KEEP)
+
+        # ======================================================================
+        # Logging
+        # ======================================================================
+        rows_removed = original_rows - len(df)
+        if changes_log:
+            logger.info(f"[v28.11 Preprocess] {table_name}")
+            for log in changes_log:
+                logger.info(log)
+            if rows_removed > 0:
+                logger.info(f"  Rows removed: {rows_removed} ({rows_removed/original_rows*100:.1f}%)")
+
+        return df
 
     def _detect_encoding(self, path: Path) -> str:
         """

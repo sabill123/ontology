@@ -87,8 +87,9 @@ class TableRegistry:
             try:
                 import pandas as pd
                 df = pd.read_csv(source_path)
-                # v28.10: pandas NA/nullable dtypes → Python native types 변환
-                result = df.replace({pd.NA: None}).astype('object').to_dict("records")
+                # v28.11: nullable dtypes 근본 제거 (이중 방어선)
+                df = self._remove_nullable_dtypes(df)
+                result = df.to_dict("records")
             except Exception:
                 pass
 
@@ -100,8 +101,9 @@ class TableRegistry:
                     try:
                         import pandas as pd
                         df = pd.read_csv(path)
-                        # v28.10: pandas NA/nullable dtypes → Python native types 변환
-                        result = df.replace({pd.NA: None}).astype('object').to_dict("records")
+                        # v28.11: nullable dtypes 근본 제거 (이중 방어선)
+                        df = self._remove_nullable_dtypes(df)
+                        result = df.to_dict("records")
                         break
                     except Exception:
                         pass
@@ -113,6 +115,40 @@ class TableRegistry:
         # v28.6: 캐시 저장
         self._full_data_cache[table_name] = result
         return result
+
+    def _remove_nullable_dtypes(self, df) -> Any:
+        """
+        v28.11: pandas nullable dtypes → standard dtypes 변환
+
+        이중 방어선: unified_main.py에서도 처리하지만, table_registry에서
+        직접 CSV를 로딩하는 경우를 대비한 안전장치
+        """
+        import pandas as pd
+        import numpy as np
+
+        for col in df.columns:
+            dtype_str = str(df[col].dtype)
+
+            # Int64 → float64
+            if dtype_str in ('Int8', 'Int16', 'Int32', 'Int64', 'UInt8', 'UInt16', 'UInt32', 'UInt64'):
+                df[col] = df[col].astype('float64')
+
+            # Float64 → float64
+            elif dtype_str in ('Float32', 'Float64'):
+                df[col] = df[col].astype('float64')
+
+            # boolean → float64
+            elif dtype_str == 'boolean':
+                df[col] = df[col].astype('float64')
+
+            # string → object
+            elif dtype_str == 'string':
+                df[col] = df[col].astype('object')
+
+        # pd.NA → None
+        df = df.replace({pd.NA: None})
+
+        return df
 
     def get_all_full_data(self) -> Dict[str, List[Dict[str, Any]]]:
         """v22.1: Full data for every table."""
