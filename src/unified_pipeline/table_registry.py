@@ -118,7 +118,7 @@ class TableRegistry:
 
     def _remove_nullable_dtypes(self, df) -> Any:
         """
-        v28.11: pandas nullable dtypes → standard dtypes 변환
+        v28.14: pandas nullable dtypes → standard dtypes 변환 (hasattr 기반)
 
         이중 방어선: unified_main.py에서도 처리하지만, table_registry에서
         직접 CSV를 로딩하는 경우를 대비한 안전장치
@@ -127,23 +127,25 @@ class TableRegistry:
         import numpy as np
 
         for col in df.columns:
-            dtype_str = str(df[col].dtype)
+            col_dtype = df[col].dtype
 
-            # Int64 → float64
-            if dtype_str in ('Int8', 'Int16', 'Int32', 'Int64', 'UInt8', 'UInt16', 'UInt32', 'UInt64'):
-                df[col] = df[col].astype('float64')
+            # Nullable dtypes는 na_value 속성을 가짐
+            if hasattr(col_dtype, 'na_value'):
+                # Integer/UInt nullable → float64
+                if col_dtype.kind in ('i', 'u'):
+                    df[col] = df[col].astype('float64')
 
-            # Float64 → float64
-            elif dtype_str in ('Float32', 'Float64'):
-                df[col] = df[col].astype('float64')
+                # Float nullable → float64
+                elif col_dtype.kind == 'f':
+                    df[col] = df[col].astype('float64')
 
-            # boolean → float64
-            elif dtype_str == 'boolean':
-                df[col] = df[col].astype('float64')
+                # Boolean nullable → float64
+                elif col_dtype.kind == 'b':
+                    df[col] = df[col].astype('float64')
 
-            # string → object
-            elif dtype_str == 'string':
-                df[col] = df[col].astype('object')
+                # String nullable → object
+                else:
+                    df[col] = df[col].astype('object')
 
         # pd.NA → None
         df = df.replace({pd.NA: None})

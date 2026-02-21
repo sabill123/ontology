@@ -585,31 +585,36 @@ class OntologyPlatform:
         changes_log = []
 
         # ======================================================================
-        # Stage 1: nullable dtypes 제거 (v28.11 핵심 수정)
+        # Stage 1: nullable dtypes 제거 (v28.14 개선 - hasattr 기반 감지)
         # ======================================================================
         # pandas nullable dtypes (Int64, Float64, pd.NA) → standard dtypes (int64, float64, None)
+        # v28.14: str() 비교 대신 hasattr(dtype, 'na_value')로 정확히 감지
         for col in df.columns:
-            dtype_str = str(df[col].dtype)
+            col_dtype = df[col].dtype
 
-            # Int64 → float64 (NaN 보존을 위해)
-            if dtype_str in ('Int8', 'Int16', 'Int32', 'Int64', 'UInt8', 'UInt16', 'UInt32', 'UInt64'):
-                df[col] = df[col].astype('float64')
-                changes_log.append(f"  {col}: {dtype_str} → float64")
+            # Nullable dtypes는 na_value 속성을 가짐
+            if hasattr(col_dtype, 'na_value'):
+                dtype_name = str(col_dtype)
 
-            # Float64 → float64
-            elif dtype_str in ('Float32', 'Float64'):
-                df[col] = df[col].astype('float64')
-                changes_log.append(f"  {col}: {dtype_str} → float64")
+                # Integer/UInt nullable → float64 (NaN 보존)
+                if col_dtype.kind in ('i', 'u'):
+                    df[col] = df[col].astype('float64')
+                    changes_log.append(f"  {col}: {dtype_name} → float64")
 
-            # boolean → float64 (0/1)
-            elif dtype_str == 'boolean':
-                df[col] = df[col].astype('float64')
-                changes_log.append(f"  {col}: boolean → float64")
+                # Float nullable → float64
+                elif col_dtype.kind == 'f':
+                    df[col] = df[col].astype('float64')
+                    changes_log.append(f"  {col}: {dtype_name} → float64")
 
-            # string → object
-            elif dtype_str == 'string':
-                df[col] = df[col].astype('object')
-                changes_log.append(f"  {col}: string → object")
+                # Boolean nullable → float64 (0/1)
+                elif col_dtype.kind == 'b':
+                    df[col] = df[col].astype('float64')
+                    changes_log.append(f"  {col}: {dtype_name} → float64")
+
+                # String nullable → object
+                else:
+                    df[col] = df[col].astype('object')
+                    changes_log.append(f"  {col}: {dtype_name} → object")
 
         # pd.NA → None, np.nan 유지
         df = df.replace({pd.NA: None})
