@@ -560,7 +560,6 @@ Respond with JSON:
             # v28.6: 전체 데이터 사용 (캐시 재사용으로 CSV 중복 읽기 없음)
             if sample_data:
                 # v28.15: pandas nullable dtype 안전 처리 (JSON round-trip)
-                import json
                 safe_data = json.loads(json.dumps(sample_data, default=str))
 
                 raw_insights = insights_analyzer.analyze(

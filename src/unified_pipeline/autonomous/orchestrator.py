@@ -9,6 +9,7 @@ Agent Orchestrator
 """
 
 import asyncio
+import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -812,7 +813,6 @@ class AgentOrchestrator:
             if tables and data:
                 try:
                     from .analysis.unified_insight_pipeline import UnifiedInsightPipeline
-                    import json
 
                     # v28.15: pandas nullable dtype 안전 처리 (JSON round-trip)
                     safe_data = json.loads(json.dumps(data, default=str))
