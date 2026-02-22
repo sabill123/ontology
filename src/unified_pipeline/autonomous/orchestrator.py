@@ -812,6 +812,10 @@ class AgentOrchestrator:
             if tables and data:
                 try:
                     from .analysis.unified_insight_pipeline import UnifiedInsightPipeline
+                    import json
+
+                    # v28.15: pandas nullable dtype 안전 처리 (JSON round-trip)
+                    safe_data = json.loads(json.dumps(data, default=str))
 
                     domain = ctx.get_industry() if hasattr(ctx, 'get_industry') else "general"
                     pipeline = UnifiedInsightPipeline(
@@ -829,7 +833,7 @@ class AgentOrchestrator:
 
                     result = await pipeline.run(
                         tables=tables,
-                        data=data,
+                        data=safe_data,
                         correlations=correlations[:10],
                     )
 

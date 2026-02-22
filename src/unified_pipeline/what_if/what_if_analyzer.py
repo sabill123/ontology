@@ -26,6 +26,7 @@ What-If Analyzer (v17.0)
 import logging
 import random
 import copy
+import json
 import uuid
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING
@@ -439,6 +440,21 @@ class WhatIfAnalyzer:
 
         return comparison
 
+    def _safe_deepcopy(self, data: Any) -> Any:
+        """
+        v28.15: pandas nullable dtype 안전한 deepcopy.
+
+        copy.deepcopy는 pandas nullable dtype (Int64, Float64 등)의 내부
+        fractions 구조를 복사할 수 없어서 'numerator' AttributeError 발생.
+        JSON serialize/deserialize로 Python native 타입으로 변환.
+        """
+        try:
+            # JSON round-trip으로 pandas 타입 제거 + deepcopy
+            return json.loads(json.dumps(data, default=str))
+        except (TypeError, ValueError):
+            # JSON 직렬화 실패 시 기본 deepcopy 시도
+            return copy.deepcopy(data)
+
     def _snapshot_data(self) -> Dict[str, List[Dict[str, Any]]]:
         """현재 데이터 스냅샷"""
         snapshot = {}
@@ -454,7 +470,7 @@ class WhatIfAnalyzer:
                 sample_data = table_info.get("sample_data", [])
             else:
                 sample_data = []
-            snapshot[table_name] = copy.deepcopy(sample_data)
+            snapshot[table_name] = self._safe_deepcopy(sample_data)
 
         return snapshot
 
@@ -465,7 +481,7 @@ class WhatIfAnalyzer:
         noise_factor: float = 0.05,
     ) -> Dict[str, List[Dict[str, Any]]]:
         """변경 적용 (노이즈 포함)"""
-        modified = copy.deepcopy(data)
+        modified = self._safe_deepcopy(data)
 
         for change in changes:
             parts = change.target.split(".")
@@ -498,7 +514,7 @@ class WhatIfAnalyzer:
         changes: List[Change],
     ) -> Dict[str, List[Dict[str, Any]]]:
         """인과 그래프 기반 변경 전파"""
-        propagated = copy.deepcopy(data)
+        propagated = self._safe_deepcopy(data)
 
         # 변경된 테이블 식별
         changed_tables = set()

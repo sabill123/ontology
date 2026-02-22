@@ -559,9 +559,13 @@ Respond with JSON:
 
             # v28.6: 전체 데이터 사용 (캐시 재사용으로 CSV 중복 읽기 없음)
             if sample_data:
+                # v28.15: pandas nullable dtype 안전 처리 (JSON round-trip)
+                import json
+                safe_data = json.loads(json.dumps(sample_data, default=str))
+
                 raw_insights = insights_analyzer.analyze(
                     tables=tables_for_insights,
-                    data=sample_data,
+                    data=safe_data,
                     column_semantics=column_semantics,  # v14.0: LLM 분석 결과 전달
                 )
                 # 직렬화 가능한 형태로 변환
