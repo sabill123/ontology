@@ -294,7 +294,7 @@ class OntologyPlatform:
                 tables_processed=len(context.tables),
                 entities_found=len([c for c in context.ontology_concepts if c.concept_type == "object_type"]) or len(context.unified_entities),
                 relationships_found=len([c for c in context.ontology_concepts if c.concept_type == "link_type"]) or len(context.concept_relationships or []),
-                insights_generated=len(context.business_insights or []),
+                insights_generated=len(context.unified_insights_pipeline or []),
                 governance_actions=len(context.governance_decisions or []),
                 context=context.to_dict() if self.config.save_intermediate else None,
                 execution_time_seconds=execution_time,

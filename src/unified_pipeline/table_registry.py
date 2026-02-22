@@ -58,6 +58,50 @@ class TableRegistry:
     def set_data_directory(self, path: str) -> None:
         self.data_directory = path
 
+    def get_full_dataframe(self, table_name: str):
+        """
+        v28.15: Return full DataFrame for *table_name* (used by get_analysis_data).
+
+        Priority:
+        1) source CSV on disk
+        2) data_directory / <table>.csv
+        3) Convert sample_data to DataFrame
+
+        Returns DataFrame (not dict records).
+        """
+        import os
+        import pandas as pd
+
+        table_info = self.tables.get(table_name)
+        if not table_info:
+            return None
+
+        # 1st: source path CSV
+        source_path = getattr(table_info, "source", None) or ""
+        if source_path and os.path.exists(source_path) and source_path.endswith(".csv"):
+            try:
+                df = pd.read_csv(source_path)
+                return self._remove_nullable_dtypes(df)
+            except Exception:
+                pass
+
+        # 2nd: data_directory + table_name.csv
+        if self.data_directory:
+            for suffix in [".csv", "_utf8.csv"]:
+                path = os.path.join(self.data_directory, f"{table_name}{suffix}")
+                if os.path.exists(path):
+                    try:
+                        df = pd.read_csv(path)
+                        return self._remove_nullable_dtypes(df)
+                    except Exception:
+                        pass
+
+        # 3rd: Convert sample_data to DataFrame
+        if table_info.sample_data:
+            return pd.DataFrame(table_info.sample_data)
+
+        return None
+
     def get_full_data(self, table_name: str) -> List[Dict[str, Any]]:
         """
         v22.1: Return full (un-sampled) data for *table_name*.
